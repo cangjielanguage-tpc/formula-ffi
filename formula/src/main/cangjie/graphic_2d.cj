@@ -1,14 +1,15 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
-
 package formula
 
-public enum ColorFormat {
-    | COLOR_FORMAT_RGB_565 | COLOR_FORMAT_BGRA_8888
-}
 let RGB_565: Int32 = 2
 let BGRA_8888: Int32 = 5
+
+public enum ColorFormat {
+    | COLOR_FORMAT_RGB_565
+    | COLOR_FORMAT_BGRA_8888
+}
 
 public class Graphic2D {
     var g2: CPointer<UInt8>
