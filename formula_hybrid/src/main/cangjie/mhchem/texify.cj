@@ -170,7 +170,12 @@ class Texify {
                 case "state of aggregation subscript" =>
                 // 对标res = "\\mskip1mu " + _goInner(p1Arr)
                 res = "\\hspace{1mu}" + _goInner(p1Arr)
-                case "bond" => res = getBond(kind_)
+                case "bond" =>
+                res = getBond(kind_)
+                if (res == "") {
+                    println("[Texify-_go2] mhchem Error. Unknown bond type (${kind_})")
+		    return res
+                }
                 case "frac" =>
                     var c = "\\frac{" + p1 + "}{" + p2 + "}"
                       // 对标res = "\\mathchoice{\\textstyle" + c + "}{" + c + "}{" + c + "}{" + c + "}"
@@ -225,19 +230,26 @@ class Texify {
                 case "space" => res = " "
                 case "entitySkip" => res = "~"
                 case "pu-space-1" => res = "~"
-                case "pu-space-2" => res = "\\mkern3mu "
-                case "1000 separator" => res = "\\mkern2mu "
+                // 对标res = "\\mkern3mu "
+                case "pu-space-2" => res = "\\hspace{3mu} "
+                // 对标res = "\\mkern2mu "
+                case "1000 separator" => res = "\\hspace{2mu} "
                 case "commaDecimal" => res = "{,}"
-                case "comma enumeration L" => res = "{" + p1 + "}\\mkern6mu "
-                case "comma enumeration M" => res = "{" + p1 + "}\\mkern3mu "
-                case "comma enumeration S" => res = "{" + p1 + "}\\mkern1mu "
+                // 对标res = "{" + p1 + "}\\mkern6mu "
+                case "comma enumeration L" => res = "{" + p1 + "}\\hspace{6mu} "
+                // 对标res = "{" + p1 + "}\\mkern3mu "
+                case "comma enumeration M" => res = "{" + p1 + "}\\hspace{3mu} "
+                // 对标res = "{" + p1 + "}\\mkern1mu "
+                case "comma enumeration S" => res = "{" + p1 + "}\\hspace{1mu} "
                 case "hyphen" => res = "\\text{-}"
                 case "addition compound" => res = "\\,{\\cdot}\\,"
-                case "electron dot" => res = "\\mkern1mu \\bullet\\mkern1mu "
+                // 对标res = "\\mkern1mu \\bullet\\mkern1mu "
+                case "electron dot" => res = "\\hspace{1mu} \\bullet\\hspace{1mu} "
                 case "KV x" => res = "{\\times}"
                 case "prime" => res = "\\prime "
                 case "cdot" => res = "\\cdot "
-                case "tight cdot" => res = "\\mkern1mu{\\cdot}\\mkern1mu "
+                // 对标"\\mkern1mu{\\cdot}\\mkern1mu "
+                case "tight cdot" => res = "\\hspace{1mu}{\\cdot}\\hspace{1mu} "
                 case "times" => res = "\\times "
                 case "circa" => res = "{\\sim}"
                 case "^" => res = "uparrow"
@@ -245,7 +257,7 @@ class Texify {
                 case "ellipsis" => res = "\\ldots "
                 case "/" => res = "/"
                 case " / " => res = "\\,/\\,"
-                case _ => ()
+                case _ => println("[Texify-_go2] mhchem bug T. Please report.") // Missing texify rule or unknown MhchemParser output
             }
         }
 
@@ -344,7 +356,9 @@ class Texify {
             case "\u{21CC}" => return "rightleftharpoons"
             case "<=>>" => return "Rightleftharpoons"
             case "<<=>" => return "Leftrightharpoons"
-            case _ => return ""
+            case _ =>
+            println("[Texify-getArrow] mhchem bug T. Please report.")
+            return ""
         }
     }
 
@@ -373,7 +387,9 @@ class Texify {
             case "<-" => return "{\\leftarrow}"
             case "<" => return "{<}"
             case ">" => return "{>}"
-            case _ => return ""
+            case _ =>
+            println("[Texify-getBond] mhchem bug T. Please report.")
+            return ""
         }
     }
 
@@ -399,7 +415,9 @@ class Texify {
             case "(v)" => return " \\downarrow{} "
             case "^" => return " \\uparrow{} "
             case "(^)" => return " \\uparrow{} "
-            case _ => return ""
+            case _ =>
+            println("[Texify-getOperator] mhchem bug T. Please report.")
+            return ""
         }
     }
 }

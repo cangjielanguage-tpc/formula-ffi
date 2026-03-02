@@ -4,8 +4,8 @@ project(latex)
 include(CheckCXXCompilerFlag)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -w")
 
-include(cmake/clone-repo.cmake)
-clone_repo(https://gitcode.com/Cangjie-TPC/formula-ffi.git microtex-v0.0.1-fix)
+#include(cmake/clone-repo.cmake)
+#clone_repo(https://gitcode.com/Cangjie-TPC/formula-ffi.git microtex-v0.0.1-fix)
 
 # copy res dir
 

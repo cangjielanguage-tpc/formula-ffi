@@ -18,7 +18,7 @@ public class LaTeX {
     public func parse(ltx: String, width: Int32, textSize: Float32, lineSpace: Float32, foreground: UInt32): Render {
         unsafe {
             var processedLtx = ltx
-            if (ltx.contains("\\ce{")) {
+            if (ltx.contains("\\ce{") || ltx.contains("\\pu{")) {
                 processedLtx = Mhchem().process(ltx)
             }
             var cstr = LibC.mallocCString(processedLtx)

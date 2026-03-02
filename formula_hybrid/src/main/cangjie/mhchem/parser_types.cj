@@ -85,10 +85,10 @@ class Buffer {
     var rm: String = ""
 
     // 箭头上标类型（如 'kv'、'oxidation'）
-    var dType: String = ""
+    var dType: Option<String> = Option<String>.None
 
     // 当前括号嵌套层级
-    var parenthesisLevel: UInt32 = 0
+    var parenthesisLevel: Int32 = 0
 
     // 前一个 token 前是否有空格
     var sb: Bool = false
@@ -100,12 +100,12 @@ class Buffer {
      * 清空所有缓存字段（包括括号层级和键合状态）
      */
     func clearAll() {
-        a = ""
-        o = ""
-        b = ""
-        p = ""
-        q = ""
-        d = ""
+        a = Option<String>.None
+        o = Option<String>.None
+        b = Option<String>.None
+        p = Option<String>.None
+        q = Option<String>.None
+        d = Option<String>.None
         r = ""
         rdt = ""
         rd = ""
@@ -113,7 +113,7 @@ class Buffer {
         rq = ""
         text_ = ""
         rm = ""
-        dType = ""
+        dType = Option<String>.None
         sb = false
         parenthesisLevel = 0
         beginsWithBond = false
@@ -124,12 +124,12 @@ class Buffer {
      * 保留括号层级parenthesisLevel 和 beginsWithBond 状态
      */
     func clear() {
-        a = ""
-        o = ""
-        b = ""
-        p = ""
-        q = ""
-        d = ""
+        a = Option<String>.None
+        o = Option<String>.None
+        b = Option<String>.None
+        p = Option<String>.None
+        q = Option<String>.None
+        d = Option<String>.None
         r = ""
         rdt = ""
         rd = ""
@@ -137,7 +137,7 @@ class Buffer {
         rq = ""
         text_ = ""
         rm = ""
-        dType = ""
+        dType = Option<String>.None
         sb = false
     }
 }

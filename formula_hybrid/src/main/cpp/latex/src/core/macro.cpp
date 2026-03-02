@@ -129,12 +129,12 @@ void NewCommandMacro::_free_() {
 void MacroInfo::addMacro(const wstring& name, MacroInfo* mac) {
     auto it = _commands.find(name);
     if (it != _commands.end()) {
-        // 1. ÊÍ·ÅÔ­Ö¸ÕëÄÚ´æ
+        // 1. é‡Šæ”¾åŽŸæŒ‡é’ˆå†…å­˜
         delete it->second;
-        // 2. ´ÓÈÝÆ÷ÖÐÒÆ³ýÎÞÐ§ÌõÄ¿£¨±ÜÃâºóÐø·ÃÎÊÒÑÊÍ·ÅÖ¸Õë£©
+        // 2. ä»Žå®¹å™¨ä¸­ç§»é™¤æ— æ•ˆæ¡ç›®ï¼ˆé¿å…åŽç»­è®¿é—®å·²é‡Šæ”¾æŒ‡é’ˆï¼‰
         _commands.erase(it);
     }
-    // 3. ²åÈëÐÂÖ¸Õë
+    // 3. æ’å…¥æ–°æŒ‡é’ˆ
     _commands[name] = mac;
 }
 

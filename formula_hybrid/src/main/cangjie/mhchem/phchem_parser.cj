@@ -64,6 +64,9 @@ class MhchemParser {
                         } else if (mhchemParserActionsHasType(task.action_[iA].type_)) {
                             o = mhchemParserActions(task.action_[iA].type_, buffer, mList: matches.match_,
                                 option: task.action_[iA])
+                        } else {
+                            // Trying to use non-existing action
+                            println("[MhchemParser-go] mhchem bug A. Please report. ${task.action_[iA].type_}")
                         }
                         concatArray(output, o)
                     }
@@ -133,7 +136,7 @@ class MhchemParser {
                     var ret: Option<ParserValue>
                     if (Regex("^[0-9]+$").matches(buffer.d.getOrDefault({=> ""}))) {
                         var tmp = buffer.d
-                        buffer.d = ""
+                        buffer.d = Option<String>.None
                         ret = machineActions("ce", "output", buffer: buffer)
                         buffer.b = tmp
                     } else {
@@ -170,8 +173,8 @@ class MhchemParser {
 
                     var hyphenFollows = m == "-" && ((c1.isSome() && c1remainder == "") || c2.isSome() || c3.isSome() ||
                         c4.isSome())
-                    if (hyphenFollows && buffer.a == "" && buffer.b == "" && buffer.p == "" && buffer.d == "" &&
-                        buffer.q == "" && !c1.isSome() && c3.isSome()) {
+                    if (hyphenFollows && buffer.a.isNone() && buffer.b.isNone() && buffer.p.isNone() && buffer.d.isNone() &&
+                        buffer.q.isNone() && !c1.isSome() && c3.isSome()) {
                         buffer.o = '$' + buffer.o.getOrDefault({=> ""}) + '$'
                     }
 
@@ -201,7 +204,7 @@ class MhchemParser {
 
                 case 'a to o' =>
                     buffer.o = buffer.a
-                    buffer.a = ""
+                    buffer.a = Option<String>.None
 
                 case 'sb=true' => buffer.sb = true
 
@@ -248,32 +251,32 @@ class MhchemParser {
                     }
                     var ret = PVList()
                     if (buffer.r == "") {
-                        if (buffer.a.isNone() && buffer.b.isNone() && buffer.p.isNone() && buffer.o.isNone() && 
+                        if (buffer.a.isNone() && buffer.b.isNone() && buffer.p.isNone() && buffer.o.isNone() &&
                             buffer.q.isNone() && buffer.d.isNone() && entityFollows.isNone()) {
                             ret = PVList()
                         } else {
-                            var pList: PVList = PVList()
                             if (buffer.sb) {
-                                pList.add(PVObject("entitySkip"))
+                                var entitySkipObj: PVObject = PVObject("entitySkip")
+                                ret.add(entitySkipObj)
                             }
-                            if (buffer.o == "" && buffer.q == "" && buffer.d == "" && buffer.b == "" && buffer.p == "" &&
+                            if (buffer.o.isNone() && buffer.q.isNone() && buffer.d.isNone() && buffer.b.isNone() && buffer.p.isNone() &&
                                 entityFollows != 2) {
                                 buffer.o = buffer.a
-                                buffer.a = ""
-                            } else if (buffer.o == "" && buffer.q == "" && buffer.d == "" && (buffer.b != "" ||
-                                buffer.p != "")) {
+                                buffer.a = Option<String>.None
+                            } else if (buffer.o.isNone() && buffer.q.isNone() && buffer.d.isNone() && (buffer.b.isSome() ||
+                                buffer.p.isSome())) {
                                 buffer.o = buffer.a
                                 buffer.d = buffer.b
                                 buffer.q = buffer.p
-                                buffer.a = ""
-                                buffer.b = ""
-                                buffer.p = ""
+                                buffer.a = Option<String>.None
+                                buffer.b = Option<String>.None
+                                buffer.p = Option<String>.None
                             } else {
-                                if (buffer.o != "" && buffer.dType == 'kv' &&
+                                if (buffer.o.isSome() && buffer.dType == 'kv' &&
                                     match_('d-oxidation$', buffer.d.getOrDefault({=> ""})).isSome()) {
                                     buffer.dType = 'oxidation'
-                                } else if (buffer.o != "" && buffer.dType == 'kv' && buffer.q == "") {
-                                    buffer.dType = ""
+                                } else if (buffer.o.isSome() && buffer.dType == 'kv' && buffer.q.isNone()) {
+                                    buffer.dType = Option<String>.None
                                 }
                             }
 
@@ -291,7 +294,7 @@ class MhchemParser {
                             chemfiveObj.put("o", PVList(go(buffer.o.getOrDefault({=> ""}), stateMachine: "o")))
                             chemfiveObj.put("q", PVList(go(buffer.q.getOrDefault({=> ""}), stateMachine: "pq")))
                             chemfiveObj.put("d", PVList(go(buffer.d.getOrDefault({=> ""}), stateMachine: d)))
-                            chemfiveObj.put("dType", PVString(buffer.dType))
+                            chemfiveObj.put("dType", PVString(buffer.dType.getOrDefault({=> ""})))
                             ret.add(chemfiveObj)
                         }
                     } else {
@@ -406,7 +409,7 @@ class MhchemParser {
         } else if (stateMachine == "tex-math") {
             match (type_) {
                 case 'output' =>
-                    if (buffer.o != "") {
+                    if (buffer.o.isSome()) {
                         let ret = PVObject("tex-math").put("p1", PVString(buffer.o.getOrDefault({=> ""})))
                         buffer.clearAll()
                         return ret
@@ -417,7 +420,7 @@ class MhchemParser {
             match (type_) {
                 case 'tight operator' => buffer.o = buffer.o.getOrDefault({=> ""}) + "{" + m + "}"
                 case 'output' =>
-                    if (buffer.o != "") {
+                    if (buffer.o.isSome()) {
                         let ret = PVObject("tex-math").put("p1", PVString(buffer.o.getOrDefault({=> ""})))
                         buffer.clearAll()
                         return ret
@@ -437,9 +440,11 @@ class MhchemParser {
                     var m5: String = ""
                     if (mList.size > 3 && let Some(v) <- mList.get(3)) {
                         m3 = v
-                    } else if (mList.size > 4 && let Some(v) <- mList.get(4)) {
+                    }
+                    if (mList.size > 4 && let Some(v) <- mList.get(4)) {
                         m4 = v
-                    } else if (mList.size > 5 && let Some(v) <- mList.get(5)) {
+                    }
+                    if (mList.size > 5 && let Some(v) <- mList.get(5)) {
                         m5 = v
                     }
 
@@ -525,11 +530,11 @@ class MhchemParser {
                             }
                         }
                     }
-                    if (buffer.d != "") {
+                    if (buffer.d.isSome()) {
                         buffer.d = Regex("\u{00B0}C|\\^oC|\\^{o}C").replaceAll(buffer.d.getOrDefault({=> ""}), "{}^{\\circ}C")
                         buffer.d = Regex("\u{00B0}F|\\^oF|\\^{o}F").replaceAll(buffer.d.getOrDefault({=> ""}), "{}^{\\circ}F")
                     }
-                    if (buffer.q != "") {
+                    if (buffer.q.isSome()) {
                         buffer.q = Regex("\u{00B0}C|\\^oC|\\^{o}C").replaceAll(buffer.q.getOrDefault({=> ""}), "{}^{\\circ}C")
                         buffer.q = Regex("\u{00B0}F|\\^oF|\\^{o}F").replaceAll(buffer.q.getOrDefault({=> ""}), "{}^{\\circ}F")
                         var d = go(buffer.d.getOrDefault({=> ""}), stateMachine: 'pu')
@@ -757,6 +762,10 @@ class MhchemParser {
      */
     private func match_(pattern: String, input: String): Option<Match> {
         var value = ""
+        if (pattern == "") {
+            println("[MhchemParser-match_] mhchem bug P. Please report")
+            return Option<Match>.None
+        }
         match (pattern) {
             case 'empty' => value = "^$"
             case 'else' => value = "^."
@@ -782,7 +791,7 @@ class MhchemParser {
             case ', ' => value = "^[,;]\\s*"
             case ',' => value = "^[,;]"
             case '.' => value = "^[.]"
-            case '. ' => value = "^([.\u{22C5}\u{00B7}\u{2022}])\\s*"
+            case '. ' => value = "^(\\.|⋅|·|•)\\s*" // 对标/^([.\u22C5\u00B7\u2022])\s*/
             case '...' => value = "^\\.\\.\\.(?=$|[^.])"
             case '* ' => value = "^([*])\\s*"
             case '^a' => value = "^\\^([0-9]+|[^\\\\_])"
@@ -794,7 +803,7 @@ class MhchemParser {
             case '^_' => value = "^(?:\\^(?=_)|\\_(?=\\^)|[\\^_]$)"
             case '{}' => value = "^\\{\\}"
             case '=<>' => value = "^[=<>]"
-            case '#' => value = "^[#\u{2261}]"
+            case '#' => value = "^(#|≡)" // 对标/^[#\u2261]/
             case '+' => value = "^\\+"
             case '-$' => value = "^-(?=[\\s_},;\\]/]|$|\\([a-z]+\\))" // -space -, -; -] -/ -$ -state-of-aggregation
             case '-9' => value = "^-(?=[0-9])"
@@ -803,7 +812,7 @@ class MhchemParser {
             case 'pm-operator' => value = "^(?:\\\\pm|\\$\\\\pm\\$|\\+-|\\+\\/\\-)"
             case 'operator' => value = "^(?:\\+|(?:[\\-=<>]|<<|>>|\\\\approx|\\$\\\\approx\\$)(?=\\s|$|-?[0-9]))"
             case 'arrowUpDown' => value = "^(?:v|\\(v\\)|\\^|\\(\\^\\))(?=$|[\\s,;\\)\\]\\}])"
-            case '->' => value = "^(?:<->|<-->|->|<-|<=>>|<<=>|<=>|[\u{2192}\u{27F6}\u{21CC}])"
+            case '->' => value = "^(?:<->|<-->|->|<-|<=>>|<<=>|<=>|→|⟶|⇌)" // |→|⟶|⇌ 对应|[\u{2192}\u{27F6}\u{21CC}]
             case 'CMT' => value = "^[CMT](?=\\[)"
             case '1st-level escape' => value = "^(&|\\\\\\\\|\\\\hline)\\s*"
             case '\\,' => value = "^(?:\\\\[,\\ ;:])" // \\x - but output no space before
@@ -823,7 +832,7 @@ class MhchemParser {
             case _ => return patternsFunc(pattern, input) // 如果是方法
         }
 
-        var r = Regex(value)
+        var r = Regex(value, [RegexFlag.Unicode])
         var match_: ArrayList<String> = ArrayList<String>()
 
         match (r.find(input, group: true)) {
@@ -836,10 +845,7 @@ class MhchemParser {
                 if (p0.start < 0 || p0.end < 0) {
                     return Option<Match>.None
                 }
-
-                // 完整匹配字符串
-                var fullMatch = String(runes[p0.start..p0.end])
-
+                var remaining = String.empty
                 var groupCount = md.groupCount()
                 if (groupCount == 1) {
                     var p1 = md.matchPosition(1)
@@ -849,8 +855,11 @@ class MhchemParser {
                     } else {
                         match_.add(String.empty)
                     }
+                    if (p0.end < runes.size) {
+                        remaining = String(runes[p0.end..runes.size])
+                    }
                 } else if (groupCount > 1) {
-                    for (i in 1..groupCount) {
+                    for (i in 1..groupCount + 1) {
                         var pi = md.matchPosition(i)
                         if (pi.start >= 0 && pi.end >= 0) {
                             match_.add(String(runes[pi.start..pi.end]))
@@ -858,21 +867,63 @@ class MhchemParser {
                             match_.add(String.empty)
                         }
                     }
+                    if (p0.end < runes.size) {
+                        remaining = String(runes[p0.end..runes.size])
+                    }
                 } else {
-                    match_.add(fullMatch)
+                    match (byteRangeToRuneRange(input, p0.start, p0.end)) {
+                        case Some(fullRange) =>
+                            var fullMatch = String(runes[fullRange.start..fullRange.end])
+                            match_.add(fullMatch)
+                            remaining = String(runes[fullRange.end..runes.size])
+                        case None => match_.add(String.empty)
+                    }
                 }
-
-                // 剩余字符串
-                var remaining = if (p0.end < runes.size) {
-                    String(runes[p0.end..runes.size])
-                } else {
-                    String.empty
-                }
-
                 return Match(match_, remaining)
 
             case None => return Option<Match>.None
         }
+    }
+
+    func byteRangeToRuneRange(input: String, byteStart: Int64, byteEnd: Int64): Option<RuneRange> {
+        if (input.isEmpty() || byteStart < 0 || byteEnd < byteStart) {
+            return Option<RuneRange>.None
+        }
+
+        var runes = input.toRuneArray()
+        var currentByteIndex: Int64 = 0
+        var runeStart: Int64 = -1
+        var runeEnd: Int64 = -1
+
+        for (i in 0..runes.size) {
+            var r = runes[i]
+            var byteLen = Rune.utf8Size(r)
+            var nextByteIndex = currentByteIndex + byteLen
+
+            if (runeStart == -1 && byteStart >= currentByteIndex && byteStart < nextByteIndex) {
+                runeStart = i
+            }
+
+            if (byteEnd <= nextByteIndex) {
+                runeEnd = i + 1
+                break
+            }
+
+            currentByteIndex = nextByteIndex
+        }
+
+        if (runeEnd == -1) {
+            runeEnd = runes.size
+        }
+
+        if (runeStart == -1) {
+            return Option<RuneRange>.None
+        }
+
+        var range = RuneRange()
+        range.start = runeStart
+        range.end = runeEnd
+        return Option.Some(range)
     }
 
     /**
@@ -888,20 +939,18 @@ class MhchemParser {
         var remainder: String = ""
         match (pattern) {
             case '(-)(9.,9)(e)(99)' =>
-                let r = Regex(
-                    "^(\\+\\-|\\+\\/\\-|\\+|\\-|\\\\pm\\s?)?([0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+))?(\\((?:[0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+))\\))?(?:(?:([eE])|\\s*(\\*|x|\\\\times|×)\\s*10\\^)([+\\-]?[0-9]+|\\{[+\\-]?[0-9]+\\}))?")
+                var remainder = input
+                let r = Regex("^(\\+\\-|\\+\\/\\-|\\+|\\-|\\\\pm\\s?)?([0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+))?(\\((?:[0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+))\\))?(?:(?:([eE])|\\s*(\\*|x|\\\\times|\u{00D7})\\s*10\\^)([+\\-]?[0-9]+|\\{[+\\-]?[0-9]+\\}))?")
                 match (r.find(input, group: true)) {
                     case Some(md) =>
                         // 捕获组索引从 1 开始
-                        for (i in 1..md.groupCount()) {
+                        for (i in 1..md.groupCount() + 1) {
                             match_.add(md.matchString(i))
                         }
-
                         // 安全处理 remainder，按 rune 切片
                         let runes = input.toRuneArray()
                         let matchRunes = md.matchString().toRuneArray()
                         remainder = String(runes[matchRunes.size..runes.size])
-
                         return Match(match_, remainder)
                     case None => return Option<Match>.None
                 }
@@ -910,11 +959,9 @@ class MhchemParser {
                     "^(\\+\\-|\\+\\/\\-|\\+|\\-|\\pm\\s?)?([0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+)?)\\^([+\\-]?[0-9]+|\\{[+\\-]?[0-9]+\\})")
                 match (r.find(input, group: true)) {
                     case Some(md) =>
-                        // 捕获组索引从 1 开始
-                        for (i in 1..md.groupCount()) {
+                        for (i in 1..md.groupCount() + 1) {
                             match_.add(md.matchString(i))
                         }
-
                         let runes = input.toRuneArray()
                         let matchRunes = md.matchString().toRuneArray()
                         remainder = String(runes[matchRunes.size..runes.size])
@@ -961,7 +1008,7 @@ class MhchemParser {
             case '[(...)]' => return findObserveGroups(input, "[", "", false, "", "]", false)
             case '\\x{}{}' => return findObserveGroups(input, "", "^\\[a-zA-Z]+\\{", true, "}", "", false, beg2Excl: "",
                 beg2Incl: "{", end2Incl: "}", end2Excl: "", combine: true)
-            case '\\x{}' => return findObserveGroups(input, "", "^\\[a-zA-Z]+\\{", true, "}", "", false)
+            case '\\x{}' => return findObserveGroups(input, "", "^\\\\[a-zA-Z]+\\{", true, "}", "", false)
             case '\\frac{(...)}' => return findObserveGroups(input, "\\frac{", "", false, "", "}", false, beg2Excl: "{",
                 beg2Incl: "", end2Incl: "", end2Excl: "}")
             case '\\overset{(...)}' => return findObserveGroups(input, "\\overset{", "", false, "", "}", false,
@@ -1447,4 +1494,9 @@ class MhchemParser {
             }
         }
     }
+}
+
+struct RuneRange {
+    var start: Int64 = 0
+    var end: Int64 = 0
 }

@@ -304,9 +304,9 @@ sptr<Box> Glue::createBox(const TeXEnvironment& env) const {
 int Glue::getGlueIndex(int ltype, int rtype, const TeXEnvironment& env) {
     // 1. 严格校验输入类型的合法性，避免l/r超出_table前两维范围
     const int MAX_TYPE = TYPE_INNER; // 假设TYPE_INNER是_table前两维的最大合法索引
-    int l = (ltype > MAX_TYPE || ltype < 0) ? TYPE_ORDINARY :
+    int l = (ltype > MAX_TYPE || ltype < 0) ? TYPE_ORDINARY : 
             (ltype > TYPE_INNER ? TYPE_ORDINARY : ltype);
-    int r = (rtype > MAX_TYPE || rtype < 0) ? TYPE_ORDINARY :
+    int r = (rtype > MAX_TYPE || rtype < 0) ? TYPE_ORDINARY : 
             (rtype > TYPE_INNER ? TYPE_ORDINARY : rtype);
 
     // 2. 校验样式索引的合法性，避免第三维越界
