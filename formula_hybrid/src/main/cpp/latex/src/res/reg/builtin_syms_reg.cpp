@@ -7,5 +7,6 @@ REG_SYMBOLS(amssymb)
 REG_SYMBOLS(amsfonts)
 REG_SYMBOLS(stmaryrd)
 REG_SYMBOLS(special)
+REG_SYMBOLS(mhchem)
 
 END_DEF_SYMBOLS_SET

@@ -129,9 +129,12 @@ void NewCommandMacro::_free_() {
 void MacroInfo::addMacro(const wstring& name, MacroInfo* mac) {
     auto it = _commands.find(name);
     if (it != _commands.end()) {
+        // 1. 释放原指针内存
         delete it->second;
-        it->second = nullptr;
+        // 2. 从容器中移除无效条目（避免后续访问已释放指针）
+        _commands.erase(it);
     }
+    // 3. 插入新指针
     _commands[name] = mac;
 }
 

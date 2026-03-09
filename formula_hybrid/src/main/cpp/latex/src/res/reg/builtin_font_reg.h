@@ -43,6 +43,7 @@ DECL_FONT_REG(bi10);
 DECL_FONT_REG(sbi10);
 DECL_FONT_REG(sb10);
 DECL_FONT_REG(tt10);
+DECL_FONT_REG(mhchem);
 
 namespace tex {
 

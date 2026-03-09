@@ -10,6 +10,7 @@ DECL_SYMBOLS_REG(amssymb);
 DECL_SYMBOLS_REG(amsfonts);
 DECL_SYMBOLS_REG(stmaryrd);
 DECL_SYMBOLS_REG(special);
+DECL_SYMBOLS_REG(mhchem);
 
 namespace tex {
 

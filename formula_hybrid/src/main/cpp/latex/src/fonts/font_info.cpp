@@ -104,16 +104,42 @@ void FontInfo::setExtension(wchar_t ch, _in_ int* ext) {
     }
 }
 
-void FontInfo::setMetrics(wchar_t c, _in_ float* arr) {
+void FontInfo::setMetrics(wchar_t c, float* arr) {
+    wchar_t slot = 0;
     if (_unicodeCount == 0) {
-        _metrics[c] = arr;
-    } else if (_unicode.find(c) == _unicode.end()) {
-        wchar_t s = (wchar_t)_unicode.size();
-        _unicode[c] = s;
-        _metrics[s] = arr;
+        if (c < NUMBER_OF_CHAR_CODES) {
+            slot = c;
+        } else {
+            auto it = _unicode.find(c);
+            if (it == _unicode.end()) {
+                slot = (wchar_t)_unicode.size();
+                _unicode[c] = slot;
+            } else {
+                slot = it->second;
+            }
+        }
     } else {
-        _metrics[_unicode[c]] = arr;
+        auto it = _unicode.find(c);
+        if (it == _unicode.end()) {
+            slot = (wchar_t)_unicode.size();
+            _unicode[c] = slot;
+        } else {
+            slot = it->second;
+        }
     }
+
+    // 确保 _metrics 数组足够大
+    if (slot >= _charCount) {
+        int oldCount = _charCount;
+        _charCount = slot + 1;
+        float** tmp = new float*[_charCount]();
+        for (int i = 0; i < oldCount; i++) tmp[i] = _metrics[i];
+        delete[] _metrics;
+        _metrics = tmp;
+    }
+
+    _metrics[slot] = arr;
+
 }
 
 void FontInfo::setNextLarger(wchar_t c, wchar_t larger, int fontLarger) {
@@ -149,8 +175,32 @@ float FontInfo::getkern(wchar_t left, wchar_t right, float factor) {
 }
 
 const float* FontInfo::getMetrics(wchar_t c) {
-    if (_unicodeCount == 0) return _metrics[c];
-    return _metrics[_unicode[c]];
+    wchar_t slot = 0;
+    if (_unicodeCount == 0) {
+        if (c < NUMBER_OF_CHAR_CODES) {
+            slot = c;
+        } else {
+            auto it = _unicode.find(c);
+            if (it == _unicode.end()) {
+                static const float fallback[4] = {1,0,0,0};
+                return fallback;
+            }
+            slot = it->second;
+        }
+    } else {
+        auto it = _unicode.find(c);
+        if (it == _unicode.end()) {
+            static float fallback[4] = {1,0,0,0};
+            return fallback;
+        }
+        slot = it->second;
+    }
+
+    if (slot >= _charCount || _metrics[slot] == nullptr) {
+        static float fallback[4] = {1,0,0,0};
+        return fallback;
+    }
+    return _metrics[slot];
 }
 
 const CharFont* FontInfo::getNextLarger(wchar_t c) {

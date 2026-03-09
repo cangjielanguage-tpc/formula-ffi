@@ -1,7 +1,3 @@
-/*
- * Copyright (c) Huawei Technologies Co., Ltd. 2024-2026. All rights reserved.
- */
-
 #include "config.h"
 
 #if defined(__OS_ohos__) && !defined(MEM_CHECK)

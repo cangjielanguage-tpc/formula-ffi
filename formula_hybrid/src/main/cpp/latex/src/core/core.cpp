@@ -302,10 +302,27 @@ sptr<Box> Glue::createBox(const TeXEnvironment& env) const {
 }
 
 int Glue::getGlueIndex(int ltype, int rtype, const TeXEnvironment& env) {
-    // types > INNER are considered of type ORD for glue calculations
-    int l = (ltype > TYPE_INNER ? TYPE_ORDINARY : ltype);
-    int r = (rtype > TYPE_INNER ? TYPE_ORDINARY : rtype);
-    return _table[l][r][env.getStyle() / 2] - '0';
+    // 1. 严格校验输入类型的合法性，避免l/r超出_table前两维范围
+    const int MAX_TYPE = TYPE_INNER; // 假设TYPE_INNER是_table前两维的最大合法索引
+    int l = (ltype > MAX_TYPE || ltype < 0) ? TYPE_ORDINARY : 
+            (ltype > TYPE_INNER ? TYPE_ORDINARY : ltype);
+    int r = (rtype > MAX_TYPE || rtype < 0) ? TYPE_ORDINARY : 
+            (rtype > TYPE_INNER ? TYPE_ORDINARY : rtype);
+
+    // 2. 校验样式索引的合法性，避免第三维越界
+    int styleIdx = env.getStyle() / 2;
+    const int MAX_STYLE_IDX = 3; // 根据实际_table第三维长度调整（通常为4：0-3）
+    if (styleIdx < 0 || styleIdx > MAX_STYLE_IDX) {
+        styleIdx = 0; // 回退到默认样式索引
+    }
+
+    // 3. 安全取值，避免字符转数字异常
+    char val = _table[l][r][styleIdx];
+    if (val < '0' || val > '9') {
+        return 0; // 非法值返回默认间距索引
+    }
+
+    return val - '0';
 }
 
 sptr<Box> Glue::get(int ltype, int rtype, const TeXEnvironment& env) {

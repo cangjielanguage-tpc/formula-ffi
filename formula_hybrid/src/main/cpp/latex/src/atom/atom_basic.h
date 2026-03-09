@@ -122,6 +122,7 @@ public:
     ScaleAtom() = delete;
 
     ScaleAtom(const sptr<Atom>& base, float sx, float sy) {
+        if(base == nullptr) throw ex_parse("empty atom");
         _type = base->_type;
         _base = base;
         _sx = sx;
@@ -971,11 +972,13 @@ public:
         _leftType = lt;
         _rightType = rt;
         _atom = atom;
-        _typelimits = atom->_typelimits;
+        _typelimits = (atom != nullptr) ? atom->_typelimits : 0;
     }
 
     sptr<Atom> getBase() {
-        _atom->_typelimits = _typelimits;
+        if (_atom != nullptr) {
+            _atom->_typelimits = _typelimits;
+        }
         return _atom;
     }
 

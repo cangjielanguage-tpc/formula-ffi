@@ -1,6 +1,6 @@
 {
   "name": "@cangjie-tpc/formula_hybrid",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "formula 主要目的是显示用 LaTeX 编写的数学公式。",
   "main": "Index.ets",
   "author": "cangjie-tpc",

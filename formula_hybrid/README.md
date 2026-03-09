@@ -3,16 +3,16 @@
 </div>
 
 <p align="center">
-<img alt="" src="https://img.shields.io/badge/release-v1.2.8-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/release-v1.2.9-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/build-pass-brightgreen" style="display: inline-block;" />
-<img alt="" src="https://img.shields.io/badge/cjc-v1.0.3-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/cjc-v1.0.5-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-NA-red" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/project-open-brightgreen" style="display: inline-block;" />
 </p>
 
 ## 介绍
 
-formula 主要目的是显示用 LaTeX 编写的数学公式。
+formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化学公式。
 
 ### 特性
 
@@ -76,7 +76,7 @@ ohpm install @cangjie-tpc/formula_hybrid
 
 ### 功能示例
 
-#### 解析数学公式
+#### 解析LaTeX公式
 
 ```ets
 import { LatexMathColorFormat, latexStringToImage } from '@cangjie-tpc/formula_hybrid';
@@ -130,7 +130,13 @@ struct Index0 {
 
 #### 执行结果如下
 
+数学公式效果：
+
 ![img1](https://raw.gitcode.com/Cangjie-TPC/formula-ffi/raw/formula-ffi_hybrid_cangjie-plugin_5.1.1/doc/assets/img.png)
+
+化学公式效果：
+
+![img1](https://raw.gitcode.com/Cangjie-TPC/formula-ffi/raw/formula-ffi_hybrid_cangjie-plugin_5.1.1/doc/assets/img.jpg)
 
 ## 约束与限制
 
@@ -141,7 +147,7 @@ struct Index0 {
 
 ## 开源协议
 
-本项目基于 [MIT License](https://gitcode.com/Cangjie-TPC/formula-ffi/blob/formula-ffi_hybrid_cangjie-plugin_5.1.1/LICENSE)，请自由的享受和参与开源。
+本项目基于 [License](https://gitcode.com/Cangjie-TPC/formula-ffi/blob/formula-ffi_hybrid_cangjie-plugin_5.1.1/LICENSE)，请自由的享受和参与开源。
 
 ## 参与贡献
 

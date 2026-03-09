@@ -651,6 +651,10 @@ map<string, sptr<SymbolAtom>> SymbolAtom::_symbols = {
     sym(rel, leftharpoondown),
     sym(rel, rightharpoonup),
     sym(rel, rightharpoondown),
+    sym(rel, longrightleftharpoons),
+    sym(rel, longRightleftharpoons),
+    sym(rel, longLeftrightharpoons),
+    sym(rel, longleftrightarrows),
     // specials
     sym(ord, textmu),
     sym(ord, texteuro),
