@@ -839,4 +839,8 @@ map<int, string> TeXFormula::_symbolFormulaMappings = {
     {58376, "\\longrightleftharpoons"},
     {58377, "\\longRightleftharpoons"},
     {58378, "\\longLeftrightharpoons"},
-    {58411, "\\longleftrightarrows"}};
+    {58411, "\\longleftrightarrows"},
+    {58384, "\\tripledash"},
+    {58385, "\\mhchemBondTD"},
+    {58386, "\\mhchemBondTDD"},
+    {58387, "\\mhchemBondDTD"}};
