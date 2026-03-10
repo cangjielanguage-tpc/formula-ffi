@@ -83,3 +83,31 @@ TeXRender* LaTeX::parse(const wstring& latex, int width, float textSize, float l
     }
     return render;
 }
+
+
+LaTeXParseResult LaTeX::parseWithError(const wstring& latex, int width, float textSize, float lineSpace, color fg) {
+    LaTeXParseResult result;
+    result.formula = latex;
+    
+    try {
+        TeXRender* render = parse(latex, width, textSize, lineSpace, fg);
+        result.success = true;
+        result.render = render;
+        result.errorMessage = "";
+    } catch (const ex_parse& e) {
+        result.success = false;
+        result.render = nullptr;
+        result.errorMessage = string(e.what()) + " [Formula: " + wide2utf8(latex.c_str()) + "]";
+    } catch (const exception& e) {
+        result.success = false;
+        result.render = nullptr;
+        result.errorMessage = string(e.what()) + " [Formula: " + wide2utf8(latex.c_str()) + "]";
+    } catch (...) {
+        result.success = false;
+        result.render = nullptr;
+        result.errorMessage = "Unknown error occurred while parsing formula [Formula: " + wide2utf8(latex.c_str()) + "]";
+    }
+    
+    return result;
+}
+
