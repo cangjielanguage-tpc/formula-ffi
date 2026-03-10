@@ -1,1 +1,1 @@
-export {latexStringToImage, LatexMathColorFormat} from './src/main/ets/components/MainPage'
+export {latexStringToImage, latexStringToImageWithError, LatexMathColorFormat, TeXErrorCode, TeXParseResult} from './src/main/ets/components/MainPage'
