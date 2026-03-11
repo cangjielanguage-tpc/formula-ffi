@@ -48,7 +48,7 @@ public class TeXParseException <: Exception {
     public let errorCode: TeXErrorCode
 
     public init(formula: String, errorCode: TeXErrorCode, message: String) {
-        super("LaTeX parse failed. Formula: ${formula}. ErrorCode: ${errorCode.toString()}. Error: ${message}")
+        super(message)
         this.formula = formula
         this.errorCode = errorCode
     }

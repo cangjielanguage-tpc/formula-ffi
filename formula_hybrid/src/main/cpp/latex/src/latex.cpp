@@ -166,7 +166,7 @@ static inline bool isMatrixEnv(const wstring& e) {
 
 // 构建带位置信息的错误消息
 static string buildErrorMsg(const string& msg, size_t pos, const wstring& formula) {
-    return msg + " at position " + to_string(pos) + " [Formula: " + wide2utf8(formula.c_str()) + "]";
+    return msg + " at position " + to_string(pos);
 }
 
 // 验证 \frac 命令
@@ -599,15 +599,15 @@ LaTeXParseResult LaTeX::parseWithError(const wstring& latex, int width, float te
     } catch (const ex_parse& e) {
         result.success = false;
         result.render = nullptr;
-        result.errorMessage = string(e.what()) + " [Formula: " + wide2utf8(latex.c_str()) + "]";
+        result.errorMessage = string(e.what());
     } catch (const exception& e) {
         result.success = false;
         result.render = nullptr;
-        result.errorMessage = string(e.what()) + " [Formula: " + wide2utf8(latex.c_str()) + "]";
+        result.errorMessage = string(e.what());
     } catch (...) {
         result.success = false;
         result.render = nullptr;
-        result.errorMessage = "Unknown error occurred while parsing formula [Formula: " + wide2utf8(latex.c_str()) + "]";
+        result.errorMessage = "Unknown error occurred while parsing formula";
     }
     
     return result;

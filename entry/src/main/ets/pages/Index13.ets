@@ -1,16 +1,16 @@
 import { LatexMathColorFormat, latexStringToImageWithError, TeXErrorCode, TeXParseResult } from '@cangjie-tpc/formula_hybrid';
 import { image } from '@kit.ImageKit';
 
-interface ErrorFormulaItem {
+interface FormulaItem {
   formula: string;
   description: string;
-  expectedErrorType: string;
+  category: 'normal' | 'error' | 'tolerant';
 }
 
 interface FormulaTestResult {
   formula: string;
   description: string;
-  expectedErrorType: string;
+  category: string;
   isSuccess: boolean;
   errorCode: TeXErrorCode;
   errorMessage: string;
@@ -34,128 +34,574 @@ struct Index13 {
   @State results: FormulaTestResult[] = [];
   @State currentTab: number = 0;
 
-  normalFormulas: ErrorFormulaItem[] = [
-    // 1. 分数命令 - 正常用例
-    { formula: "\\frac{a}{b}", description: "分数: 标准分数", expectedErrorType: "Success" },
-    { formula: "\\frac{x+1}{x-1}", description: "分数: 复杂表达式", expectedErrorType: "Success" },
-    { formula: "\\frac{}{b}", description: "分数: 空分子", expectedErrorType: "Success" },
-    { formula: "\\frac{a}{}", description: "分数: 空分母", expectedErrorType: "Success" },
-    { formula: "\\frac{1}{2}", description: "分数: 数字分数", expectedErrorType: "Success" },
+  formulas: FormulaItem[] = [
+    // ==================== 正常用例 (normal) ====================
+    // 基础运算 (Basic)
+    { formula: "1 + 2", description: "基础运算: 简单加法", category: "normal" },
+    { formula: "a - b", description: "基础运算: 简单减法", category: "normal" },
+    { formula: "x \\times y", description: "基础运算: 乘法", category: "normal" },
+    { formula: "a \\div b", description: "基础运算: 除法", category: "normal" },
+    { formula: "123", description: "基础运算: 纯数字", category: "normal" },
+    { formula: "3.14159", description: "基础运算: 小数", category: "normal" },
+    { formula: "-5", description: "基础运算: 负数", category: "normal" },
+    { formula: "+10", description: "基础运算: 正号", category: "normal" },
+    { formula: "a + b + c + d", description: "基础运算: 多重加法", category: "normal" },
+    { formula: "1 + 2 + 3 + 4 + 5", description: "基础运算: 长表达式", category: "normal" },
     
-    // 2. 根号命令 - 正常用例
-    { formula: "\\sqrt{x}", description: "根号: 平方根", expectedErrorType: "Success" },
-    { formula: "\\sqrt[3]{x}", description: "根号: 立方根", expectedErrorType: "Success" },
-    { formula: "\\sqrt[n]{x}", description: "根号: 变量指数", expectedErrorType: "Success" },
-    { formula: "\\sqrt{}", description: "根号: 空内容", expectedErrorType: "Success" },
-    { formula: "\\sqrt[]{x}", description: "根号: 空指数", expectedErrorType: "Success" },
+    // 分数命令 (Fraction)
+    { formula: "\\frac{1}{2}", description: "分数: 简单分数", category: "normal" },
+    { formula: "\\frac{a}{b}", description: "分数: 变量分数", category: "normal" },
+    { formula: "\\frac{1}{2} + \\frac{3}{4}", description: "分数: 分数加法", category: "normal" },
+    { formula: "\\frac{\\frac{1}{2}}{3}", description: "分数: 嵌套分数", category: "normal" },
+    { formula: "\\frac{1}{\\frac{2}{3}}", description: "分数: 分母嵌套分数", category: "normal" },
+    { formula: "\\frac{\\frac{a}{b}}{\\frac{c}{d}}", description: "分数: 双重嵌套分数", category: "normal" },
+    { formula: "\\dfrac{1}{2}", description: "分数: display分数", category: "normal" },
+    { formula: "\\tfrac{1}{2}", description: "分数: text分数", category: "normal" },
+    { formula: "\\cfrac{1}{1+\\cfrac{1}{1+\\cfrac{1}{1}}}", description: "连分数: 基本连分数", category: "normal" },
+    { formula: "\\frac{1+2}{3+4}", description: "分数: 表达式分数", category: "normal" },
+    { formula: "\\frac{x^2}{y^2}", description: "分数: 幂分数", category: "normal" },
+    { formula: "\\frac{\\sqrt{x}}{\\sqrt{y}}", description: "分数: 根号分数", category: "normal" },
+    { formula: "\\frac{}{b}", description: "分数: 空分子(标准LaTeX)", category: "normal" },
+    { formula: "\\frac{a}{}", description: "分数: 空分母(标准LaTeX)", category: "normal" },
+    { formula: "\\frac{}{}", description: "分数: 双空(标准LaTeX)", category: "normal" },
+    { formula: "\\binom{n}{k}", description: "二项式: 基本二项式", category: "normal" },
+    { formula: "{a \\over b}", description: "分数线: 旧语法", category: "normal" },
     
-    // 3. 环境匹配 - 正常用例
-    { formula: "\\begin{matrix}a\\end{matrix}", description: "环境: matrix环境", expectedErrorType: "Success" },
-    { formula: "\\begin{pmatrix}a\\end{pmatrix}", description: "环境: pmatrix环境", expectedErrorType: "Success" },
-    { formula: "\\begin{bmatrix}a\\end{bmatrix}", description: "环境: bmatrix环境", expectedErrorType: "Success" },
-    { formula: "\\begin{matrix}\\begin{matrix}a\\end{matrix}b\\end{matrix}", description: "环境: 嵌套环境", expectedErrorType: "Success" },
-    { formula: "\\begin{cases}x & y\\end{cases}", description: "环境: cases环境", expectedErrorType: "Success" },
+    // 根号命令 (Root)
+    { formula: "\\sqrt{x}", description: "根号: 简单平方根", category: "normal" },
+    { formula: "\\sqrt{2}", description: "根号: 数字平方根", category: "normal" },
+    { formula: "\\sqrt[3]{x}", description: "根号: 立方根", category: "normal" },
+    { formula: "\\sqrt[n]{x}", description: "根号: n次根", category: "normal" },
+    { formula: "\\sqrt{x^2 + y^2}", description: "根号: 根号内表达式", category: "normal" },
+    { formula: "\\sqrt{\\frac{a}{b}}", description: "根号: 根号内分数", category: "normal" },
+    { formula: "\\sqrt{\\sqrt{x}}", description: "根号: 嵌套平方根", category: "normal" },
+    { formula: "\\sqrt[3]{\\sqrt[2]{x}}", description: "根号: 混合嵌套根号", category: "normal" },
+    { formula: "\\sqrt{}", description: "根号: 空根号(标准LaTeX)", category: "normal" },
+    { formula: "\\sqrt[]{x}", description: "根号: 空索引(标准LaTeX)", category: "normal" },
     
-    // 4. left/right配对 - 正常用例
-    { formula: "\\left( x \\right)", description: "分隔符: 圆括号", expectedErrorType: "Success" },
-    { formula: "\\left[ x \\right]", description: "分隔符: 方括号", expectedErrorType: "Success" },
-    { formula: "\\left\\{ x \\right\\}", description: "分隔符: 花括号", expectedErrorType: "Success" },
-    { formula: "\\left. x \\right|", description: "分隔符: 不可见分隔符", expectedErrorType: "Success" },
-    { formula: "\\left( x \\right]", description: "分隔符: 混合括号", expectedErrorType: "Success" },
+    // 上下标 (SubSup)
+    { formula: "x_1", description: "上下标: 简单下标", category: "normal" },
+    { formula: "x^2", description: "上下标: 简单上标", category: "normal" },
+    { formula: "x_1^2", description: "上下标: 下标和上标", category: "normal" },
+    { formula: "x^2_1", description: "上下标: 反序", category: "normal" },
+    { formula: "x_{i,j}", description: "上下标: 多重下标", category: "normal" },
+    { formula: "x^{n+1}", description: "上下标: 表达式上标", category: "normal" },
+    { formula: "x_{n+1}^{2k}", description: "上下标: 复杂上下标", category: "normal" },
+    { formula: "a_{b_{c}}", description: "上下标: 嵌套下标", category: "normal" },
+    { formula: "a^{b^{c}}", description: "上下标: 嵌套上标", category: "normal" },
+    { formula: "a_{b_{c_{d}}}", description: "上下标: 三重嵌套下标", category: "normal" },
+    { formula: "_1", description: "上下标: 无基底下标", category: "normal" },
+    { formula: "^2", description: "上下标: 无基底上标", category: "normal" },
     
-    // 5. 上下标 - 正常用例
-    { formula: "x_1", description: "上下标: 简单下标", expectedErrorType: "Success" },
-    { formula: "x^2", description: "上下标: 简单上标", expectedErrorType: "Success" },
-    { formula: "x_1^2", description: "上下标: 同时上下标", expectedErrorType: "Success" },
-    { formula: "x_{n+1}^{2k}", description: "上下标: 复杂表达式", expectedErrorType: "Success" },
-    { formula: "x_ 1", description: "上下标: 空格后下标", expectedErrorType: "Success" },
+    // 希腊字母 (Greek)
+    { formula: "\\alpha", description: "希腊字母: 小写alpha", category: "normal" },
+    { formula: "\\beta", description: "希腊字母: 小写beta", category: "normal" },
+    { formula: "\\gamma", description: "希腊字母: 小写gamma", category: "normal" },
+    { formula: "\\delta", description: "希腊字母: 小写delta", category: "normal" },
+    { formula: "\\epsilon", description: "希腊字母: 小写epsilon", category: "normal" },
+    { formula: "\\zeta", description: "希腊字母: 小写zeta", category: "normal" },
+    { formula: "\\eta", description: "希腊字母: 小写eta", category: "normal" },
+    { formula: "\\theta", description: "希腊字母: 小写theta", category: "normal" },
+    { formula: "\\iota", description: "希腊字母: 小写iota", category: "normal" },
+    { formula: "\\kappa", description: "希腊字母: 小写kappa", category: "normal" },
+    { formula: "\\lambda", description: "希腊字母: 小写lambda", category: "normal" },
+    { formula: "\\mu", description: "希腊字母: 小写mu", category: "normal" },
+    { formula: "\\nu", description: "希腊字母: 小写nu", category: "normal" },
+    { formula: "\\xi", description: "希腊字母: 小写xi", category: "normal" },
+    { formula: "\\pi", description: "希腊字母: 小写pi", category: "normal" },
+    { formula: "\\rho", description: "希腊字母: 小写rho", category: "normal" },
+    { formula: "\\sigma", description: "希腊字母: 小写sigma", category: "normal" },
+    { formula: "\\tau", description: "希腊字母: 小写tau", category: "normal" },
+    { formula: "\\upsilon", description: "希腊字母: 小写upsilon", category: "normal" },
+    { formula: "\\phi", description: "希腊字母: 小写phi", category: "normal" },
+    { formula: "\\chi", description: "希腊字母: 小写chi", category: "normal" },
+    { formula: "\\psi", description: "希腊字母: 小写psi", category: "normal" },
+    { formula: "\\omega", description: "希腊字母: 小写omega", category: "normal" },
+    { formula: "\\Gamma", description: "希腊字母: 大写Gamma", category: "normal" },
+    { formula: "\\Delta", description: "希腊字母: 大写Delta", category: "normal" },
+    { formula: "\\Theta", description: "希腊字母: 大写Theta", category: "normal" },
+    { formula: "\\Lambda", description: "希腊字母: 大写Lambda", category: "normal" },
+    { formula: "\\Xi", description: "希腊字母: 大写Xi", category: "normal" },
+    { formula: "\\Pi", description: "希腊字母: 大写Pi", category: "normal" },
+    { formula: "\\Sigma", description: "希腊字母: 大写Sigma", category: "normal" },
+    { formula: "\\Upsilon", description: "希腊字母: 大写Upsilon", category: "normal" },
+    { formula: "\\Phi", description: "希腊字母: 大写Phi", category: "normal" },
+    { formula: "\\Psi", description: "希腊字母: 大写Psi", category: "normal" },
+    { formula: "\\Omega", description: "希腊字母: 大写Omega", category: "normal" },
     
-    // 6. 花括号匹配 - 正常用例
-    { formula: "{a}", description: "花括号: 简单花括号", expectedErrorType: "Success" },
-    { formula: "{a{b}c}", description: "花括号: 嵌套花括号", expectedErrorType: "Success" },
-    { formula: "\\frac{a}{b}", description: "花括号: 命令中的花括号", expectedErrorType: "Success" },
+    // 数学运算符 (Operators)
+    { formula: "\\pm", description: "运算符: 正负号", category: "normal" },
+    { formula: "\\mp", description: "运算符: 负正号", category: "normal" },
+    { formula: "\\times", description: "运算符: 乘号", category: "normal" },
+    { formula: "\\div", description: "运算符: 除号", category: "normal" },
+    { formula: "\\cdot", description: "运算符: 点乘", category: "normal" },
+    { formula: "\\ast", description: "运算符: 星号", category: "normal" },
+    { formula: "\\star", description: "运算符: 五角星", category: "normal" },
+    { formula: "\\circ", description: "运算符: 圆圈", category: "normal" },
+    { formula: "\\bullet", description: "运算符: 实心圆", category: "normal" },
+    { formula: "\\oplus", description: "运算符: 圈加", category: "normal" },
+    { formula: "\\ominus", description: "运算符: 圈减", category: "normal" },
+    { formula: "\\otimes", description: "运算符: 圈乘", category: "normal" },
+    { formula: "\\oslash", description: "运算符: 圈除", category: "normal" },
+    { formula: "\\odot", description: "运算符: 圈点", category: "normal" },
+    { formula: "\\dagger", description: "运算符: 匕首", category: "normal" },
+    { formula: "\\ddagger", description: "运算符: 双匕首", category: "normal" },
+    { formula: "\\cap", description: "运算符: 交集", category: "normal" },
+    { formula: "\\cup", description: "运算符: 并集", category: "normal" },
+    { formula: "\\vee", description: "运算符: 逻辑或", category: "normal" },
+    { formula: "\\wedge", description: "运算符: 逻辑与", category: "normal" },
+    { formula: "\\setminus", description: "运算符: 集合差", category: "normal" },
+    { formula: "\\diamond", description: "运算符: 菱形", category: "normal" },
+    { formula: "\\triangle", description: "运算符: 三角形", category: "normal" },
+    { formula: "\\bigtriangleup", description: "运算符: 大三角形向上", category: "normal" },
+    { formula: "\\bigtriangledown", description: "运算符: 大三角形向下", category: "normal" },
+    { formula: "\\triangleleft", description: "运算符: 左三角", category: "normal" },
+    { formula: "\\triangleright", description: "运算符: 右三角", category: "normal" },
+    { formula: "\\iff", description: "运算符: 当且仅当", category: "normal" },
     
-    // 7. 对齐符 - 正常用例
-    { formula: "\\begin{matrix}a & b\\end{matrix}", description: "对齐符: matrix中对齐", expectedErrorType: "Success" },
-    { formula: "\\begin{cases}x & y\\end{cases}", description: "对齐符: cases中对齐", expectedErrorType: "Success" },
-    { formula: "\\begin{aligned}a & b\\\\c & d\\end{aligned}", description: "对齐符: aligned中对齐", expectedErrorType: "Success" },
+    // 大型运算符 (LargeOps)
+    { formula: "\\sum x", description: "大型运算符: 简单求和", category: "normal" },
+    { formula: "\\sum_{i=1}^n x_i", description: "大型运算符: 带限求和", category: "normal" },
+    { formula: "\\sum_{i=1}^{\\infty} \\frac{1}{i^2}", description: "大型运算符: 无穷级数", category: "normal" },
+    { formula: "\\prod_{i=1}^n x_i", description: "大型运算符: 连乘", category: "normal" },
+    { formula: "\\int_0^\\infty f(x) dx", description: "大型运算符: 基本积分", category: "normal" },
+    { formula: "\\iint_D f(x,y) dA", description: "大型运算符: 二重积分", category: "normal" },
+    { formula: "\\iiint_V f(x,y,z) dV", description: "大型运算符: 三重积分", category: "normal" },
+    { formula: "\\oint_C f(z) dz", description: "大型运算符: 环路积分", category: "normal" },
+    { formula: "\\lim_{x \\to 0} f(x)", description: "大型运算符: 基本极限", category: "normal" },
+    { formula: "\\lim_{n \\to \\infty} a_n", description: "大型运算符: 无穷极限", category: "normal" },
+    { formula: "\\bigcup_{i=1}^n A_i", description: "大型运算符: 大并集", category: "normal" },
+    { formula: "\\bigcap_{i=1}^n A_i", description: "大型运算符: 大交集", category: "normal" },
+    { formula: "\\bigoplus_{i=1}^n V_i", description: "大型运算符: 直和", category: "normal" },
+    { formula: "\\bigotimes_{i=1}^n V_i", description: "大型运算符: 张量积", category: "normal" },
     
-    // 8. 矩阵列数一致 - 正常用例
-    { formula: "\\begin{matrix}a & b\\\\c & d\\end{matrix}", description: "矩阵: 2x2矩阵", expectedErrorType: "Success" },
-    { formula: "\\begin{matrix}a & b & c\\\\d & e & f\\end{matrix}", description: "矩阵: 2x3矩阵", expectedErrorType: "Success" },
-    { formula: "\\begin{gathered}a\\\\b\\end{gathered}", description: "矩阵: gathered环境", expectedErrorType: "Success" },
+    // 矩阵与表格 (Matrix)
+    { formula: "\\begin{matrix}a & b \\\\ c & d\\end{matrix}", description: "矩阵: matrix无括号", category: "normal" },
+    { formula: "\\begin{pmatrix}a & b \\\\ c & d\\end{pmatrix}", description: "矩阵: pmatrix圆括号", category: "normal" },
+    { formula: "\\begin{bmatrix}a & b \\\\ c & d\\end{bmatrix}", description: "矩阵: bmatrix方括号", category: "normal" },
+    { formula: "\\begin{vmatrix}a & b \\\\ c & d\\end{vmatrix}", description: "矩阵: vmatrix行列式", category: "normal" },
+    { formula: "\\begin{Vmatrix}a & b \\\\ c & d\\end{Vmatrix}", description: "矩阵: Vmatrix范数", category: "normal" },
+    { formula: "\\begin{array}{cc}a & b \\\\ c & d\\end{array}", description: "数组: 基本数组", category: "normal" },
+    { formula: "\\begin{array}{lcr}a & b & c\\end{array}", description: "数组: 对齐格式", category: "normal" },
+    { formula: "\\begin{matrix}1 & 2 & 3 \\\\ 4 & 5 & 6 \\\\ 7 & 8 & 9\\end{matrix}", description: "矩阵: 3x3矩阵", category: "normal" },
     
-    // 9. 重音命令 - 正常用例
-    { formula: "\\hat{x}", description: "重音: hat命令", expectedErrorType: "Success" },
-    { formula: "\\overline{a+b}", description: "重音: overline命令", expectedErrorType: "Success" },
-    { formula: "\\vec{}", description: "重音: 空参数", expectedErrorType: "Success" },
-    { formula: "\\hat{=}", description: "重音: 特殊字符", expectedErrorType: "Success" },
-    { formula: "\\tilde{x}", description: "重音: tilde命令", expectedErrorType: "Success" },
+    // Cases和对齐环境
+    { formula: "\\begin{cases}x & y\\end{cases}", description: "cases: 基本cases", category: "normal" },
+    { formula: "f(x) = \\begin{cases}1 & x > 0 \\\\ 0 & x = 0 \\\\ -1 & x < 0\\end{cases}", description: "cases: 符号函数", category: "normal" },
+    { formula: "\\begin{cases}x > 0 & \\text{if } a > 0 \\\\ x < 0 & \\text{if } a < 0\\end{cases}", description: "cases: 带条件cases", category: "normal" },
+    { formula: "\\begin{aligned}a &= b + c \\\\ &= d + e + f\\end{aligned}", description: "aligned: 对齐环境", category: "normal" },
+    { formula: "\\begin{split}a &= b \\\\ &= c\\end{split}", description: "split: 分割环境", category: "normal" },
     
-    // 10. cases环境 - 正常用例
-    { formula: "\\begin{cases}x & y\\end{cases}", description: "cases: 单行", expectedErrorType: "Success" },
-    { formula: "\\begin{cases}x & y\\\\a & b\\end{cases}", description: "cases: 多行", expectedErrorType: "Success" },
+    // 分隔符 (Delimiters)
+    { formula: "(a)", description: "分隔符: 圆括号", category: "normal" },
+    { formula: "[a]", description: "分隔符: 方括号", category: "normal" },
+    { formula: "\\{a\\}", description: "分隔符: 花括号", category: "normal" },
+    { formula: "\\left( a \\right)", description: "分隔符: 自适应圆括号", category: "normal" },
+    { formula: "\\left[ a \\right]", description: "分隔符: 自适应方括号", category: "normal" },
+    { formula: "\\left\\{ a \\right\\}", description: "分隔符: 自适应花括号", category: "normal" },
+    { formula: "\\left| x \\right|", description: "分隔符: 绝对值", category: "normal" },
+    { formula: "\\left\\| x \\right\\|", description: "分隔符: 范数", category: "normal" },
+    { formula: "\\left\\langle a \\right\\rangle", description: "分隔符: 尖括号", category: "normal" },
+    { formula: "\\left( \\frac{a}{b} \\right)", description: "分隔符: 自适应括号分数", category: "normal" },
+    { formula: "\\left( \\left( \\left( a \\right) \\right) \\right)", description: "分隔符: 三重嵌套", category: "normal" },
+    { formula: "\\left( a \\right]", description: "分隔符: 混合分隔符", category: "normal" },
+    { formula: "\\left. a \\right|", description: "分隔符: 不可见分隔符", category: "normal" },
     
-    // 综合测试
-    { formula: "1 + 2", description: "基础运算: 加法", expectedErrorType: "Success" },
-    { formula: "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", description: "综合: 求根公式", expectedErrorType: "Success" }
-  ];
-
-  errorFormulas: ErrorFormulaItem[] = [
-    // 1. 分数命令 - 异常用例
-    { formula: "\\frac{a}{", description: "分数: 缺少右花括号", expectedErrorType: "SyntaxError" },
-    { formula: "\\frac{1}{2", description: "分数: 分母未闭合", expectedErrorType: "SyntaxError" },
-    { formula: "\\frac a b", description: "分数: 缺少花括号", expectedErrorType: "SyntaxError" },
-    { formula: "\\frac{a", description: "分数: 只有分子", expectedErrorType: "SyntaxError" },
+    // 重音符号 (Accent)
+    { formula: "\\hat{x}", description: "重音: hat", category: "normal" },
+    { formula: "\\widehat{xyz}", description: "重音: 宽hat", category: "normal" },
+    { formula: "\\tilde{x}", description: "重音: tilde", category: "normal" },
+    { formula: "\\widetilde{xyz}", description: "重音: 宽tilde", category: "normal" },
+    { formula: "\\vec{v}", description: "重音: vec向量", category: "normal" },
+    { formula: "\\dot{x}", description: "重音: dot导数", category: "normal" },
+    { formula: "\\ddot{x}", description: "重音: ddot二阶导数", category: "normal" },
+    { formula: "\\bar{a}", description: "重音: bar横线", category: "normal" },
+    { formula: "\\overline{a}", description: "上划线: 单字符", category: "normal" },
+    { formula: "\\underline{x}", description: "下划线: 单字符", category: "normal" },
+    { formula: "\\overbrace{a+b+c}", description: "上花括号: 基本用法", category: "normal" },
+    { formula: "\\underbrace{x_1+x_2+\\cdots+x_n}", description: "下花括号: 基本用法", category: "normal" },
+    { formula: "\\overrightarrow{AB}", description: "向量箭头: 向右", category: "normal" },
+    { formula: "\\overleftarrow{AB}", description: "向量箭头: 向左", category: "normal" },
+    { formula: "\\grave{x}", description: "重音: 重音符", category: "normal" },
+    { formula: "\\acute{x}", description: "重音: 锐音符", category: "normal" },
+    { formula: "\\breve{x}", description: "重音: 短音符", category: "normal" },
+    { formula: "\\check{x}", description: "重音: 检查符", category: "normal" },
     
-    // 2. 根号命令 - 异常用例
-    { formula: "\\sqrt", description: "根号: 缺少参数", expectedErrorType: "SyntaxError" },
-    { formula: "\\sqrt{x", description: "根号: 未闭合花括号", expectedErrorType: "SyntaxError" },
-    { formula: "\\sqrt[3{x}", description: "根号: 指数未闭合", expectedErrorType: "SyntaxError" },
+    // 上下标与堆叠
+    { formula: "\\stackrel{def}{=}", description: "堆叠: 定义符号", category: "normal" },
+    { formula: "\\overset{*}{X}", description: "上方堆叠: 星号标记", category: "normal" },
+    { formula: "\\underset{n}{\\sum}", description: "下方堆叠: 求和符号", category: "normal" },
+    { formula: "\\sideset{^a_b}{^c_d}\\sum", description: "侧边设置: 双侧标记", category: "normal" },
+    { formula: "\\prescript{a}{b}{X}", description: "前置上下标: 双标记", category: "normal" },
+    { formula: "\\sum\\limits_{i=1}^n x_i", description: "limits: 求和上下标", category: "normal" },
     
-    // 3. 环境匹配 - 异常用例
-    { formula: "\\begin{matrix}a", description: "环境: 缺少end", expectedErrorType: "SyntaxError" },
-    { formula: "\\begin{matrix}a\\end{pmatrix}", description: "环境: begin/end不匹配", expectedErrorType: "SyntaxError" },
-    { formula: "\\end{matrix}", description: "环境: 缺少begin", expectedErrorType: "SyntaxError" },
-    { formula: "\\begin{matrix}a\\begin{pmatrix}b\\end{matrix}", description: "环境: 嵌套不匹配", expectedErrorType: "SyntaxError" },
+    // 文本与字体
+    { formula: "\\text{for all}", description: "文本: 基本文本", category: "normal" },
+    { formula: "\\mathbf{A}", description: "数学粗体: 向量", category: "normal" },
+    { formula: "\\mathbb{R}", description: "黑板粗体: 实数集", category: "normal" },
+    { formula: "\\boldsymbol{\\alpha}", description: "粗体符号: 希腊字母", category: "normal" },
+    { formula: "\\mathrm{sin}", description: "正体: 正弦", category: "normal" },
+    { formula: "\\mathit{x}", description: "斜体: 变量", category: "normal" },
+    { formula: "\\mathcal{L}", description: "花体: 拉普拉斯算子", category: "normal" },
+    { formula: "\\mathscr{F}", description: "手写体: 傅里叶变换", category: "normal" },
+    { formula: "\\mathfrak{g}", description: "哥特体: 李代数", category: "normal" },
     
-    // 4. left/right配对 - 异常用例
-    { formula: "\\left( x", description: "分隔符: 缺少right", expectedErrorType: "SyntaxError" },
-    { formula: "\\right)", description: "分隔符: 缺少left", expectedErrorType: "SyntaxError" },
-    { formula: "\\left( x \\right", description: "分隔符: right后缺少分隔符", expectedErrorType: "SyntaxError" },
-    { formula: "\\left x \\right)", description: "分隔符: left后缺少分隔符", expectedErrorType: "SyntaxError" },
+    // 盒子与框架
+    { formula: "\\boxed{a}", description: "方框: 基本方框", category: "normal" },
+    { formula: "\\boxed{x^2 + y^2 = r^2}", description: "方框: 公式方框", category: "normal" },
+    { formula: "\\fbox{text}", description: "方框: 文本方框", category: "normal" },
     
-    // 5. 上下标 - 异常用例
-    { formula: "x_", description: "上下标: 下标无内容", expectedErrorType: "SyntaxError" },
-    { formula: "x^", description: "上下标: 上标无内容", expectedErrorType: "SyntaxError" },
-    { formula: "x_1_2", description: "上下标: 双重下标", expectedErrorType: "SyntaxError" },
-    { formula: "x^2^3", description: "上下标: 双重上标", expectedErrorType: "SyntaxError" },
-    { formula: "x_{", description: "上下标: 花括号未闭合", expectedErrorType: "SyntaxError" },
+    // 箭头扩展
+    { formula: "A \\xrightarrow{f} B", description: "箭头: 带文字箭头", category: "normal" },
+    { formula: "A \\xleftarrow{f} B", description: "箭头: 带文字左箭头", category: "normal" },
+    { formula: "\\to", description: "箭头: 右箭头", category: "normal" },
+    { formula: "\\gets", description: "箭头: 左箭头", category: "normal" },
+    { formula: "\\Rightarrow", description: "箭头: 双线右箭头", category: "normal" },
+    { formula: "\\Leftarrow", description: "箭头: 双线左箭头", category: "normal" },
+    { formula: "\\leftrightarrow", description: "箭头: 双向箭头", category: "normal" },
+    { formula: "\\Leftrightarrow", description: "箭头: 双线双向箭头", category: "normal" },
+    { formula: "\\mapsto", description: "箭头: 映射箭头", category: "normal" },
+    { formula: "\\hookrightarrow", description: "箭头: 钩形箭头", category: "normal" },
+    { formula: "\\nearrow", description: "箭头: 东北箭头", category: "normal" },
+    { formula: "\\searrow", description: "箭头: 东南箭头", category: "normal" },
+    { formula: "\\swarrow", description: "箭头: 西南箭头", category: "normal" },
+    { formula: "\\nwarrow", description: "箭头: 西北箭头", category: "normal" },
     
-    // 6. 花括号匹配 - 异常用例
-    { formula: "{a", description: "花括号: 缺少右括号", expectedErrorType: "SyntaxError" },
-    { formula: "a}", description: "花括号: 缺少左括号", expectedErrorType: "SyntaxError" },
-    { formula: "{a{b}", description: "花括号: 嵌套不匹配", expectedErrorType: "SyntaxError" },
+    // 函数 (Functions)
+    { formula: "\\sin x", description: "函数: 正弦", category: "normal" },
+    { formula: "\\cos x", description: "函数: 余弦", category: "normal" },
+    { formula: "\\tan x", description: "函数: 正切", category: "normal" },
+    { formula: "\\cot x", description: "函数: 余切", category: "normal" },
+    { formula: "\\sec x", description: "函数: 正割", category: "normal" },
+    { formula: "\\csc x", description: "函数: 余割", category: "normal" },
+    { formula: "\\arcsin x", description: "函数: 反正弦", category: "normal" },
+    { formula: "\\arccos x", description: "函数: 反余弦", category: "normal" },
+    { formula: "\\arctan x", description: "函数: 反正切", category: "normal" },
+    { formula: "\\sinh x", description: "函数: 双曲正弦", category: "normal" },
+    { formula: "\\cosh x", description: "函数: 双曲余弦", category: "normal" },
+    { formula: "\\tanh x", description: "函数: 双曲正切", category: "normal" },
+    { formula: "\\log x", description: "函数: 对数", category: "normal" },
+    { formula: "\\ln x", description: "函数: 自然对数", category: "normal" },
+    { formula: "\\exp x", description: "函数: 指数", category: "normal" },
+    { formula: "\\min_{x \\in S} f(x)", description: "函数: 最小值", category: "normal" },
+    { formula: "\\max_{x \\in S} f(x)", description: "函数: 最大值", category: "normal" },
+    { formula: "\\sup_{x \\in S} f(x)", description: "函数: 上确界", category: "normal" },
+    { formula: "\\inf_{x \\in S} f(x)", description: "函数: 下确界", category: "normal" },
+    { formula: "\\det A", description: "函数: 行列式", category: "normal" },
+    { formula: "\\dim V", description: "函数: 维数", category: "normal" },
+    { formula: "\\ker T", description: "函数: 核", category: "normal" },
+    { formula: "\\gcd(a,b)", description: "函数: 最大公约数", category: "normal" },
+    { formula: "\\hom(A,B)", description: "函数: 同态", category: "normal" },
     
-    // 7. 对齐符 - 异常用例
-    { formula: "a & b", description: "对齐符: 环境外使用", expectedErrorType: "SyntaxError" },
-    { formula: "x_1 & x_2", description: "对齐符: 上下标环境中使用", expectedErrorType: "SyntaxError" },
+    // 宏定义
+    { formula: "\\newcommand{\\diff}{\\mathrm{d}}\\int_0^\\infty e^{-x} \\diff x", description: "宏定义: 无参数命令", category: "normal" },
     
-    // 8. 矩阵列数一致 - 异常用例
-    { formula: "\\begin{matrix}a & b\\\\c\\end{matrix}", description: "矩阵: 列数不一致", expectedErrorType: "SyntaxError" },
-    { formula: "\\begin{matrix}a & b & c\\\\d & e\\end{matrix}", description: "矩阵: 行列数不匹配", expectedErrorType: "SyntaxError" },
+    // ==================== Rawfile测试公式 ====================
+    // 基础数学表达式 (test00-test05)
+    { formula: "x^2 + y^2 = z^2", description: "Rawfile: 勾股定理", category: "normal" },
+    { formula: "E = mc^2", description: "Rawfile: 质能方程", category: "normal" },
+    { formula: "a^2 + b^2 = c^2", description: "Rawfile: 勾股定理基本形式", category: "normal" },
+    { formula: "\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}", description: "Rawfile: 求根公式", category: "normal" },
+    { formula: "\\int_a^b f(x) \\, dx = F(b) - F(a)", description: "Rawfile: 微积分基本定理", category: "normal" },
+    { formula: "\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}", description: "Rawfile: 等差数列求和", category: "normal" },
     
-    // 9. 重音命令 - 异常用例
-    { formula: "\\hat", description: "重音: 缺少参数", expectedErrorType: "SyntaxError" },
-    { formula: "\\overline", description: "重音: overline缺少参数", expectedErrorType: "SyntaxError" },
-    { formula: "\\vec", description: "重音: vec缺少参数", expectedErrorType: "SyntaxError" },
+    // 三角函数与几何 (test06-test09)
+    { formula: "\\sin^2 \\theta + \\cos^2 \\theta = 1", description: "Rawfile: 三角恒等式", category: "normal" },
+    { formula: "\\cos 2\\theta = \\cos^2 \\theta - \\sin^2 \\theta", description: "Rawfile: 二倍角公式", category: "normal" },
+    { formula: "\\tan \\theta = \\frac{\\sin \\theta}{\\cos \\theta}", description: "Rawfile: 正切定义", category: "normal" },
+    { formula: "e^{i\\pi} + 1 = 0", description: "Rawfile: 欧拉恒等式", category: "normal" },
     
-    // 10. cases环境 - 异常用例
-    { formula: "\\begin{cases}x & y & z\\end{cases}", description: "cases: 列数不为2", expectedErrorType: "SyntaxError" },
-    { formula: "\\begin{cases}x\\end{cases}", description: "cases: 缺少第二列", expectedErrorType: "SyntaxError" },
+    // 复杂公式 (test10-test19)
+    { formula: "\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1", description: "Rawfile: 重要极限", category: "normal" },
+    { formula: "\\int e^x \\, dx = e^x + C", description: "Rawfile: 指数积分", category: "normal" },
+    { formula: "\\frac{d}{dx} e^x = e^x", description: "Rawfile: 指数导数", category: "normal" },
+    { formula: "\\ln(e^x) = x", description: "Rawfile: 对数恒等式", category: "normal" },
+    { formula: "a^m \\cdot a^n = a^{m+n}", description: "Rawfile: 指数法则", category: "normal" },
+    { formula: "(a^m)^n = a^{mn}", description: "Rawfile: 幂的幂", category: "normal" },
+    { formula: "\\sqrt[n]{a^m} = a^{m/n}", description: "Rawfile: 根式与指数", category: "normal" },
+    { formula: "\\log_a (xy) = \\log_a x + \\log_a y", description: "Rawfile: 对数乘法", category: "normal" },
+    { formula: "\\log_a \\frac{x}{y} = \\log_a x - \\log_a y", description: "Rawfile: 对数除法", category: "normal" },
+    { formula: "\\log_a x^n = n \\log_a x", description: "Rawfile: 对数幂", category: "normal" },
+    
+    // 矩阵与线性代数 (test20-test29)
+    { formula: "(x + y)^2 = x^2 + 2xy + y^2 \\tag{2}", description: "Rawfile: 完全平方公式带标签", category: "normal" },
+    { formula: "\\begin{aligned}\\frac{1}{n}\\times \\sum_{x \\in list}(x^2 - 2\\times x\\times mean_{list}+mean_{list}^2) \\\\& = \\frac{1}{n}\\times (\\sum_{x \\in list}x^2 - \\sum_{x \\in list}2\\times x\\times mean_{list}+\\sum_{x \\in list}mean_{list}^2) \\\\& = \\frac{1}{n}\\times (\\sum_{x \\in list}x^2 - 2\\times sum_{list}\\times mean_{list}+mean_{list}^2\\times n) \\\\& = \\frac{1}{n}\\times (\\sum_{x \\in list}x^2 - \\frac{2 \\times sum_{list}^2}{n}+\\frac{sum_{list}^2}{n}) \\\\& = \\frac{1}{n}\\times (\\sum_{x \\in list}x^2 - \\frac{sum_{list}^2}{n})\\end{aligned}", description: "Rawfile: 方差推导", category: "normal" },
+    { formula: "\\begin{matrix} 1 & 2 \\\\ 3 & 4 \\end{matrix}", description: "Rawfile: 基本矩阵", category: "normal" },
+    { formula: "\\begin{pmatrix} 1 & 2 \\\\ 3 & 4 \\end{pmatrix}", description: "Rawfile: 圆括号矩阵", category: "normal" },
+    { formula: "\\begin{bmatrix} 1 & 2 \\\\ 3 & 4 \\end{bmatrix}", description: "Rawfile: 方括号矩阵", category: "normal" },
+    { formula: "\\vec{v}", description: "Rawfile: 向量符号", category: "normal" },
+    { formula: "\\mathbf{F}", description: "Rawfile: 粗体向量", category: "normal" },
+    { formula: "\\sum_{i=1}^{n} x_i", description: "Rawfile: 求和符号", category: "normal" },
+    { formula: "\\int_{a}^{b} f(x) \\, dx", description: "Rawfile: 定积分", category: "normal" },
+    { formula: "\\lim_{x \\to \\infty} f(x)", description: "Rawfile: 极限", category: "normal" },
+    
+    // 物理公式 (test30-test39)
+    { formula: "\\begin{array}{l}{\\huge \\unicode{8751}}_\\mathbb{S}  \\mathbf{E} \\cdot\\mathrm{d}s= \\cfrac{Q}{\\varepsilon_0}  \\\\{\\huge \\unicode{8751}}_\\mathbb{S}  \\mathbf{B} \\cdot\\mathrm{d}s= 0 \\\\{\\huge \\oint}_{\\mathbb{L}}^{} \\mathbf{E} \\cdot \\mathrm{d}l=-\\cfrac{\\mathrm{d}\\Phi _{\\mathbf{B}}}{\\mathrm{d}t }  \\\\{\\huge \\oint}_{\\mathbb{L}}^{} \\mathbf{B} \\cdot \\mathrm{d}l=\\mu_0I+ \\mu_0 \\varepsilon_0\\cfrac{\\mathrm{d}\\Phi _{\\mathbf{E}}}{\\mathrm{d}t }\\end{array}", description: "Rawfile: 麦克斯韦方程组", category: "normal" },
+    { formula: "\\begin{pmatrix}a_{11} & \\cdots & a_{1n} \\\\\\vdots & \\ddots & \\vdots \\\\a_{m1} & \\cdots & a_{mn}\\end{pmatrix}", description: "Rawfile: 一般矩阵形式", category: "normal" },
+    { formula: "\\begin{array}{c}H_{n}=\\frac{n}{\\sum \\limits_{i=1}^{n}\\frac{1}{x_{i}}}= \\frac{n}{\\frac{1}{x_{1}}+ \\frac{1}{x_{2}}+ \\cdots + \\frac{1}{x_{n}}} \\\\ G_{n}=\\sqrt[n]{\\prod \\limits_{i=1}^{n}x_{i}}= \\sqrt[n]{x_{1}x_{2}\\cdots x_{n}} \\\\ A_{n}=\\frac{1}{n}\\sum \\limits_{i=1}^{n}x_{i}=\\frac{x_{1}+ x_{2}+ \\cdots + x_{n}}{n} \\\\ Q_{n}=\\sqrt{\\sum \\limits_{i=1}^{n}x_{i}^{2}}= \\sqrt{\\frac{x_{1}^{2}+ x_{2}^{2}+ \\cdots + x_{n}^{2}}{n}} \\\\ H_{n}\\leq G_{n}\\leq A_{n}\\leq Q_{n}\\end{array}", description: "Rawfile: 平均值不等式", category: "normal" },
+    { formula: "F(\\omega) = \\int_{-\\infty}^{\\infty} f(t) e^{-i\\omega t} \\, dt", description: "Rawfile: 傅里叶变换", category: "normal" },
+    { formula: "S = \\frac{100 \\times (100 + 1)}{2} = 5050", description: "Rawfile: 高斯求和", category: "normal" },
+    { formula: "S = \\frac{n \\times (n+1)}{2}", description: "Rawfile: 等差数列求和公式", category: "normal" },
+    { formula: "S = \\frac{(a_1 + a_n) \\times n}{2}", description: "Rawfile: 等差数列求和通式", category: "normal" },
+    { formula: "i\\hbar \\frac{\\partial}{\\partial t} \\Psi(\\mathbf{r}, t) = \\hat{H} \\Psi(\\mathbf{r}, t)", description: "Rawfile: 薛定谔方程", category: "normal" },
+    
+    // 分数练习 (test42-test47)
+    { formula: "\\frac{1}{4}", description: "Rawfile: 分数1/4", category: "normal" },
+    { formula: "\\frac{2}{9}", description: "Rawfile: 分数2/9", category: "normal" },
+    { formula: "\\frac{3}{16}", description: "Rawfile: 分数3/16", category: "normal" },
+    { formula: "\\frac{6}{49}", description: "Rawfile: 分数6/49", category: "normal" },
+    { formula: "\\frac{5}{36}", description: "Rawfile: 分数5/36", category: "normal" },
+    { formula: "\\frac{4}{25}", description: "Rawfile: 分数4/25", category: "normal" },
+    { formula: "n", description: "Rawfile: 单变量n", category: "normal" },
+    
+    // 化学方程式 (test35, test49-test60, test66-test69, test78-test90)
+    { formula: "\\ce{SO4^2- + Ba^2+ -> BaSO4 v}", description: "Rawfile: 化学沉淀反应", category: "normal" },
+    { formula: "\\begin{aligned}\\ce{2NO + O_2 &-> 2NO_2} \\\\\\ce{3NO_2 + H_2O &-> 2HNO_3 + NO}\\end{aligned}", description: "Rawfile: 氮氧化物反应", category: "normal" },
+    { formula: "\\ce{4NO + 3O_2 + 2H_2O -> 4HNO_3}", description: "Rawfile: 硝酸生成反应", category: "normal" },
+    { formula: "\\begin{aligned}\\ce{Na2S + S &<=> Na2S2} \\\\\\ce{Na2S + 3S &<=> Na2S4}\\end{aligned}", description: "Rawfile: 多硫化物生成", category: "normal" },
+    { formula: "\\boxed{\\ce{Na2S + (n-1) S -> Na2S_{n}}}", description: "Rawfile: 多硫化物通式", category: "normal" },
+    { formula: "\\ce{Na2S -> 2Na+ + S^{2-}}", description: "Rawfile: 硫化钠电离", category: "normal" },
+    { formula: "\\ce{S8 (环) -> 2S4^{\\cdot\\cdot} (双自由基)}", description: "Rawfile: 硫环裂解", category: "normal" },
+    { formula: "\\ce{S^{2-} + S8 -> S9^{2-}}", description: "Rawfile: 多硫离子生成", category: "normal" },
+    { formula: "\\ce{S9^{2-} <=> S4^{2-} + S5}", description: "Rawfile: 多硫离子平衡", category: "normal" },
+    { formula: "\\ce{S^{2-} + H2O <=> HS^- + OH^-}", description: "Rawfile: 硫离子水解", category: "normal" },
+    { formula: "\\ce{HS_{n}^-}", description: "Rawfile: 硫氢化物离子", category: "normal" },
+    { formula: "\\ce{S_{n}^{2-}}", description: "Rawfile: 多硫离子", category: "normal" },
+    
+    // 三角计算 (test60)
+    { formula: "\\begin{align*}\\tan \\theta &= \\frac{1}{2 - \\sqrt{3}} \\cdot \\frac{2 + \\sqrt{3}}{2 + \\sqrt{3}} \\\\&= \\frac{2 + \\sqrt{3}}{(2 - \\sqrt{3})(2 + \\sqrt{3})} \\\\\\end{align*}", description: "Rawfile: 三角函数化简", category: "normal" },
+    
+    // 动态规划与算法 (test61-test65)
+    { formula: "dp[i][j][k] =\\begin{cases}s1[i] == s2[j] ?,  \\text{k = 0}  \\\\\\\\\\\\dp[i][j][k] \\cup (dp[i][j][l] \\cap dp[i+ l + 1][j + l + 1][k - l -1]) \\cup (dp[i][j + k - l][l] \\cap dp[i+l+1][j][k - l -1]), & \\text{l  in [0,k), k>0 }\\end{cases}", description: "Rawfile: DP状态转移", category: "normal" },
+    { formula: "f(s,t) = \\begin{cases} T \\:\\: if \\:\\:s == t\\\\ F \\:\\: if \\:\\:\\:not\\:\\: anagram \\\\ \\bigvee_{i=0}^{n-1} f(s_x,t_x) \\wedge f(s_y, t_y)\\:\\: no\\:\\:swap \\\\ \\bigvee_{i=0}^{n-1} f(s_x,t_y') \\wedge f(s_y,t_x') \\: swapped\\end{cases}", description: "Rawfile: 递归函数定义", category: "normal" },
+    { formula: "a_i = a_i'b_ix_i + a_ib_i'x_i'", description: "Rawfile: 位运算公式1", category: "normal" },
+    { formula: "b_i = a_i'b_i'x_i + a_i'b_ix_i' = a_i'(b_i \\oplus x_i)", description: "Rawfile: 位运算公式2", category: "normal" },
+    { formula: "\\begin{cases}\\texttt{a = (\\textasciitilde a \\& b \\& x) | (a \\& \\textasciitilde b \\& \\textasciitilde x)} \\\\\\texttt{b = \\textasciitilde a \\& (b\\^ x)}\\end{cases}", description: "Rawfile: 位运算方程组", category: "normal" },
+    
+    // 方程与标签 (test68)
+    { formula: "x + 2y = 15 \\tag{3}", description: "Rawfile: 方程带标签", category: "normal" },
+    
+    // 热力学 (test69)
+    { formula: "n_{\\ce{CO2}}\\Delta h_{\\ce{CO2}}+n_{\\ce{H2O}}\\Delta h_{\\ce{H2O}}+n_{\\ce{N2}}\\Delta h_{\\ce{N2}}=802,200", description: "Rawfile: 热力学方程", category: "normal" },
+    
+    // 圆的方程 (test70)
+    { formula: "\\begin{align*}(x - 8)^2 + (y - 4)^2 &= 16 \\\\x^2 - 16x + 64 + y^2 - 8y + 16 &= 16 \\\\(x^2 + y^2) - 16x - 8y + 80 &= 16\\end{align*}", description: "Rawfile: 圆的方程展开", category: "normal" },
+    
+    // 矩阵表示 (test71-test73)
+    { formula: "X\\in\\mathbb{R}^{u\\times r}", description: "Rawfile: 矩阵维度表示", category: "normal" },
+    { formula: "u", description: "Rawfile: 变量u", category: "normal" },
+    { formula: "r", description: "Rawfile: 变量r", category: "normal" },
+    
+    // 曲面积分 (test74-test77)
+    { formula: "a + \\oiint b", description: "Rawfile: 曲面积分基本", category: "normal" },
+    { formula: "\\begin{array}{c}\\oiint_A f \\\\\\oiint_B g\\end{array}", description: "Rawfile: 曲面积分阵列", category: "normal" },
+    { formula: "\\oiint_{A_{\\oiint_B}} f", description: "Rawfile: 嵌套曲面积分", category: "normal" },
+    { formula: "\\oiint", description: "Rawfile: 曲面积分符号", category: "normal" },
+    
+    // 化学式基础 (test78-test81)
+    { formula: "\\ce{H2O} \\ce{Sb2O3} \\ce{H+} \\ce{CrO4^2-} \\ce{[AgCl2]-} \\ce{Y^99+} \\ce{Y^{99+}}", description: "Rawfile: 化学式集合", category: "normal" },
+    { formula: "\\ce{2H2O} \\ce{0.5 H2O} \\ce{1/2H2O} \\ce{(1/2)H2O} \\ce{$n$ H2O}", description: "Rawfile: 化学计量数", category: "normal" },
+    { formula: "\\ce{^{227}_{90}Th+} \\ce{^227_90Th+} \\ce{^{0}_{-1}n^{-}} \\ce{^0_-1n-}", description: "Rawfile: 同位素表示", category: "normal" },
+    { formula: "\\ce{H{}^3HO} \\ce{H^3HO}", description: "Rawfile: 氚水表示", category: "normal" },
+    
+    // 化学反应箭头 (test82-test85)
+    { formula: "\\ce{A -> B} \\ce{A <- B} \\ce{A <-> B}", description: "Rawfile: 化学反应箭头1", category: "normal" },
+    { formula: "\\ce{A <--> B} \\ce{A <=> B} \\ce{A <=>> B} \\ce{A <<=> B}", description: "Rawfile: 化学反应箭头2", category: "normal" },
+    { formula: "\\ce{A ->[H2O] B} \\ce{A ->[{上方文字}][{下方文字}] B}", description: "Rawfile: 带条件反应", category: "normal" },
+    { formula: "\\ce{A v B (v) -> B ^ B (^)}", description: "Rawfile: 沉淀气体标记", category: "normal" },
+    
+    // 复杂化学方程式 (test87-test90)
+    { formula: "\\ce{Zn^2+ <=>[+ 2OH-][+ 2H+] $\\underset{\\text{amphoteres Hydroxid}}{\\ce{Zn(OH)2 v}}$ <=>[+2OH-][+ 2H+] $\\underset{\\text{Hydroxozikat}}{\\ce{[Zn(OH)4]^2-}}$}", description: "Rawfile: 锌的两性反应", category: "normal" },
+    { formula: "\\ce{$K = \\frac{[\\ce{Hg^2+}][\\ce{Hg}]}{[\\ce{Hg2^2+}]}$}", description: "Rawfile: 平衡常数表达式", category: "normal" },
+    { formula: "\\ce{$K = \\ce{\\frac{[Hg^2+][Hg]}{[Hg2^2+]}}$}", description: "Rawfile: 平衡常数表达式2", category: "normal" },
+    { formula: "\\ce{Hg^2+ ->[I-] $\\underset{\\mathrm{red}}{\\ce{HgI2}}$ ->[I-]$\\underset{\\mathrm{red}}{\\ce{[Hg^{II}I4]^2-}}$}", description: "Rawfile: 汞的络合反应", category: "normal" },
+    
+    // ==================== 异常用例 (error) ====================
+    // 分数错误 (BadFrac)
+    { formula: "\\frac{1}{", description: "分数错误: 缺少右花括号", category: "error" },
+    { formula: "\\frac{1}{2", description: "分数错误: 分母未闭合", category: "error" },
+    { formula: "\\frac1}{2}", description: "分数错误: 缺少左花括号", category: "error" },
+    { formula: "\\frac{1", description: "分数错误: 缺少分母", category: "error" },
+    { formula: "\\frac", description: "分数错误: 无参数", category: "error" },
+    { formula: "\\frac{", description: "分数错误: 仅有左花括号", category: "error" },
+    { formula: "\\frac{}", description: "分数错误: 仅有分子花括号", category: "error" },
+    { formula: "\\frac{ }{ }", description: "分数错误: 仅空白符", category: "error" },
+    
+    // 根号错误 (BadRoot)
+    { formula: "\\sqrt{x", description: "根号错误: 根号未闭合", category: "error" },
+    { formula: "\\sqrt[2]{x", description: "根号错误: 带索引未闭合", category: "error" },
+    { formula: "\\sqrt[", description: "根号错误: 索引不完整", category: "error" },
+    { formula: "\\sqrt", description: "根号错误: 无参数", category: "error" },
+    { formula: "\\sqrt[2]", description: "根号错误: 缺少被开方数", category: "error" },
+    
+    // 上下标错误 (SubSupError)
+    { formula: "x_1_2", description: "上下标错误: 双重下标(无效)", category: "error" },
+    { formula: "x^1^2", description: "上下标错误: 双重上标(无效)", category: "error" },
+    { formula: "x_", description: "上下标错误: 缺少下标", category: "error" },
+    { formula: "x^", description: "上下标错误: 缺少上标", category: "error" },
+    { formula: "x_{", description: "上下标错误: 下标花括号未闭合", category: "error" },
+    { formula: "x^{", description: "上下标错误: 上标花括号未闭合", category: "error" },
+    
+    // 矩阵错误 (BadMatrix/MatrixError)
+    { formula: "\\begin{matrix} a & b \\\\ c \\end{matrix}", description: "矩阵错误: 列数不一致", category: "error" },
+    { formula: "\\begin{matrix} a & b", description: "矩阵错误: 缺少end", category: "error" },
+    { formula: "\\begin{matrix} a \\end{pmatrix}", description: "矩阵错误: 环境不匹配", category: "error" },
+    { formula: "\\begin{array}{ccc} a & b \\end{array}", description: "矩阵错误: 数组列不匹配", category: "error" },
+    { formula: "\\begin{matrix}a", description: "矩阵错误: 缺少end", category: "error" },
+    { formula: "\\end{matrix}", description: "矩阵错误: 缺少begin", category: "error" },
+    { formula: "\\begin matrix", description: "矩阵错误: 缺少花括号", category: "error" },
+    { formula: "\\begin{matrix", description: "矩阵错误: 环境名未闭合", category: "error" },
+    
+    // Cases错误 (BadCases)
+    { formula: "\\begin{cases} x & y & z \\end{cases}", description: "cases错误: cases有3列", category: "error" },
+    { formula: "\\begin{cases} x \\end{cases}", description: "cases错误: cases有1列", category: "error" },
+    { formula: "\\begin{cases} x \\end{aligned}", description: "cases错误: cases结束不匹配", category: "error" },
+    { formula: "\\begin{cases}x & y", description: "cases错误: 缺少end", category: "error" },
+    
+    // 分隔符错误 (BadDelim)
+    { formula: "\\left( a", description: "分隔符错误: 缺少right", category: "error" },
+    { formula: "\\left( a \\right", description: "分隔符错误: right不完整", category: "error" },
+    { formula: "a \\right)", description: "分隔符错误: 无left的right", category: "error" },
+    { formula: "\\left( a \\right\\invalid", description: "分隔符错误: 无效分隔符", category: "error" },
+    { formula: "\\right)", description: "分隔符错误: 缺少left", category: "error" },
+    { formula: "\\left( x \\right", description: "分隔符错误: right后缺少分隔符", category: "error" },
+    { formula: "\\left x \\right)", description: "分隔符错误: left后缺少分隔符", category: "error" },
+    
+    // 重音符号错误 (BadAccent)
+    { formula: "\\hat", description: "重音错误: hat缺少参数", category: "error" },
+    { formula: "\\bar", description: "重音错误: bar缺少参数", category: "error" },
+    { formula: "\\vec", description: "重音错误: vec缺少参数", category: "error" },
+    { formula: "\\dot", description: "重音错误: dot缺少参数", category: "error" },
+    { formula: "\\ddot", description: "重音错误: ddot缺少参数", category: "error" },
+    { formula: "\\tilde", description: "重音错误: tilde缺少参数", category: "error" },
+    { formula: "\\overline", description: "重音错误: overline缺少参数", category: "error" },
+    { formula: "\\underline", description: "重音错误: underline缺少参数", category: "error" },
+    { formula: "\\overbrace", description: "重音错误: overbrace缺少参数", category: "error" },
+    { formula: "\\underbrace", description: "重音错误: underbrace缺少参数", category: "error" },
+    { formula: "\\overrightarrow", description: "重音错误: overrightarrow缺少参数", category: "error" },
+    { formula: "\\overleftarrow", description: "重音错误: overleftarrow缺少参数", category: "error" },
+    
+    // 花括号匹配错误 (SyntaxBrace)
+    { formula: "{", description: "花括号错误: 单个左花括号", category: "error" },
+    { formula: "}", description: "花括号错误: 单个右花括号", category: "error" },
+    { formula: "{a", description: "花括号错误: 缺少右括号", category: "error" },
+    { formula: "a}", description: "花括号错误: 缺少左括号", category: "error" },
+    { formula: "{a{b}", description: "花括号错误: 嵌套不匹配", category: "error" },
+    { formula: "}{", description: "花括号错误: 顺序颠倒", category: "error" },
+    
+    // 命令错误 (SyntaxBackslash)
+    { formula: "\\", description: "命令错误: 单个反斜杠", category: "error" },
+    { formula: "x\\", description: "命令错误: 末尾不完整", category: "error" },
+    { formula: "\\x", description: "命令错误: 未知命令\\x", category: "error" },
+    { formula: "\\unknownCommand", description: "命令错误: 未知命令", category: "error" },
+    
+    // 环境错误 (SyntaxEnv/EnvMismatch)
+    { formula: "\\begin{cases", description: "环境错误: 环境名未闭合", category: "error" },
+    { formula: "\\begin{aligned}a\\end{cases}", description: "环境错误: begin/end不匹配", category: "error" },
+    
+    // 对齐符错误
+    { formula: "a & b", description: "对齐符错误: 环境外使用&", category: "error" },
+    { formula: "&", description: "对齐符错误: 单独&符号", category: "error" },
     
     // 空公式
-    { formula: "", description: "空公式", expectedErrorType: "SyntaxError" }
+    { formula: "", description: "空公式", category: "error" },
+    
+    // 组合错误 (ComboError)
+    { formula: "\\frac{1}{2} + \\frac{3}{", description: "组合错误: 部分第二个分数", category: "error" },
+    { formula: "\\sqrt{x} + \\sqrt{", description: "组合错误: 结尾部分sqrt", category: "error" },
+    { formula: "\\left( a \\right) + \\left( b", description: "组合错误: 和中未闭合分隔符", category: "error" },
+    { formula: "\\begin{matrix} a & b \\end{matrix} + \\begin{cases", description: "组合错误: 部分环境", category: "error" },
+    
+    // 宏定义错误 (MacroError)
+    { formula: "\\newcommand{\\diff}", description: "宏定义错误: 缺少定义内容", category: "error" },
+    { formula: "\\newcommand{\\frac}{abc}", description: "宏定义错误: 重复定义已存在的命令", category: "error" },
+    { formula: "\\newcommand{\\test}[1]{#2}", description: "宏定义错误: 参数引用错误", category: "error" },
+    { formula: "\\newcommand{test}{abc}", description: "宏定义错误: 命令名格式错误", category: "error" },
+    { formula: "\\newcommand{\\norm}[1]{\\left\\|#1\\right\\|}\\norm{v}", description: "宏定义错误: 不支持的分隔符", category: "error" },
+    
+    // ==================== 容错用例 (tolerant) ====================
+    // 分数命令 - 容错 (空参数被库接受)
+    { formula: "\\frac{a}{b}{c}", description: "分数容错: 多余参数被忽略", category: "tolerant" },
+    { formula: "\\frac{a \\over b}{c}", description: "分数容错: over在花括号内", category: "tolerant" },
+    { formula: "\\cfrac{a}", description: "连分数容错: 缺少分母", category: "tolerant" },
+    { formula: "\\binom{n}", description: "二项式容错: 缺少第二个参数", category: "tolerant" },
+    { formula: "\\binom{}{k}", description: "二项式容错: 空上标", category: "tolerant" },
+    { formula: "a \\over b", description: "分数线容错: 缺少分组", category: "tolerant" },
+    
+    // 根号命令 - 容错
+    { formula: "\\sqrt[3]{x}{y}", description: "根号容错: 多余参数被忽略", category: "tolerant" },
+    { formula: "\\sqrt[]", description: "根号容错: 可选参数为空且缺少必需参数", category: "tolerant" },
+    
+    // 上下标与堆叠 - 容错
+    { formula: "\\stackrel{def}", description: "堆叠容错: 缺少第二个参数", category: "tolerant" },
+    { formula: "\\stackrel{a}{b}{c}", description: "堆叠容错: 多余参数被忽略", category: "tolerant" },
+    { formula: "\\overset{*}", description: "上方堆叠容错: 缺少第二个参数", category: "tolerant" },
+    { formula: "\\underset{*}", description: "下方堆叠容错: 缺少第二个参数", category: "tolerant" },
+    { formula: "\\sideset{^a_b}\\sum", description: "侧边设置容错: sum作为第二个参数", category: "tolerant" },
+    { formula: "\\sideset{^a_b}{^c_d}", description: "侧边设置容错: 缺少运算符", category: "tolerant" },
+    { formula: "\\prescript{a}{X}", description: "前置上下标容错: X作为内容", category: "tolerant" },
+    { formula: "x\\limits_1", description: "limits容错: 用于非运算符", category: "tolerant" },
+    { formula: "\\alpha\\nolimits^2", description: "nolimits容错: 用于非运算符", category: "tolerant" },
+    
+    // 文本与字体 - 容错
+    { formula: "\\text", description: "文本容错: 缺少参数", category: "tolerant" },
+    { formula: "\\text{\\frac{a}{b}}", description: "文本容错: 数学命令在文本中", category: "tolerant" },
+    { formula: "\\mathbf", description: "数学粗体容错: 缺少参数", category: "tolerant" },
+    { formula: "\\mathbb", description: "黑板粗体容错: 缺少参数", category: "tolerant" },
+    { formula: "\\boldsymbol", description: "粗体符号容错: 缺少参数", category: "tolerant" },
+    { formula: "\\mathrm", description: "正体容错: 缺少参数", category: "tolerant" },
+    { formula: "\\mathit", description: "斜体容错: 缺少参数", category: "tolerant" },
+    { formula: "\\mathcal", description: "花体容错: 缺少参数", category: "tolerant" },
+    { formula: "\\mathscr", description: "手写体容错: 缺少参数", category: "tolerant" },
+    { formula: "\\mathfrak", description: "哥特体容错: 缺少参数", category: "tolerant" },
+    
+    // 重音符号 - 容错 (宽重音不在ACCENT_COMMANDS中)
+    { formula: "\\widehat", description: "宽重音容错: widehat缺少参数", category: "tolerant" },
+    { formula: "\\widetilde", description: "宽重音容错: widetilde缺少参数", category: "tolerant" },
+    
+    // 括号与分隔符 - 容错
+    { formula: "\\big", description: "手动括号容错: 缺少分隔符", category: "tolerant" },
+    { formula: "\\big a", description: "手动括号容错: 分隔符类型错误", category: "tolerant" },
+    { formula: "\\Big", description: "手动括号容错: Big缺少分隔符", category: "tolerant" },
+    { formula: "\\bigg", description: "手动括号容错: bigg缺少分隔符", category: "tolerant" },
+    { formula: "\\Bigg", description: "手动括号容错: Bigg缺少分隔符", category: "tolerant" },
+    
+    // 矩阵与表格 - 容错
+    { formula: "\\begin{matrx}a\\end{matrx}", description: "矩阵容错: 环境名拼写错误", category: "tolerant" },
+    { formula: "\\begin{pmatrix}a , b \\\\ c , d\\end{pmatrix}", description: "矩阵容错: 分隔符错误", category: "tolerant" },
+    { formula: "\\begin{array}a & b\\end{array}", description: "数组容错: 缺少列格式", category: "tolerant" },
+    { formula: "\\begin{array}{cc}a & b & c\\end{array}", description: "数组容错: 列格式与内容不匹配", category: "tolerant" },
+    
+    // 盒子与框架 - 容错
+    { formula: "\\fbox", description: "方框容错: fbox缺少参数", category: "tolerant" },
+    { formula: "\\boxed", description: "方框容错: boxed缺少参数", category: "tolerant" },
+    { formula: "\\colorbox{red}", description: "颜色盒子容错: 缺少内容参数", category: "tolerant" },
+    
+    // 箭头扩展 - 容错
+    { formula: "A \\xrightarrow B", description: "箭头容错: 缺少参数", category: "tolerant" },
+    { formula: "A \\xleftarrow B", description: "箭头容错: 缺少参数", category: "tolerant" },
+    
+    // 环境使用 - 容错
+    { formula: "\\begin{cases}1 \\\\ 0 \\\\ -1\\end{cases}", description: "cases容错: 缺少条件部分", category: "tolerant" },
+    { formula: "\\begin{aligned}a = b + c \\\\ d = e + f\\end{aligned}", description: "aligned容错: 缺少对齐点", category: "tolerant" },
+    
+    // 边界情况 - 容错
+    { formula: " ", description: "边界容错: 空白字符串", category: "tolerant" },
+    { formula: "  ", description: "边界容错: 多个空格", category: "tolerant" },
+    { formula: "\\,", description: "边界容错: 空格命令", category: "tolerant" },
+    { formula: "\\;", description: "边界容错: 宽空格命令", category: "tolerant" },
+    { formula: "\\!", description: "边界容错: 负空格命令", category: "tolerant" },
+    { formula: "\\quad", description: "边界容错: quad空格", category: "tolerant" },
+    { formula: "\\qquad", description: "边界容错: qquad空格", category: "tolerant" },
+    
+    // 其他容错
+    { formula: "\\phantom", description: "占位符容错: 缺少参数", category: "tolerant" },
+    { formula: "\\hphantom", description: "水平占位符容错: 缺少参数", category: "tolerant" },
+    { formula: "\\vphantom", description: "垂直占位符容错: 缺少参数", category: "tolerant" },
+    { formula: "\\smash", description: "压缩容错: 缺少参数", category: "tolerant" },
+    { formula: "\\raisebox{1em}", description: "提升盒子容错: 缺少内容", category: "tolerant" },
+    { formula: "\\rule{1em}", description: "规则线容错: 缺少高度", category: "tolerant" },
+    { formula: "\\genfrac{(}{)}{1pt}{0}{a}{b}", description: "生成分数容错: 复杂参数", category: "tolerant" }
   ];
 
   async aboutToAppear(): Promise<void> {
@@ -165,9 +611,16 @@ struct Index13 {
   async testAllFormulas(): Promise<void> {
     this.results = [];
     
-    const formulasToTest = this.currentTab === 0 ? this.normalFormulas : this.errorFormulas;
+    let filteredFormulas = this.formulas;
+    if (this.currentTab === 0) {
+      filteredFormulas = this.formulas.filter(f => f.category === 'normal');
+    } else if (this.currentTab === 1) {
+      filteredFormulas = this.formulas.filter(f => f.category === 'error');
+    } else {
+      filteredFormulas = this.formulas.filter(f => f.category === 'tolerant');
+    }
     
-    for (let item of formulasToTest) {
+    for (let item of filteredFormulas) {
       try {
         let result: TeXParseResult = await latexStringToImageWithError(
           item.formula,
@@ -185,7 +638,7 @@ struct Index13 {
           let testResult: FormulaTestResult = {
             formula: item.formula,
             description: item.description,
-            expectedErrorType: item.expectedErrorType,
+            category: item.category,
             isSuccess: true,
             errorCode: result.errorCode,
             errorMessage: result.errorMessage,
@@ -198,7 +651,7 @@ struct Index13 {
           let testResult: FormulaTestResult = {
             formula: item.formula,
             description: item.description,
-            expectedErrorType: item.expectedErrorType,
+            category: item.category,
             isSuccess: false,
             errorCode: result.errorCode,
             errorMessage: result.errorMessage
@@ -209,7 +662,7 @@ struct Index13 {
         let testResult: FormulaTestResult = {
           formula: item.formula,
           description: item.description,
-          expectedErrorType: item.expectedErrorType,
+          category: item.category,
           isSuccess: false,
           errorCode: TeXErrorCode.UnknownError,
           errorMessage: e instanceof Error ? e.message : String(e)
@@ -250,7 +703,7 @@ struct Index13 {
         Column() {
           Text(item.description)
             .fontSize(14)
-            .fontColor(item.isSuccess ? SUCCESS_COLOR : FAILURE_COLOR)
+            .fontColor(item.isSuccess ? SUCCESS_COLOR : (item.category === 'tolerant' ? WARNING_COLOR : FAILURE_COLOR))
             .fontWeight(FontWeight.Medium)
           
           Text(`公式: ${item.formula}`)
@@ -258,7 +711,7 @@ struct Index13 {
             .fontColor(GRAY_COLOR)
             .margin({ top: 2 })
           
-          Text(`预期: ${item.expectedErrorType}`)
+          Text(`分类: ${item.category === 'normal' ? '正常' : (item.category === 'error' ? '异常' : '容错')}`)
             .fontSize(11)
             .fontColor('#888888')
             .margin({ top: 1 })
@@ -346,31 +799,42 @@ struct Index13 {
         .margin({ top: 10, bottom: 10 })
 
       Row() {
-        Button("正常公式")
+        Button("正常用例")
           .fontSize(14)
           .backgroundColor(this.currentTab === 0 ? SUCCESS_COLOR : '#E0E0E0')
           .fontColor(this.currentTab === 0 ? '#FFFFFF' : '#757575')
           .borderRadius(8)
-          .margin({ right: 10 })
+          .margin({ right: 8 })
           .onClick(() => {
             this.currentTab = 0;
             this.testAllFormulas();
           })
         
-        Button("异常公式")
+        Button("异常用例")
           .fontSize(14)
           .backgroundColor(this.currentTab === 1 ? FAILURE_COLOR : '#E0E0E0')
           .fontColor(this.currentTab === 1 ? '#FFFFFF' : '#757575')
           .borderRadius(8)
+          .margin({ right: 8 })
           .onClick(() => {
             this.currentTab = 1;
+            this.testAllFormulas();
+          })
+        
+        Button("容错用例")
+          .fontSize(14)
+          .backgroundColor(this.currentTab === 2 ? WARNING_COLOR : '#E0E0E0')
+          .fontColor(this.currentTab === 2 ? '#FFFFFF' : '#757575')
+          .borderRadius(8)
+          .onClick(() => {
+            this.currentTab = 2;
             this.testAllFormulas();
           })
       }
       .justifyContent(FlexAlign.Center)
       .margin({ bottom: 10 })
 
-      Text(`共 ${this.results.length} 个测试用例，${this.currentTab === 0 ? '正常' : '异常'}场景`)
+      Text(`共 ${this.results.length} 个测试用例，${this.currentTab === 0 ? '正常' : (this.currentTab === 1 ? '异常' : '容错')}场景`)
         .fontSize(14)
         .fontColor(GRAY_COLOR)
         .margin({ bottom: 10 })
