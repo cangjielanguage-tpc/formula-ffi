@@ -1,0 +1,1 @@
+\bbox[blue,3pt]{\frac{a+b}{c+d}}

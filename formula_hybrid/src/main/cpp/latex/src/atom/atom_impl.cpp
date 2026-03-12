@@ -1254,18 +1254,39 @@ sptr<Box> CancelAtom::createBox(_out_ TeXEnvironment& env) {
     vector<float> lines;
     if (_cancelType == SLASH) {
         lines = {
-            0, 0,
-            box->_width, box->_height + box->_depth};
-    } else if (_cancelType == BACKSLASH) {
-        lines = {
             box->_width, 0,
             0, box->_height + box->_depth};
+    } else if (_cancelType == BACKSLASH) {
+        lines = {
+            0, 0,
+            box->_width, box->_height + box->_depth};
     } else if (_cancelType == CROSS) {
         lines = {
             0, 0,
             box->_width, box->_height + box->_depth,
             box->_width, 0,
             0, box->_height + box->_depth};
+    } else if (_cancelType == CANCELTO) {
+        // For cancelto, we need to draw a line and place the target value at the end
+        if (_target == nullptr) {
+            // If no target, just draw a slash
+            lines = {
+                box->_width, 0,
+                0, box->_height + box->_depth};
+            const float rt = env.getTeXFont()->getDefaultRuleThickness(env.getStyle());
+            auto overlap = sptr<Box>(new LineBox(lines, rt));
+            overlap->_width = box->_width;
+            overlap->_height = box->_height;
+            overlap->_depth = box->_depth;
+            return sptr<Box>(new OverlappedBox(box, overlap));
+        }
+
+        // Create target box
+        auto targetBox = _target->createBox(env);
+        const float rt = env.getTeXFont()->getDefaultRuleThickness(env.getStyle());
+        
+        // Use CancelToBox to render base, line and target together
+        return sptr<Box>(new CancelToBox(box, targetBox, rt));
     } else {
         return box;
     }
