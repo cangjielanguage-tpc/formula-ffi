@@ -90,11 +90,11 @@ func latexMathColorFormatEnum(latexMathColorFormat: Int64): ColorFormat {
 }
 
 func latexStrCallback(strLatexMath: String): String {
-    var dataNew = strLatexMath.replace("{aligned*}", "{aligned}")
-    dataNew = dataNew.replace("{align*}", "{align}")
-    dataNew = dataNew.replace("{flalign*}", "{flalign}")
-    dataNew = dataNew.replace("{gather*}", "{gather}")
-    dataNew = dataNew.replace("{multline*}", "{multline}")
-    dataNew = dataNew.replace("{eqnarray*}", "{eqnarray}")
+    var dataNew = strLatexMath.replace("aligned*", "aligned")
+    dataNew = dataNew.replace("align*", "align")
+    dataNew = dataNew.replace("flalign*", "flalign")
+    dataNew = dataNew.replace("gather*", "gather")
+    dataNew = dataNew.replace("multline*", "multline")
+    dataNew = dataNew.replace("eqnarray*", "eqnarray")
     return dataNew
 }

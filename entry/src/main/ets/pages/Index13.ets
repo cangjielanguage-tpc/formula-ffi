@@ -1,5 +1,8 @@
 import { LatexMathColorFormat, latexStringToImageWithError, TeXResultCode, TeXParseResult } from '@cangjie-tpc/formula_hybrid';
 import { image } from '@kit.ImageKit';
+import { common } from '@kit.AbilityKit';
+import { resourceManager } from '@kit.LocalizationKit';
+import { util } from '@kit.ArkTS';
 
 interface FormulaItem {
   formula: string;
@@ -30,8 +33,10 @@ const FAILURE_BORDER_COLOR: string = '#FFCCBC';
 @Entry
 @Component
 struct Index13 {
+  private context = getContext(this) as common.UIAbilityContext;
   @State results: FormulaTestResult[] = [];
   @State currentTab: number = 0;
+  @State rawfileFormulas: FormulaItem[] = [];
 
   formulas: FormulaItem[] = [
     // ==================== 正常用例 (normal) ====================
@@ -368,7 +373,7 @@ struct Index13 {
     { formula: "\\ce{S_{n}^{2-}}", description: "Rawfile: 多硫离子", category: "normal" },
     
     // 三角计算 (test60)
-    { formula: "\\begin{align*}\\tan \\theta &= \\frac{1}{2 - \\sqrt{3}} \\cdot \\frac{2 + \\sqrt{3}}{2 + \\sqrt{3}} \\\\&= \\frac{2 + \\sqrt{3}}{(2 - \\sqrt{3})(2 + \\sqrt{3})} \\\\\\end{align*}", description: "Rawfile: 三角函数化简", category: "normal" },
+    { formula: "\\begin{align*}\\\\tan \\theta &= \\frac{1}{2 - \\sqrt{3}} \\cdot \\frac{2 + \\sqrt{3}}{2 + \\sqrt{3}} \\\\\\&= \\frac{2 + \\sqrt{3}}{(2 - \\sqrt{3})(2 + \\sqrt{3})} \\\\\\end{align*}", description: "Rawfile: 三角函数化简", category: "normal" },
     
     // 动态规划与算法 (test61-test65)
     { formula: "dp[i][j][k] =\\begin{cases}s1[i] == s2[j] ?,  \\text{k = 0}  \\\\\\\\\\\\dp[i][j][k] \\cup (dp[i][j][l] \\cap dp[i+ l + 1][j + l + 1][k - l -1]) \\cup (dp[i][j + k - l][l] \\cap dp[i+l+1][j][k - l -1]), & \\text{l  in [0,k), k>0 }\\end{cases}", description: "Rawfile: DP状态转移", category: "normal" },
@@ -425,13 +430,20 @@ struct Index13 {
     { formula: "\\frac{", description: "分数错误: 仅有左花括号", category: "error" },
     { formula: "\\frac{}", description: "分数错误: 仅有分子花括号", category: "error" },
     { formula: "\\frac{ }{ }", description: "分数错误: 仅空白符", category: "error" },
+    { formula: "\\frac{a}", description: "分数错误: 缺少分母花括号", category: "error" },
+    { formula: "\\frac{a}{", description: "分数错误: 分母未闭合", category: "error" },
+    { formula: "\\frac{a{b}{c}", description: "分数错误: 括号不匹配", category: "error" },
+    { formula: "\\frac{a}{b", description: "分数错误: 缺少右括号", category: "error" },
     
     // 根号错误 (BadRoot)
     { formula: "\\sqrt{x", description: "根号错误: 根号未闭合", category: "error" },
     { formula: "\\sqrt[2]{x", description: "根号错误: 带索引未闭合", category: "error" },
     { formula: "\\sqrt[", description: "根号错误: 索引不完整", category: "error" },
     { formula: "\\sqrt", description: "根号错误: 无参数", category: "error" },
+    { formula: "\\sqrt[]", description: "根号错误: 可选参数为空且缺少必需参数", category: "error" },
     { formula: "\\sqrt[2]", description: "根号错误: 缺少被开方数", category: "error" },
+    { formula: "\\sqrt{x+y", description: "根号错误: 缺少右括号", category: "error" },
+    { formula: "\\sqrt[3{x}", description: "根号错误: 指数未闭合", category: "error" },
     
     // 上下标错误 (SubSupError)
     { formula: "x_1_2", description: "上下标错误: 双重下标(无效)", category: "error" },
@@ -444,6 +456,7 @@ struct Index13 {
     // 矩阵错误 (BadMatrix/MatrixError)
     { formula: "\\begin{matrix} a & b \\\\ c \\end{matrix}", description: "矩阵错误: 列数不一致", category: "error" },
     { formula: "\\begin{matrix} a & b", description: "矩阵错误: 缺少end", category: "error" },
+    { formula: "\\begin{pmatrix} a & b", description: "矩阵错误: 缺少\\end{pmatrix}", category: "error" },
     { formula: "\\begin{matrix} a \\end{pmatrix}", description: "矩阵错误: 环境不匹配", category: "error" },
     { formula: "\\begin{array}{ccc} a & b \\end{array}", description: "矩阵错误: 数组列不匹配", category: "error" },
     { formula: "\\begin{matrix}a", description: "矩阵错误: 缺少end", category: "error" },
@@ -456,6 +469,7 @@ struct Index13 {
     { formula: "\\begin{cases} x \\end{cases}", description: "cases错误: cases有1列", category: "error" },
     { formula: "\\begin{cases} x \\end{aligned}", description: "cases错误: cases结束不匹配", category: "error" },
     { formula: "\\begin{cases}x & y", description: "cases错误: 缺少end", category: "error" },
+    { formula: "\\begin{cases} x & y", description: "cases错误: 缺少\\end{cases}", category: "error" },
     
     // 分隔符错误 (BadDelim)
     { formula: "\\left( a", description: "分隔符错误: 缺少right", category: "error" },
@@ -465,6 +479,9 @@ struct Index13 {
     { formula: "\\right)", description: "分隔符错误: 缺少left", category: "error" },
     { formula: "\\left( x \\right", description: "分隔符错误: right后缺少分隔符", category: "error" },
     { formula: "\\left x \\right)", description: "分隔符错误: left后缺少分隔符", category: "error" },
+    { formula: "\\left( \\frac{a}{b}", description: "分隔符错误: 缺少\\right", category: "error" },
+    { formula: "\\frac{a}{b} \\right)", description: "分隔符错误: 缺少\\left", category: "error" },
+    { formula: "\\left( \\left( \\frac{a}{b} \\right)", description: "分隔符错误: 嵌套不完整", category: "error" },
     
     // 重音符号错误 (BadAccent)
     { formula: "\\hat", description: "重音错误: hat缺少参数", category: "error" },
@@ -479,6 +496,118 @@ struct Index13 {
     { formula: "\\underbrace", description: "重音错误: underbrace缺少参数", category: "error" },
     { formula: "\\overrightarrow", description: "重音错误: overrightarrow缺少参数", category: "error" },
     { formula: "\\overleftarrow", description: "重音错误: overleftarrow缺少参数", category: "error" },
+    { formula: "\\widehat", description: "重音错误: widehat缺少参数", category: "error" },
+    { formula: "\\widetilde", description: "重音错误: widetilde缺少参数", category: "error" },
+    
+    // 上下装饰错误
+    { formula: "\\overbrace{a+b+c}_{n}", description: "上下装饰错误: overbrace应使用上标", category: "error" },
+    { formula: "\\overline{a+b", description: "上下装饰错误: 缺少右括号", category: "error" },
+    
+    // 堆叠命令错误 (StackError)
+    { formula: "\\stackrel{def}", description: "堆叠错误: stackrel缺少第二个参数", category: "error" },
+    { formula: "\\stackrel{a}{b}{c}", description: "堆叠错误: stackrel多余参数", category: "error" },
+    { formula: "\\overset{*}", description: "堆叠错误: overset缺少第二个参数", category: "error" },
+    { formula: "\\underset{*}", description: "堆叠错误: underset缺少第二个参数", category: "error" },
+    { formula: "\\underset{i=1}{\\sum\\limits_{i=1}^n}", description: "堆叠错误: 重复定义", category: "error" },
+    { formula: "\\sideset{^a_b}\\sum", description: "堆叠错误: sideset缺少第二个参数", category: "error" },
+    { formula: "\\sideset{^a}{^c}\\sum", description: "堆叠错误: sideset缺少第三个参数", category: "error" },
+    { formula: "\\sideset{^a_b}{^c_d}", description: "堆叠错误: sideset缺少运算符", category: "error" },
+    { formula: "\\sideset{^a_b}{^c_d}x", description: "堆叠错误: sideset用于非运算符", category: "error" },
+    { formula: "\\prescript{a}{X}", description: "堆叠错误: prescript缺少中间参数", category: "error" },
+    { formula: "\\prescript{a}{b}{X}{Y}", description: "堆叠错误: prescript多余参数", category: "error" },
+    
+    // 文本命令错误 (TextError)
+    { formula: "\\text", description: "文本错误: text缺少参数", category: "error" },
+    { formula: "\\text{}", description: "文本错误: text空参数", category: "error" },
+    { formula: "\\text{\\frac{a}{b}}", description: "文本错误: 数学命令在文本中", category: "error" },
+    { formula: "\\mbox", description: "文本错误: mbox缺少参数", category: "error" },
+    { formula: "\\textit", description: "文本错误: textit缺少参数", category: "error" },
+    { formula: "\\textbf", description: "文本错误: textbf缺少参数", category: "error" },
+    { formula: "\\textsf", description: "文本错误: textsf缺少参数", category: "error" },
+    { formula: "\\texttt", description: "文本错误: texttt缺少参数", category: "error" },
+    { formula: "\\textrm", description: "文本错误: textrm缺少参数", category: "error" },
+    { formula: "\\textsc", description: "文本错误: textsc缺少参数", category: "error" },
+    { formula: "\\textsuperscript", description: "文本错误: textsuperscript缺少参数", category: "error" },
+    { formula: "\\textsubscript", description: "文本错误: textsubscript缺少参数", category: "error" },
+    { formula: "\\textcircled", description: "文本错误: textcircled缺少参数", category: "error" },
+    
+    // 字体命令错误 (FontError)
+    { formula: "\\mathbf", description: "字体错误: mathbf缺少参数", category: "error" },
+    { formula: "\\mathit", description: "字体错误: mathit缺少参数", category: "error" },
+    { formula: "\\mathrm", description: "字体错误: mathrm缺少参数", category: "error" },
+    { formula: "\\mathsf", description: "字体错误: mathsf缺少参数", category: "error" },
+    { formula: "\\mathtt", description: "字体错误: mathtt缺少参数", category: "error" },
+    { formula: "\\mathbb", description: "字体错误: mathbb缺少参数", category: "error" },
+    { formula: "\\mathcal", description: "字体错误: mathcal缺少参数", category: "error" },
+    { formula: "\\mathscr", description: "字体错误: mathscr缺少参数", category: "error" },
+    { formula: "\\mathfrak", description: "字体错误: mathfrak缺少参数", category: "error" },
+    { formula: "\\mathds", description: "字体错误: mathds缺少参数", category: "error" },
+    { formula: "\\boldsymbol", description: "字体错误: boldsymbol缺少参数", category: "error" },
+    { formula: "\\boldsymbol{}", description: "字体错误: boldsymbol空参数", category: "error" },
+    { formula: "\\bold", description: "字体错误: bold缺少参数", category: "error" },
+    { formula: "\\cal", description: "字体错误: cal缺少参数", category: "error" },
+    { formula: "\\frak", description: "字体错误: frak缺少参数", category: "error" },
+    { formula: "\\Bbb", description: "字体错误: Bbb缺少参数", category: "error" },
+    { formula: "\\oldstylenums", description: "字体错误: oldstylenums缺少参数", category: "error" },
+    
+    // 数学类型错误 (MathTypeError)
+    { formula: "\\mathop", description: "数学类型错误: mathop缺少参数", category: "error" },
+    { formula: "\\mathbin", description: "数学类型错误: mathbin缺少参数", category: "error" },
+    { formula: "\\mathrel", description: "数学类型错误: mathrel缺少参数", category: "error" },
+    { formula: "\\mathopen", description: "数学类型错误: mathopen缺少参数", category: "error" },
+    { formula: "\\mathclose", description: "数学类型错误: mathclose缺少参数", category: "error" },
+    { formula: "\\mathpunct", description: "数学类型错误: mathpunct缺少参数", category: "error" },
+    { formula: "\\mathord", description: "数学类型错误: mathord缺少参数", category: "error" },
+    { formula: "\\mathinner", description: "数学类型错误: mathinner缺少参数", category: "error" },
+    
+    // 其他命令错误 (OtherError)
+    { formula: "\\operatorname", description: "其他错误: operatorname缺少参数", category: "error" },
+    { formula: "\\phantom", description: "其他错误: phantom缺少参数", category: "error" },
+    { formula: "\\hphantom", description: "其他错误: hphantom缺少参数", category: "error" },
+    { formula: "\\vphantom", description: "其他错误: vphantom缺少参数", category: "error" },
+    { formula: "\\llap", description: "其他错误: llap缺少参数", category: "error" },
+    { formula: "\\rlap", description: "其他错误: rlap缺少参数", category: "error" },
+    { formula: "\\clap", description: "其他错误: clap缺少参数", category: "error" },
+    { formula: "\\mathllap", description: "其他错误: mathllap缺少参数", category: "error" },
+    { formula: "\\mathrlap", description: "其他错误: mathrlap缺少参数", category: "error" },
+    { formula: "\\mathclap", description: "其他错误: mathclap缺少参数", category: "error" },
+    { formula: "\\cancel", description: "其他错误: cancel缺少参数", category: "error" },
+    { formula: "\\bcancel", description: "其他错误: bcancel缺少参数", category: "error" },
+    { formula: "\\xcancel", description: "其他错误: xcancel缺少参数", category: "error" },
+    { formula: "\\st", description: "其他错误: st缺少参数", category: "error" },
+    { formula: "\\rule", description: "其他错误: rule缺少参数", category: "error" },
+    { formula: "\\includegraphics", description: "其他错误: includegraphics缺少参数", category: "error" },
+    { formula: "\\Braket", description: "其他错误: Braket缺少参数", category: "error" },
+    { formula: "\\Set", description: "其他错误: Set缺少参数", category: "error" },
+    { formula: "\\Bra", description: "其他错误: Bra缺少参数", category: "error" },
+    { formula: "\\Ket", description: "其他错误: Ket缺少参数", category: "error" },
+    { formula: "\\char", description: "其他错误: char缺少参数", category: "error" },
+    { formula: "\\roman", description: "其他错误: roman缺少参数", category: "error" },
+    { formula: "\\Roman", description: "其他错误: Roman缺少参数", category: "error" },
+    { formula: "\\XML", description: "其他错误: XML缺少参数", category: "error" },
+    { formula: "\\dynamic", description: "其他错误: dynamic缺少参数", category: "error" },
+    { formula: "\\externalFont", description: "其他错误: externalFont缺少参数", category: "error" },
+    { formula: "\\cornersize", description: "其他错误: cornersize缺少参数", category: "error" },
+    
+    // 盒子命令错误 (BoxError)
+    { formula: "\\fbox", description: "盒子错误: fbox缺少参数", category: "error" },
+    { formula: "\\boxed", description: "盒子错误: boxed缺少参数", category: "error" },
+    { formula: "\\colorbox{red}", description: "盒子错误: colorbox缺少内容参数", category: "error" },
+    { formula: "\\fcolorbox{blue}{red}", description: "盒子错误: fcolorbox缺少内容参数", category: "error" },
+    { formula: "\\shadowbox", description: "盒子错误: shadowbox缺少参数", category: "error" },
+    { formula: "\\ovalbox", description: "盒子错误: ovalbox缺少参数", category: "error" },
+    { formula: "\\doublebox", description: "盒子错误: doublebox缺少参数", category: "error" },
+    { formula: "\\smash", description: "盒子错误: smash缺少参数", category: "error" },
+    
+    // 图形变换错误 (TransformError)
+    { formula: "\\rotatebox{45}", description: "图形变换错误: rotatebox缺少内容参数", category: "error" },
+    { formula: "\\scalebox{2}", description: "图形变换错误: scalebox缺少内容参数", category: "error" },
+    { formula: "\\resizebox{2cm}{!}", description: "图形变换错误: resizebox缺少内容参数", category: "error" },
+    { formula: "\\reflectbox", description: "图形变换错误: reflectbox缺少参数", category: "error" },
+    
+    // 箭头扩展错误 (ArrowError)
+    { formula: "A \\xrightarrow B", description: "箭头错误: xrightarrow缺少参数", category: "error" },
+    { formula: "A \\xleftarrow B", description: "箭头错误: xleftarrow缺少参数", category: "error" },
     
     // 花括号匹配错误 (SyntaxBrace)
     { formula: "{", description: "花括号错误: 单个左花括号", category: "error" },
@@ -531,32 +660,8 @@ struct Index13 {
     { formula: "\\sqrt[3]{x}{y}", description: "根号容错: 多余参数被忽略", category: "tolerant" },
     { formula: "\\sqrt[]", description: "根号容错: 可选参数为空且缺少必需参数", category: "tolerant" },
     
-    // 上下标与堆叠 - 容错
-    { formula: "\\stackrel{def}", description: "堆叠容错: 缺少第二个参数", category: "tolerant" },
+    // 堆叠命令 - 容错
     { formula: "\\stackrel{a}{b}{c}", description: "堆叠容错: 多余参数被忽略", category: "tolerant" },
-    { formula: "\\overset{*}", description: "上方堆叠容错: 缺少第二个参数", category: "tolerant" },
-    { formula: "\\underset{*}", description: "下方堆叠容错: 缺少第二个参数", category: "tolerant" },
-    { formula: "\\sideset{^a_b}\\sum", description: "侧边设置容错: sum作为第二个参数", category: "tolerant" },
-    { formula: "\\sideset{^a_b}{^c_d}", description: "侧边设置容错: 缺少运算符", category: "tolerant" },
-    { formula: "\\prescript{a}{X}", description: "前置上下标容错: X作为内容", category: "tolerant" },
-    { formula: "x\\limits_1", description: "limits容错: 用于非运算符", category: "tolerant" },
-    { formula: "\\alpha\\nolimits^2", description: "nolimits容错: 用于非运算符", category: "tolerant" },
-    
-    // 文本与字体 - 容错
-    { formula: "\\text", description: "文本容错: 缺少参数", category: "tolerant" },
-    { formula: "\\text{\\frac{a}{b}}", description: "文本容错: 数学命令在文本中", category: "tolerant" },
-    { formula: "\\mathbf", description: "数学粗体容错: 缺少参数", category: "tolerant" },
-    { formula: "\\mathbb", description: "黑板粗体容错: 缺少参数", category: "tolerant" },
-    { formula: "\\boldsymbol", description: "粗体符号容错: 缺少参数", category: "tolerant" },
-    { formula: "\\mathrm", description: "正体容错: 缺少参数", category: "tolerant" },
-    { formula: "\\mathit", description: "斜体容错: 缺少参数", category: "tolerant" },
-    { formula: "\\mathcal", description: "花体容错: 缺少参数", category: "tolerant" },
-    { formula: "\\mathscr", description: "手写体容错: 缺少参数", category: "tolerant" },
-    { formula: "\\mathfrak", description: "哥特体容错: 缺少参数", category: "tolerant" },
-    
-    // 重音符号 - 容错 (宽重音不在ACCENT_COMMANDS中)
-    { formula: "\\widehat", description: "宽重音容错: widehat缺少参数", category: "tolerant" },
-    { formula: "\\widetilde", description: "宽重音容错: widetilde缺少参数", category: "tolerant" },
     
     // 括号与分隔符 - 容错
     { formula: "\\big", description: "手动括号容错: 缺少分隔符", category: "tolerant" },
@@ -570,15 +675,6 @@ struct Index13 {
     { formula: "\\begin{pmatrix}a , b \\\\ c , d\\end{pmatrix}", description: "矩阵容错: 分隔符错误", category: "tolerant" },
     { formula: "\\begin{array}a & b\\end{array}", description: "数组容错: 缺少列格式", category: "tolerant" },
     { formula: "\\begin{array}{cc}a & b & c\\end{array}", description: "数组容错: 列格式与内容不匹配", category: "tolerant" },
-    
-    // 盒子与框架 - 容错
-    { formula: "\\fbox", description: "方框容错: fbox缺少参数", category: "tolerant" },
-    { formula: "\\boxed", description: "方框容错: boxed缺少参数", category: "tolerant" },
-    { formula: "\\colorbox{red}", description: "颜色盒子容错: 缺少内容参数", category: "tolerant" },
-    
-    // 箭头扩展 - 容错
-    { formula: "A \\xrightarrow B", description: "箭头容错: 缺少参数", category: "tolerant" },
-    { formula: "A \\xleftarrow B", description: "箭头容错: 缺少参数", category: "tolerant" },
     
     // 环境使用 - 容错
     { formula: "\\begin{cases}1 \\\\ 0 \\\\ -1\\end{cases}", description: "cases容错: 缺少条件部分", category: "tolerant" },
@@ -604,16 +700,42 @@ struct Index13 {
   ];
 
   async aboutToAppear(): Promise<void> {
+    this.loadRawfileFormulas();
     await this.testAllFormulas();
+  }
+
+  loadRawfileFormulas(): void {
+    let manager: resourceManager.ResourceManager = this.context.resourceManager;
+    let files: string[] = manager.getRawFileListSync('');
+    let textDecoderOptions: util.TextDecoderOptions = {
+      fatal: false,
+      ignoreBOM: true
+    };
+    let decodeToStringOptions: util.DecodeToStringOptions = {
+      stream: false
+    };
+    let textDecoder = util.TextDecoder.create('utf-8', textDecoderOptions);
+
+    for (let index = 0; index < files.length; index++) {
+      let content: Uint8Array = manager.getRawFileContentSync(files[index]);
+      let formula: string = textDecoder.decodeToString(content, decodeToStringOptions).trim();
+      this.rawfileFormulas.push({
+        formula: formula,
+        description: `Rawfile: ${files[index]}`,
+        category: 'normal'
+      });
+    }
   }
 
   async testAllFormulas(): Promise<void> {
     this.results = [];
-    
-    let filteredFormulas = this.formulas;
+
+    let filteredFormulas: FormulaItem[] = [];
     if (this.currentTab === 0) {
-      filteredFormulas = this.formulas.filter(f => f.category === 'normal');
+      filteredFormulas = this.rawfileFormulas;
     } else if (this.currentTab === 1) {
+      filteredFormulas = this.formulas.filter(f => f.category === 'normal');
+    } else if (this.currentTab === 2) {
       filteredFormulas = this.formulas.filter(f => f.category === 'error');
     } else {
       filteredFormulas = this.formulas.filter(f => f.category === 'tolerant');
@@ -795,42 +917,53 @@ struct Index13 {
         .margin({ top: 10, bottom: 10 })
 
       Row() {
-        Button("正常用例")
+        Button("Rawfile")
           .fontSize(14)
-          .backgroundColor(this.currentTab === 0 ? SUCCESS_COLOR : '#E0E0E0')
+          .backgroundColor(this.currentTab === 0 ? '#2196F3' : '#E0E0E0')
           .fontColor(this.currentTab === 0 ? '#FFFFFF' : '#757575')
           .borderRadius(8)
-          .margin({ right: 8 })
+          .margin({ right: 6 })
           .onClick(() => {
             this.currentTab = 0;
             this.testAllFormulas();
           })
-        
-        Button("异常用例")
+
+        Button("正常用例")
           .fontSize(14)
-          .backgroundColor(this.currentTab === 1 ? FAILURE_COLOR : '#E0E0E0')
+          .backgroundColor(this.currentTab === 1 ? SUCCESS_COLOR : '#E0E0E0')
           .fontColor(this.currentTab === 1 ? '#FFFFFF' : '#757575')
           .borderRadius(8)
-          .margin({ right: 8 })
+          .margin({ right: 6 })
           .onClick(() => {
             this.currentTab = 1;
             this.testAllFormulas();
           })
-        
-        Button("容错用例")
+
+        Button("异常用例")
           .fontSize(14)
-          .backgroundColor(this.currentTab === 2 ? WARNING_COLOR : '#E0E0E0')
+          .backgroundColor(this.currentTab === 2 ? FAILURE_COLOR : '#E0E0E0')
           .fontColor(this.currentTab === 2 ? '#FFFFFF' : '#757575')
           .borderRadius(8)
+          .margin({ right: 6 })
           .onClick(() => {
             this.currentTab = 2;
+            this.testAllFormulas();
+          })
+
+        Button("容错用例")
+          .fontSize(14)
+          .backgroundColor(this.currentTab === 3 ? WARNING_COLOR : '#E0E0E0')
+          .fontColor(this.currentTab === 3 ? '#FFFFFF' : '#757575')
+          .borderRadius(8)
+          .onClick(() => {
+            this.currentTab = 3;
             this.testAllFormulas();
           })
       }
       .justifyContent(FlexAlign.Center)
       .margin({ bottom: 10 })
 
-      Text(`共 ${this.results.length} 个测试用例，${this.currentTab === 0 ? '正常' : (this.currentTab === 1 ? '异常' : '容错')}场景`)
+      Text(`共 ${this.results.length} 个测试用例，${this.currentTab === 0 ? '正常' : (this.currentTab === 1 ? '异常' : (this.currentTab === 2 ? '容错' : 'Rawfile'))}场景`)
         .fontSize(14)
         .fontColor(GRAY_COLOR)
         .margin({ bottom: 10 })

@@ -116,17 +116,67 @@ static inline void skipWS(const wstring& s, size_t& p, size_t n) {
 static const unordered_set<wstring> ARRAY_ENVS = {
     L"matrix", L"pmatrix", L"bmatrix", L"Bmatrix",
     L"vmatrix", L"Vmatrix", L"array", L"cases",
-    L"aligned", L"gathered", L"split", L"smallmatrix"
+    L"aligned", L"gathered", L"split", L"smallmatrix",
+    L"align", L"flalign", L"alignat", L"gather", L"multline"
 };
 
 // 重音命令名称集合
 // 规则: 这些命令需要一个参数
 static const unordered_set<wstring> ACCENT_COMMANDS = {
-    L"hat", L"widehat", L"tilde", L"acute", L"grave", L"ddot", L"bar",
-    L"breve", L"check", L"vec", L"dot", L"widetilde", L"overline",
-    L"underline", L"mathring", L"overrightarrow", L"overleftarrow",
-    L"overleftrightarrow", L"underrightarrow", L"underleftarrow",
-    L"underleftrightarrow", L"overbrace", L"underbrace"
+    L"hat", L"widehat", L"tilde", L"widetilde", L"acute", L"grave", L"ddot", L"ddddot", L"dot", L"bar",
+    L"breve", L"check", L"vec", L"mathring", L"overline", L"underline", L"overbrace", L"underbrace",
+    L"overrightarrow", L"overleftarrow", L"overleftrightarrow", L"underrightarrow", L"underleftarrow",
+    L"underleftrightarrow", L"overbrack", L"underbrack", L"overparen", L"underparen"
+};
+
+// 堆叠命令名称集合
+// 规则: 这些命令需要1-3个参数
+static const unordered_set<wstring> STACK_COMMANDS = {
+    L"stackrel", L"stackbin", L"overset", L"underset", L"sideset", L"prescript",
+    L"accentset", L"underaccent", L"undertilde"
+};
+
+// 盒子命令名称集合
+// 规则: 这些命令需要1-3个参数
+static const unordered_set<wstring> BOX_COMMANDS = {
+    L"fbox", L"boxed", L"colorbox", L"fcolorbox", L"shadowbox", L"ovalbox", L"doublebox", L"smash"
+};
+
+// 图形变换命令名称集合
+// 规则: 这些命令需要1-3个参数
+static const unordered_set<wstring> TRANSFORM_COMMANDS = {
+    L"rotatebox", L"scalebox", L"resizebox", L"reflectbox"
+};
+
+// 文本命令名称集合
+// 规则: 这些命令需要1个参数
+static const unordered_set<wstring> TEXT_COMMANDS = {
+    L"text", L"mbox", L"intertext", L"textit", L"textbf", L"textsf", L"texttt",
+    L"textrm", L"textsc", L"textsuperscript", L"textsubscript", L"textcircled"
+};
+
+// 字体命令名称集合
+// 规则: 这些命令需要1个参数
+static const unordered_set<wstring> FONT_COMMANDS = {
+    L"mathbf", L"mathit", L"mathrm", L"mathsf", L"mathtt", L"mathbb", L"mathcal",
+    L"mathscr", L"mathfrak", L"mathds", L"boldsymbol", L"bold", L"cal", L"frak",
+    L"Bbb", L"oldstylenums"
+};
+
+// 数学类型声明命令名称集合
+// 规则: 这些命令需要1个参数
+static const unordered_set<wstring> MATH_TYPE_COMMANDS = {
+    L"mathop", L"mathbin", L"mathrel", L"mathopen", L"mathclose", L"mathpunct",
+    L"mathord", L"mathinner"
+};
+
+// 其他需要参数的命令名称集合
+// 规则: 这些命令需要1个参数
+static const unordered_set<wstring> OTHER_ARG_COMMANDS = {
+    L"operatorname", L"phantom", L"hphantom", L"vphantom", L"llap", L"rlap", L"clap",
+    L"mathllap", L"mathrlap", L"mathclap", L"cancel", L"bcancel", L"xcancel", L"st",
+    L"rule", L"includegraphics", L"Braket", L"Set", L"Bra", L"Ket", L"char",
+    L"roman", L"Roman", L"XML", L"dynamic", L"externalFont", L"cornersize"
 };
 
 // \left/\right 支持的分隔符命令集合
@@ -233,8 +283,99 @@ static size_t validateAccentCommand(const wstring& latex, size_t p, size_t n, co
     return p;
 }
 
+static size_t validateSingleArgCommand(const wstring& latex, size_t p, size_t n, const wstring& cmd) {
+    skipWS(latex, p, n);
+    if (p >= n) 
+        throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires an argument", p, latex));
+    
+    if (latex[p] == L'{') {
+        size_t startBrace = p + 1;
+        if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
+            throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " argument not closed", startBrace, latex));
+    } else {
+        p++;
+    }
+    
+    return p;
+}
+
+static size_t validateBoxCommand(const wstring& latex, size_t p, size_t n, const wstring& cmd) {
+    skipWS(latex, p, n);
+    if (p >= n) 
+        throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires arguments", p, latex));
+    
+    if (latex[p] == L'{') {
+        size_t startBrace = p + 1;
+        if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
+            throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " first argument not closed", startBrace, latex));
+        
+        skipWS(latex, p, n);
+        if (cmd == L"colorbox" || cmd == L"fcolorbox" || cmd == L"scalebox" || cmd == L"resizebox") {
+            if (p >= n || latex[p] != L'{') 
+                throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires second argument in braces", p, latex));
+            
+            startBrace = p + 1;
+            if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
+                throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " second argument not closed", startBrace, latex));
+            
+            if (cmd == L"resizebox") {
+                skipWS(latex, p, n);
+                if (p >= n || latex[p] != L'{') 
+                    throw ex_parse(buildErrorMsg("\\resizebox requires third argument in braces", p, latex));
+                
+                startBrace = p + 1;
+                if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
+                    throw ex_parse(buildErrorMsg("\\resizebox third argument not closed", startBrace, latex));
+            }
+        }
+    } else {
+        p++;
+    }
+    
+    return p;
+}
+
+static size_t validateStackCommand(const wstring& latex, size_t p, size_t n, const wstring& cmd) {
+    skipWS(latex, p, n);
+    if (p >= n) 
+        throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires arguments", p, latex));
+    
+    if (latex[p] == L'{') {
+        size_t startBrace = p + 1;
+        if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
+            throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " first argument not closed", startBrace, latex));
+        
+        skipWS(latex, p, n);
+        if (cmd == L"stackrel" || cmd == L"stackbin" || cmd == L"overset" || cmd == L"underset" || 
+            cmd == L"accentset" || cmd == L"underaccent" || cmd == L"undertilde") {
+            if (p >= n || latex[p] != L'{') 
+                throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires second argument in braces", p, latex));
+            
+            startBrace = p + 1;
+            if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
+                throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " second argument not closed", startBrace, latex));
+        }
+        
+        if (cmd == L"sideset" || cmd == L"prescript") {
+            skipWS(latex, p, n);
+            if (p >= n || latex[p] != L'{') 
+                throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires third argument in braces", p, latex));
+            
+            startBrace = p + 1;
+            if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
+                throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " third argument not closed", startBrace, latex));
+        }
+    } else {
+        p++;
+    }
+    
+    return p;
+}
+
 static void validateMatrixColumns(const wstring& content, const wstring& env) {
-    if (env == L"gathered" || env == L"aligned" || env == L"split") {
+    if (env == L"gathered" || env == L"aligned" || env == L"split" || 
+        env == L"align" || env == L"flalign" || env == L"alignat" || 
+        env == L"gather" || env == L"multline") {
         return;
     }
     
@@ -458,50 +599,91 @@ static size_t validateSubscriptSuperscript(const wstring& latex, size_t p, size_
 /**
  * @brief 校验LaTeX公式语法（遵循标准LaTeX规则）
  * 
- * 校验规则及示例：
+ * 本函数采用状态机模式逐字符扫描LaTeX公式，对常见语法错误进行预检测，
+ * 在实际渲染前捕获问题，提供精确的错误位置信息。
  * 
- * 1. \frac{分子}{分母} 必须完整（允许空参数，符合标准LaTeX）
- *    - 合法: \frac{a}{b}, \frac{x+1}{x-1}, \frac{}{b}, \frac{a}{}
- *    - 非法: \frac{a}{, \frac a b
+ * @section algorithm 算法说明
+ * - 时间复杂度: O(n)，n为公式长度
+ * - 空间复杂度: O(1)，仅使用常量状态变量
+ * - 采用单遍扫描，维护花括号平衡、数组深度、上下标状态
  * 
- * 2. \sqrt{内容} 或 \sqrt[n]{内容} 必须完整（允许空参数）
- *    - 合法: \sqrt{x}, \sqrt[3]{x}, \sqrt{}, \sqrt[]{x}
- *    - 非法: \sqrt, \sqrt{x
+ * @section rules 校验规则
  * 
- * 3. \begin{xxx} 必须有对应的 \end{xxx}（支持嵌套匹配）
- *    - 合法: \begin{matrix}a\end{matrix}, \begin{matrix}\begin{matrix}a\end{matrix}b\end{matrix}
- *    - 非法: \begin{matrix}a, \begin{matrix}a\end{pmatrix}
+ * **1. 分数命令 \frac**
+ * - 格式: \frac{分子}{分母}
+ * - 合法: \frac{a}{b}, \frac{x+1}{x-1}, \frac{}{b}, \frac{a}{}
+ * - 非法: \frac{a}{, \frac a b, \frac
  * 
- * 4. \left 必须配对 \right
- *    - 合法: \left( x \right), \left[ x \right), \left. x \right|
- *    - 非法: \left( x, \right)
+ * **2. 根号命令 \sqrt**
+ * - 格式: \sqrt{内容} 或 \sqrt[n]{内容}
+ * - 合法: \sqrt{x}, \sqrt[3]{x}, \sqrt{}, \sqrt[]{x}
+ * - 非法: \sqrt, \sqrt{x
  * 
- * 5. 上下标 _ 和 ^ 后必须有内容，禁止双重相同类型上下标
- *    - 合法: x_1, x^2, x_1^2, x_{n+1}^{2k}, x_ 1
- *    - 非法: x_, x^, x_1_2, x^2^3
+ * **3. 环境匹配 \begin/\end**
+ * - 要求: \begin{xxx} 必须有对应的 \end{xxx}
+ * - 支持嵌套匹配
+ * - 合法: \begin{matrix}a\end{matrix}
+ * - 非法: \begin{matrix}a, \begin{matrix}a\end{pmatrix}
  * 
- * 6. 花括号 {} 必须成对匹配
- *    - 合法: {a}, {a{b}c}, \frac{a}{b}
- *    - 非法: {a, a}, {a{b}
+ * **4. 分隔符配对 \left/\right**
+ * - 要求: \left 必须配对 \right
+ * - 支持混合分隔符: \left( x \right]
+ * - 合法: \left( x \right), \left. x \right|
+ * - 非法: \left( x, \right)
  * 
- * 7. 对齐符 & 只能在矩阵/数组环境中使用
- *    - 合法: \begin{matrix}a & b\end{matrix}, \begin{cases}x & y\end{cases}
- *    - 非法: a & b, x_1 & x_2
+ * **5. 上下标 _ 和 ^**
+ * - 要求: 后必须有内容，禁止双重相同类型
+ * - 合法: x_1, x^2, x_1^2, x_{n+1}^{2k}
+ * - 非法: x_, x^, x_1_2, x^2^3
  * 
- * 8. 矩阵列数必须一致（gathered/aligned/split除外）
- *    - 合法: \begin{matrix}a & b\\c & d\end{matrix}
- *    - 非法: \begin{matrix}a & b\\c\end{matrix}
+ * **6. 花括号匹配**
+ * - 要求: {} 必须成对
+ * - 合法: {a}, {a{b}c}
+ * - 非法: {a, a}, {a{b}
  * 
- * 9. 重音命令必须有一个参数（允许任意单字符或花括号内容）
- *    - 合法: \hat{x}, \hat{+}, \overline{a+b}, \vec{}, \hat{=}
- *    - 非法: \hat
+ * **7. 对齐符 &**
+ * - 要求: 只能在矩阵/数组环境中使用
+ * - 合法: \begin{matrix}a & b\end{matrix}
+ * - 非法: a & b, x_1 & x_2
  * 
- * 10. cases 环境每行必须恰好 2 列
- *     - 合法: \begin{cases}x & y\\a & b\end{cases}
- *     - 非法: \begin{cases}x & y & z\end{cases}
+ * **8. 矩阵列数一致性**
+ * - 要求: 每行列数相同（gathered/aligned/split除外）
+ * - 合法: \begin{matrix}a & b\\c & d\end{matrix}
+ * - 非法: \begin{matrix}a & b\\c\end{matrix}
  * 
- * @param latex 待校验的LaTeX公式
+ * **9. 重音命令**
+ * - 命令: \hat, \tilde, \vec, \bar, \dot, \overline, \underline 等
+ * - 要求: 必须有一个参数
+ * - 合法: \hat{x}, \overline{a+b}, \vec{v}
+ * - 非法: \hat, \vec
+ * 
+ * **10. cases 环境列数**
+ * - 要求: 每行必须恰好 2 列
+ * - 合法: \begin{cases}x & y\\a & b\end{cases}
+ * - 非法: \begin{cases}x & y & z\end{cases}
+ * 
+ * **11. 堆叠命令**
+ * - 命令: \stackrel, \overset, \underset, \sideset, \prescript 等
+ * - 要求: 必须有相应数量的参数
+ * 
+ * **12. 盒子命令**
+ * - 命令: \boxed, \fbox, \colorbox, \scalebox, \rotatebox 等
+ * - 要求: 必须有相应数量的参数
+ * 
+ * **13. 字体/文本命令**
+ * - 命令: \mathbf, \text, \mathrm, \mathbb 等
+ * - 要求: 必须有一个参数
+ * 
+ * @section internal 内部状态变量
+ * - braceBalance: 花括号平衡计数器，用于检测未闭合的花括号
+ * - arrayDepth: 数组环境嵌套深度，用于控制 & 分隔符合法性
+ * - lastSubSup: 上一个上下标类型，用于检测双重上下标错误
+ * 
+ * @param latex 待校验的LaTeX公式（宽字符串）
  * @throws ex_parse 当检测到语法错误时抛出异常，包含错误位置信息
+ * 
+ * @note 本函数仅进行语法预检测，不保证公式在渲染时一定成功
+ * @see validateFrac, validateSqrt, validateBegin, validateLeft
  */
 static void validateLatexFormula(const wstring& latex) {
     if (latex.empty()) 
@@ -541,7 +723,28 @@ static void validateLatexFormula(const wstring& latex) {
             } 
             else if (isAccentCommand(cmd)) {
                 p = validateAccentCommand(latex, p, n, cmd);
-            } 
+            }
+            else if (STACK_COMMANDS.find(cmd) != STACK_COMMANDS.end()) {
+                p = validateStackCommand(latex, p, n, cmd);
+            }
+            else if (BOX_COMMANDS.find(cmd) != BOX_COMMANDS.end()) {
+                p = validateBoxCommand(latex, p, n, cmd);
+            }
+            else if (TRANSFORM_COMMANDS.find(cmd) != TRANSFORM_COMMANDS.end()) {
+                p = validateBoxCommand(latex, p, n, cmd);
+            }
+            else if (TEXT_COMMANDS.find(cmd) != TEXT_COMMANDS.end()) {
+                p = validateSingleArgCommand(latex, p, n, cmd);
+            }
+            else if (FONT_COMMANDS.find(cmd) != FONT_COMMANDS.end()) {
+                p = validateSingleArgCommand(latex, p, n, cmd);
+            }
+            else if (MATH_TYPE_COMMANDS.find(cmd) != MATH_TYPE_COMMANDS.end()) {
+                p = validateSingleArgCommand(latex, p, n, cmd);
+            }
+            else if (OTHER_ARG_COMMANDS.find(cmd) != OTHER_ARG_COMMANDS.end()) {
+                p = validateSingleArgCommand(latex, p, n, cmd);
+            }
             else if (cmd == L"begin") {
                 p = validateBegin(latex, p, n, arrayDepth);
             } 
