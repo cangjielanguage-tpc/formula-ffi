@@ -15,6 +15,21 @@ namespace tex {
 
 class TeXFormula;
 
+struct LaTeXParseResult {
+    bool success;
+    TeXRender* render;
+    string errorMessage;
+    wstring formula;
+
+    LaTeXParseResult() : success(false), render(nullptr) {}
+    ~LaTeXParseResult() {
+        if (render != nullptr) {
+            delete render;
+            render = nullptr;
+        }
+    }
+};
+
 class LaTeX {
 private:
     static TeXFormula* _formula;
@@ -54,6 +69,8 @@ public:
      *      the foreground color
      */
     static TeXRender* parse(const wstring& tex, int width, float textSize, float lineSpace, color fg);
+
+    static LaTeXParseResult parseWithError(const wstring& tex, int width, float textSize, float lineSpace, color fg);
 
     /**
      * Release the LaTeX context

@@ -517,10 +517,7 @@ sptr<Atom> TeXParser::processEscape() throw(ex_parse) {
     }
 
     // not a valid command or symbol or predefined TeXFormula found
-    if (!_isPartial)
-        throw ex_parse("Unknown symbol or command or predefined TeXFormula: '" + cmd + "'");
-    sptr<Atom> rm(new RomanAtom(TeXFormula(L"\\backslash " + command)._root));
-    return sptr<Atom>(new ColorAtom(rm, TRANS, RED));
+    throw ex_parse("Unknown symbol or command or predefined TeXFormula: '" + cmd + "'");
 }
 
 sptr<Atom> TeXParser::processCommands(const wstring& command) throw(ex_parse) {
