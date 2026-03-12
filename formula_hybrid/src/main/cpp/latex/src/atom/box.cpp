@@ -697,7 +697,8 @@ void FramedBox::draw(Graphics2D& g2, float x, float y) {
         g2.fillRect(x + th, y - _height + th, _width - _thickness, _height + _depth - _thickness);
         g2.setColor(prev);
     }
-    if (!istrans(_line)) {
+    // Only draw frame if thickness > 0 and line color is not transparent
+    if (_thickness > 0 && !istrans(_line)) {
         color prev = g2.getColor();
         g2.setColor(_line);
         g2.drawRect(x + th, y - _height + th, _width - _thickness, _height + _depth - _thickness);

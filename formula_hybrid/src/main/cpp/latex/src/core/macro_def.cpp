@@ -218,6 +218,7 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(2, macro_bgcolor, "bgcolor"),
     mac(2, macro_colorbox, "colorbox"),
     mac(3, macro_fcolorbox, "fcolorbox"),
+    mac(1, 1, macro_bbox, "bbox"),
     mac(1, macro_cedilla, "c"),
     mac(0, macro_IJ, "IJ"),
     mac(0, macro_IJ, "ij"),
@@ -318,7 +319,9 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(2, macro_longdiv, "longdiv"),
     mac(1, macro_cancel, "cancel"),
     mac(1, macro_bcancel, "bcancel"),
-    mac(1, macro_xcancel, "xcancel")
+    mac(1, macro_xcancel, "xcancel"),
+    mac(2, macro_cancelto, "cancelto"),
+    mac(1, macro_unicode, "unicode")
 #ifdef GRAPHICS_DEBUG
         ,
     mac(0, macro_debug, "debug"),

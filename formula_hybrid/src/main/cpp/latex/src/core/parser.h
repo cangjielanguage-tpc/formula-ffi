@@ -108,8 +108,6 @@ private:
 
     void preprocessNewCmd(wstring& cmd, vector<wstring>& args, int& pos) throw(ex_parse);
 
-    void preprocessDef(wstring& cmd, vector<wstring>& args, int& pos) throw(ex_parse);
-
     void inflateNewCmd(wstring& cmd, vector<wstring>& args, int& pos) throw(ex_parse);
 
     void inflateEnv(wstring& cmd, vector<wstring>& args, int& pos) throw(ex_parse);

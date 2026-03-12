@@ -219,6 +219,55 @@ inline macro(xcancel) {
     return _marco_cancel(CancelAtom::CROSS, tp, args);
 }
 
+inline macro(cancelto) {
+    // 获取当前的字体样式，让目标值与基础表达式使用相同的字体
+    const string& currentTextStyle = tp._formula->_textStyle;
+    
+    // 首先检查输入字符串是否为空（去除空白后）
+    wstring targetStr = args[1];
+    wstring baseStr = args[2];
+    
+    // 去除空白检查
+    auto isBlank = [](const wstring& s) -> bool {
+        for (wchar_t c : s) {
+            if (!iswspace(c)) return false;
+        }
+        return true;
+    };
+    
+    if (isBlank(baseStr)) {
+        throw ex_parse("Cancel content must not be empty!");
+    }
+    if (isBlank(targetStr)) {
+        throw ex_parse("Cancel target must not be empty!");
+    }
+    
+    auto target = TeXFormula(tp, targetStr, currentTextStyle)._root;
+    auto base = TeXFormula(tp, baseStr, false)._root;
+    
+    // 检查基础内容是否为空（包括 nullptr 和空原子）
+    if (base == nullptr) {
+        throw ex_parse("Cancel content must not be empty!");
+    }
+    // 检查是否为空的 RowAtom
+    RowAtom* baseRow = dynamic_cast<RowAtom*>(base.get());
+    if (baseRow != nullptr && baseRow->size() == 0) {
+        throw ex_parse("Cancel content must not be empty!");
+    }
+    
+    // 检查目标值是否为空（包括 nullptr 和空原子）
+    if (target == nullptr) {
+        throw ex_parse("Cancel target must not be empty!");
+    }
+    // 检查是否为空的 RowAtom
+    RowAtom* targetRow = dynamic_cast<RowAtom*>(target.get());
+    if (targetRow != nullptr && targetRow->size() == 0) {
+        throw ex_parse("Cancel target must not be empty!");
+    }
+    
+    return sptr<Atom>(new CancelAtom(base, target, CancelAtom::CANCELTO));
+}
+
 inline macro(binom) {
     TeXFormula num(tp, args[1], false);
     TeXFormula den(tp, args[2], false);
@@ -979,6 +1028,15 @@ inline macro(fcolorbox) {
     return sptr<Atom>(new FBoxAtom(TeXFormula(tp, args[3])._root, f, b));
 }
 
+inline macro(bbox) {
+    // \bbox[options]{math} - options can be color, padding, or both
+    // Examples: \bbox[red]{x+y}, \bbox[2pt]{x+y}, \bbox[red,5pt]{x+y}
+    // args[0] = command name "bbox"
+    // args[1] = math (required, in curly braces)
+    // args[2] = options (optional, in square brackets)
+    return sptr<Atom>(new BboxAtom(args[2], TeXFormula(tp, args[1])._root));
+}
+
 inline macro(cong) {
     VRowAtom* vra = new VRowAtom(SymbolAtom::get("equals"));
     vra->add(sptr<Atom>(new SpaceAtom(UNIT_MU, 0, 1.5f, 0)));
@@ -1549,6 +1607,10 @@ macro(romannumeral);
 macro(muskips);
 
 macro(xml);
+
+inline macro(unicode) {
+    return sptr<Atom>(new UnicodeAtom(args[1]));
+}
 
 /**************************************** not implemented *****************************************/
 

@@ -715,6 +715,160 @@ public:
     __decl_clone(OiintAtom)
 };
 
+/**
+ * CancelToBox: 用于实现 \cancelto{target}{expr}
+ * 在表达式上画一条带箭头的斜线，并在箭头末端显示目标值
+ * 
+ * 安全特性：
+ * - 尺寸计算时检查 INF/NaN
+ * - 箭头绘制时检查除零
+ * - 线宽有效性验证
+ */
+class CancelToBox : public Box {
+private:
+    sptr<Box> _base;       // 基础表达式 box
+    sptr<Box> _target;     // 目标值 box
+    float _lineThickness;  // 线宽
+    float _arrowExtend;    // 箭头延伸长度
+
+    // 安全地计算箭头延伸长度，避免 INF/NaN
+    static float safeCalcExtend(float height, float depth) {
+        float totalHeight = height + depth;
+        if (!isfinite(totalHeight) || totalHeight <= 0) {
+            return 10.0f;  // 默认延伸长度
+        }
+        return totalHeight * 0.13f;
+    }
+
+    // 安全地计算间隙，避免 INF/NaN
+    static float safeCalcGap(float lineThickness) {
+        if (!isfinite(lineThickness) || lineThickness <= 0) {
+            return 4.0f;  // 默认间隙
+        }
+        return lineThickness * 2;
+    }
+
+    // 安全地限制尺寸在合理范围内
+    static float clampSize(float size, float minVal, float maxVal) {
+        if (!isfinite(size)) return minVal;
+        return max(minVal, min(size, maxVal));
+    }
+
+    // 绘制箭头（从左下角到右上角）
+    void drawArrow(Graphics2D& g2, float x1, float y1, float x2, float y2) {
+        // 绘制主线
+        g2.drawLine(x1, y1, x2, y2);
+
+        // 箭头大小，使用安全线宽
+        float safeThickness = _lineThickness;
+        if (!isfinite(safeThickness) || safeThickness <= 0) {
+            safeThickness = 0.4f;  // 默认线宽
+        }
+        float arrowSize = safeThickness * 10;
+        float arrowAngle = PI / 6;  // 30 度
+
+        // 计算从终点到起点的向量（用于确定箭头方向）
+        float dx = x1 - x2;
+        float dy = y1 - y2;
+        float len = sqrt(dx * dx + dy * dy);
+
+        // 防止除零：如果长度为 0 或无效，不绘制箭头
+        if (!isfinite(len) || len < PREC) {
+            return;
+        }
+
+        // 归一化向量（使用乘法避免除法）
+        float invLen = 1.0f / len;
+        float nx = dx * invLen;
+        float ny = dy * invLen;
+
+        // 计算箭头两翼的端点（使用向量旋转）
+        // 左翼：逆时针旋转 arrowAngle
+        float cosA = cos(arrowAngle);
+        float sinA = sin(arrowAngle);
+        float lx = nx * cosA - ny * sinA;
+        float ly = nx * sinA + ny * cosA;
+
+        // 右翼：顺时针旋转 arrowAngle
+        float rx = nx * cosA + ny * sinA;
+        float ry = -nx * sinA + ny * cosA;
+
+        // 绘制箭头两翼
+        g2.drawLine(x2, y2, x2 + lx * arrowSize, y2 + ly * arrowSize);
+        g2.drawLine(x2, y2, x2 + rx * arrowSize, y2 + ry * arrowSize);
+    }
+
+public:
+    CancelToBox() = delete;
+
+    CancelToBox(const sptr<Box>& base, const sptr<Box>& target, float lineThickness)
+        : _base(base), _target(target), _lineThickness(lineThickness) {
+
+        // 检查 base 是否有效（尺寸不能太小）
+        float baseHeight = base->_height + base->_depth;
+        float baseWidth = base->_width;
+        
+        // 如果 base 尺寸过小（接近空），限制箭头延伸长度
+        // 这防止了 \cancelto{target}{} 产生超长箭头
+        constexpr float MIN_BASE_SIZE = 0.5f;  // 最小基础尺寸
+        if (baseHeight < MIN_BASE_SIZE && baseWidth < MIN_BASE_SIZE) {
+            // base 太小，不延伸箭头
+            _arrowExtend = 0;
+        } else {
+            // 安全计算箭头延伸长度
+            _arrowExtend = safeCalcExtend(base->_height, base->_depth);
+        }
+
+        // 安全计算目标值间隙
+        float targetGap = safeCalcGap(lineThickness);
+
+        // 安全计算整体尺寸，限制在合理范围内
+        constexpr float MAX_DIM = 100000.0f;  // 最大尺寸限制
+        constexpr float MIN_DIM = 0.1f;       // 最小尺寸限制
+        
+        _width = clampSize(
+            base->_width + _arrowExtend + target->_width + targetGap,
+            MIN_DIM, MAX_DIM
+        );
+        _height = clampSize(
+            base->_height + _arrowExtend + target->_height + target->_depth + targetGap,
+            MIN_DIM, MAX_DIM
+        );
+        _depth = clampSize(base->_depth, MIN_DIM, MAX_DIM);
+    }
+
+    void draw(Graphics2D& g2, float x, float y) override {
+        // 绘制基础表达式
+        _base->draw(g2, x, y);
+
+        // 安全计算起点和终点
+        float safeDepth = isfinite(_base->_depth) ? _base->_depth : 0.0f;
+        float safeHeight = isfinite(_base->_height) ? _base->_height : 0.0f;
+        float safeWidth = isfinite(_base->_width) ? _base->_width : 0.0f;
+
+        // 起点：左下角
+        float x1 = x;
+        float y1 = y + safeDepth;
+        // 终点：超过表达式右上角（延伸一段距离）
+        float x2 = x + safeWidth + _arrowExtend;
+        float y2 = y - safeHeight - _arrowExtend;
+
+        // 绘制带箭头的斜线
+        drawArrow(g2, x1, y1, x2, y2);
+
+        // 绘制目标值（在箭头终点的右上方）
+        float targetGap = safeCalcGap(_lineThickness);
+        float targetX = x2 + targetGap;
+        float safeTargetDepth = isfinite(_target->_depth) ? _target->_depth : 0.0f;
+        float targetY = y2 + safeTargetDepth;
+        _target->draw(g2, targetX, targetY);
+    }
+
+    int getLastFontId() override {
+        return _base->getLastFontId();
+    }
+};
+
 }  // namespace tex
 
 #endif  // BOX_H_INCLUDED
