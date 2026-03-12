@@ -271,6 +271,25 @@ struct Index {
             .width(10)
         }
         .width('100%')
+
+        Row() {
+          Text("")
+            .width(10)
+          Button("14 \\def \\newenvironment \\newcommand 宏演示")
+            .height(50)// 高度
+            .layoutWeight(1)
+            .fontColor(0xFFFFFFFF)
+            .backgroundColor(0xFFFF0000)
+            .margin({ top: 5, bottom: 5 })
+            .align(Alignment.Center)
+            .fontSize(10)
+            .onClick(e => {
+              router.pushUrl({ url: 'pages/Index14' })
+            })
+          Text("")
+            .width(10)
+        }
+        .width('100%')
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)

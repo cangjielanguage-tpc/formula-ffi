@@ -63,6 +63,17 @@ public:
         int nbargs,
         const wstring& def) throw(ex_parse);
 
+    /**
+     * Add a macro definition using \def command.
+     * Unlike \newcommand, \def allows:
+     * - Redefining existing commands without error
+     * - More flexible parameter syntax
+     */
+    static void addDefCommand(
+        const wstring& name,
+        const wstring& code,
+        int nbargs) throw(ex_parse);
+
     static bool isMacro(const wstring& name);
 
     static void _init_();
