@@ -10,7 +10,7 @@ foreign {
     func LaTeX_init(rootDir: CString): Unit
     func LaTeX_release(): Unit
     func LaTeX_parse(ltx: CString, width: Int32, textSize: Float32, lineSpace: Float32, foreground: UInt32): CPointer<UInt8>
-    func LaTeX_parse_with_error(ltx: CString, width: Int32, textSize: Float32, lineSpace: Float32, foreground: UInt32, errorCode: CPointer<Int32>, errorMsg: CPointer<UInt8>, errorMsgSize: Int32): CPointer<UInt8>
+    func LaTeX_parse_with_error(ltx: CString, width: Int32, textSize: Float32, lineSpace: Float32, foreground: UInt32, resultCode: CPointer<Int32>, errorMsg: CPointer<UInt8>, errorMsgSize: Int32): CPointer<UInt8>
     func LaTeX_setDebug(debug: Bool): Unit
 
     /* TeXRender */

@@ -4,26 +4,28 @@
 package formula
 
 public class TeXParseResult {
-    public let isSuccess: Bool
     public let imageBytes: Array<Byte>
     public let formula: String
-    public let errorCode: TeXErrorCode
+    public let resultCode: TeXResultCode
     public let errorMessage: String
 
-    private init(isSuccess: Bool, imageBytes: Array<Byte>, formula: String, errorCode: TeXErrorCode, errorMessage: String) {
-        this.isSuccess = isSuccess
+    private init(imageBytes: Array<Byte>, formula: String, resultCode: TeXResultCode, errorMessage: String) {
         this.imageBytes = imageBytes
         this.formula = formula
-        this.errorCode = errorCode
+        this.resultCode = resultCode
         this.errorMessage = errorMessage
     }
 
-    public static func ok(imageBytes: Array<Byte>): TeXParseResult {
-        TeXParseResult(true, imageBytes, "", TeXErrorCode.Success, "")
+    public func isSuccess(): Bool {
+        resultCode == TeXResultCode.Success
     }
 
-    public static func fail(formula: String, errorCode: TeXErrorCode, errorMessage: String): TeXParseResult {
-        TeXParseResult(false, Array<Byte>(), formula, errorCode, errorMessage)
+    public static func ok(imageBytes: Array<Byte>): TeXParseResult {
+        TeXParseResult(imageBytes, "", TeXResultCode.Success, "")
+    }
+
+    public static func fail(formula: String, resultCode: TeXResultCode, errorMessage: String): TeXParseResult {
+        TeXParseResult(Array<Byte>(), formula, resultCode, errorMessage)
     }
 }
 
@@ -65,9 +67,9 @@ public func latexStringToImageWithError(latexMathTextString: String, latexMathTe
         }
         return TeXParseResult.ok(arr)
     } catch (e: TeXParseException) {
-        return TeXParseResult.fail(e.formula, e.errorCode, e.message)
+        return TeXParseResult.fail(e.formula, e.resultCode, e.message)
     } catch (e: Exception) {
-        return TeXParseResult.fail(latexMathTextString, TeXErrorCode.UnknownError, e.message)
+        return TeXParseResult.fail(latexMathTextString, TeXResultCode.UnknownError, e.message)
     }
 }
 

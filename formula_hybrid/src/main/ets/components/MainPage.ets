@@ -19,9 +19,9 @@ export enum LatexMathColorFormat {
 }
 
 /**
- * TeX解析错误码枚举
+ * TeX解析结果码枚举
  */
-export enum TeXErrorCode {
+export enum TeXResultCode {
   Success = 0,
   SyntaxError = 1,
   InvalidMatrixError = 2,
@@ -34,10 +34,9 @@ export enum TeXErrorCode {
  * TeX解析结果
  */
 export interface TeXParseResult {
-  isSuccess: boolean
   imageBytes: ArrayBuffer
   formula: string
-  errorCode: TeXErrorCode
+  resultCode: TeXResultCode
   errorMessage: string
 }
 
@@ -72,7 +71,7 @@ export function latexStringToImage(latexMathTextString: string, latexMathTextSiz
  * @param latexMathBackGroupColor 背景色
  * @param latexMathColorFormat 图片格式
  * @param resPath 字体资源路径
- * @returns TeXParseResult 解析结果，包含成功/失败状态、图片数据或错误信息
+ * @returns TeXParseResult 解析结果，通过 resultCode 判断成功/失败
  */
 export function latexStringToImageWithError(latexMathTextString: string, latexMathTextSize: number, latexMathTextColor: number, latexMathBackGroupColor: number, latexMathColorFormat: LatexMathColorFormat, resPath: string = "/data/storage/el1/bundle/entry/resources/resfile/res"): Promise<TeXParseResult> {
   let colorFormat = 5

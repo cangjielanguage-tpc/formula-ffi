@@ -13,7 +13,7 @@
 using namespace std;
 using namespace tex;
 
-#define TEX_ERROR_SUCCESS          0
+#define TEX_OK                      0
 #define TEX_ERROR_SYNTAX           1
 #define TEX_ERROR_INVALID_MATRIX   2
 #define TEX_ERROR_INVALID_DELIM    3
@@ -26,7 +26,7 @@ static void copyErrorMessage(char* dest, const std::string& src, int destSize) {
     dest[destSize - 1] = '\0';
 }
 
-static void logError(const char* message, int errorCode, const char* formula) {
+static void logError(const char* message, int resultCode, const char* formula) {
 }
 
 #ifdef __cplusplus
@@ -60,17 +60,17 @@ TeXRender *LaTeX_parse(char *ltx, int width, float textSize, float lineSpace, ui
 
 TeXRender* LaTeX_parse_with_error(char *ltx, int width, float textSize, 
                                    float lineSpace, uint32_t foreground,
-                                   int *errorCode, char *errorMsg, 
+                                   int *resultCode, char *errorMsg, 
                                    int errorMsgSize) {
-    if (errorCode == nullptr || errorMsg == nullptr || errorMsgSize <= 0) {
+    if (resultCode == nullptr || errorMsg == nullptr || errorMsgSize <= 0) {
         return nullptr;
     }
     
-    *errorCode = TEX_ERROR_SUCCESS;
+    *resultCode = TEX_OK;
     errorMsg[0] = '\0';
     
     if (ltx == nullptr) {
-        *errorCode = TEX_ERROR_UNKNOWN;
+        *resultCode = TEX_ERROR_UNKNOWN;
         strncpy(errorMsg, "Input formula is null", errorMsgSize - 1);
         errorMsg[errorMsgSize - 1] = '\0';
         return nullptr;
@@ -80,7 +80,7 @@ TeXRender* LaTeX_parse_with_error(char *ltx, int width, float textSize,
     try {
         value = utf82wide(ltx);
     } catch (exception& e) {
-        *errorCode = TEX_ERROR_UNKNOWN;
+        *resultCode = TEX_ERROR_UNKNOWN;
         strncpy(errorMsg, "Invalid UTF-8 encoding", errorMsgSize - 1);
         errorMsg[errorMsgSize - 1] = '\0';
         return nullptr;
@@ -96,20 +96,20 @@ TeXRender* LaTeX_parse_with_error(char *ltx, int width, float textSize,
         } else {
             string msg = parseResult.errorMessage;
             if (msg.find("invalid matrix") != string::npos || msg.find("column") != string::npos) {
-                *errorCode = TEX_ERROR_INVALID_MATRIX;
+                *resultCode = TEX_ERROR_INVALID_MATRIX;
             } else if (msg.find("delimiter") != string::npos || msg.find("bracket") != string::npos) {
-                *errorCode = TEX_ERROR_INVALID_DELIM;
+                *resultCode = TEX_ERROR_INVALID_DELIM;
             } else if (msg.find("unknown") != string::npos || msg.find("Undefined") != string::npos) {
-                *errorCode = TEX_ERROR_TEX;
+                *resultCode = TEX_ERROR_TEX;
             } else {
-                *errorCode = TEX_ERROR_SYNTAX;
+                *resultCode = TEX_ERROR_SYNTAX;
             }
             copyErrorMessage(errorMsg, msg, errorMsgSize);
-            logError(msg.c_str(), *errorCode, ltx);
+            logError(msg.c_str(), *resultCode, ltx);
             return nullptr;
         }
     } catch (exception& e) {
-        *errorCode = TEX_ERROR_UNKNOWN;
+        *resultCode = TEX_ERROR_UNKNOWN;
         copyErrorMessage(errorMsg, e.what(), errorMsgSize);
         logError(e.what(), TEX_ERROR_UNKNOWN, ltx);
         return nullptr;

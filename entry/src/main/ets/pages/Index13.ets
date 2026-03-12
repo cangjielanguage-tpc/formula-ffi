@@ -1,4 +1,4 @@
-import { LatexMathColorFormat, latexStringToImageWithError, TeXErrorCode, TeXParseResult } from '@cangjie-tpc/formula_hybrid';
+import { LatexMathColorFormat, latexStringToImageWithError, TeXResultCode, TeXParseResult } from '@cangjie-tpc/formula_hybrid';
 import { image } from '@kit.ImageKit';
 
 interface FormulaItem {
@@ -11,8 +11,7 @@ interface FormulaTestResult {
   formula: string;
   description: string;
   category: string;
-  isSuccess: boolean;
-  errorCode: TeXErrorCode;
+  resultCode: TeXResultCode;
   errorMessage: string;
   pixelMap?: image.PixelMap;
   imageWidth?: number;
@@ -630,7 +629,7 @@ struct Index13 {
           LatexMathColorFormat.COLOR_FORMAT_BGRA_8888
         );
 
-        if (result.isSuccess) {
+        if (result.resultCode === TeXResultCode.Success) {
           let imageSource = image.createImageSource(result.imageBytes);
           let pixelMap = imageSource.createPixelMapSync();
           let size: Size = pixelMap.getImageInfoSync().size;
@@ -639,8 +638,7 @@ struct Index13 {
             formula: item.formula,
             description: item.description,
             category: item.category,
-            isSuccess: true,
-            errorCode: result.errorCode,
+            resultCode: result.resultCode,
             errorMessage: result.errorMessage,
             pixelMap: pixelMap,
             imageWidth: px2vp(size.width),
@@ -652,8 +650,7 @@ struct Index13 {
             formula: item.formula,
             description: item.description,
             category: item.category,
-            isSuccess: false,
-            errorCode: result.errorCode,
+            resultCode: result.resultCode,
             errorMessage: result.errorMessage
           };
           this.results.push(testResult);
@@ -663,8 +660,7 @@ struct Index13 {
           formula: item.formula,
           description: item.description,
           category: item.category,
-          isSuccess: false,
-          errorCode: TeXErrorCode.UnknownError,
+          resultCode: TeXResultCode.UnknownError,
           errorMessage: e instanceof Error ? e.message : String(e)
         };
         this.results.push(testResult);
@@ -672,19 +668,19 @@ struct Index13 {
     }
   }
 
-  getErrorCodeName(code: TeXErrorCode): string {
+  getResultCodeName(code: TeXResultCode): string {
     switch (code) {
-      case TeXErrorCode.Success:
+      case TeXResultCode.Success:
         return "Success";
-      case TeXErrorCode.SyntaxError:
+      case TeXResultCode.SyntaxError:
         return "SyntaxError";
-      case TeXErrorCode.InvalidMatrixError:
+      case TeXResultCode.InvalidMatrixError:
         return "InvalidMatrixError";
-      case TeXErrorCode.InvalidDelimiterError:
+      case TeXResultCode.InvalidDelimiterError:
         return "InvalidDelimiterError";
-      case TeXErrorCode.TeXError:
+      case TeXResultCode.TeXError:
         return "TeXError";
-      case TeXErrorCode.UnknownError:
+      case TeXResultCode.UnknownError:
         return "UnknownError";
       default:
         return "Unknown";
@@ -703,7 +699,7 @@ struct Index13 {
         Column() {
           Text(item.description)
             .fontSize(14)
-            .fontColor(item.isSuccess ? SUCCESS_COLOR : (item.category === 'tolerant' ? WARNING_COLOR : FAILURE_COLOR))
+            .fontColor(item.resultCode === TeXResultCode.Success ? SUCCESS_COLOR : (item.category === 'tolerant' ? WARNING_COLOR : FAILURE_COLOR))
             .fontWeight(FontWeight.Medium)
           
           Text(`公式: ${item.formula}`)
@@ -722,7 +718,7 @@ struct Index13 {
       .width('100%')
       .alignItems(VerticalAlign.Top)
 
-      if (item.isSuccess) {
+      if (item.resultCode === TeXResultCode.Success) {
         Row() {
           Text("解析结果: ")
             .fontSize(12)
@@ -758,7 +754,7 @@ struct Index13 {
             Text("错误码: ")
               .fontSize(12)
               .fontColor(WARNING_COLOR)
-            Text(this.getErrorCodeName(item.errorCode))
+            Text(this.getResultCodeName(item.resultCode))
               .fontSize(12)
               .fontColor(WARNING_COLOR)
               .fontWeight(FontWeight.Bold)
@@ -787,8 +783,8 @@ struct Index13 {
     .padding(12)
     .margin({ bottom: 10 })
     .borderRadius(8)
-    .backgroundColor(item.isSuccess ? SUCCESS_BG_COLOR : FAILURE_BG_COLOR)
-    .border({ width: 1, color: item.isSuccess ? SUCCESS_BORDER_COLOR : FAILURE_BORDER_COLOR })
+    .backgroundColor(item.resultCode === TeXResultCode.Success ? SUCCESS_BG_COLOR : FAILURE_BG_COLOR)
+    .border({ width: 1, color: item.resultCode === TeXResultCode.Success ? SUCCESS_BORDER_COLOR : FAILURE_BORDER_COLOR })
   }
 
   build() {
