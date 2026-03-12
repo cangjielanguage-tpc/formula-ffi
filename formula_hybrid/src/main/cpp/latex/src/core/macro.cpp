@@ -62,6 +62,13 @@ void NewCommandMacro::addRenewCommand(
     MacroInfo::addMacro(name, new InflationMacroInfo(_instance, nbargs, 1));
 }
 
+void NewCommandMacro::addDefCommand(
+    const wstring& name, const wstring& code, int nbargs) throw(ex_parse) {
+    // \def allows redefining existing commands without error
+    _macrocode[name] = code;
+    MacroInfo::addMacro(name, new InflationMacroInfo(_instance, nbargs));
+}
+
 void NewCommandMacro::execute(_out_ TeXParser& tp, _out_ vector<wstring>& args) {
     wstring code = _macrocode[args[0]];
     wstring rep;

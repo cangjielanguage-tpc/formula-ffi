@@ -714,6 +714,9 @@ void TeXParser::preprocess(wstring& cmd, vector<wstring>& args, int& pos) throw(
         preprocessNewCmd(cmd, args, pos);
     } else if (cmd == L"newenvironment" || cmd == L"renewenvironment") {
         preprocessNewCmd(cmd, args, pos);
+    } else if (cmd == L"def") {
+        // Handle \def in firstpass - it needs special handling
+        preprocessDef(cmd, args, pos);
     } else if (NewCommandMacro::isMacro(cmd)) {
         inflateNewCmd(cmd, args, pos);
     } else if (cmd == L"begin") {
@@ -732,6 +735,107 @@ void TeXParser::preprocessNewCmd(wstring& cmd, vector<wstring>& args, int& pos) 
     getOptsArgs(mac->_nbArgs, mac->_posOpts, args);
     mac->invoke(*this, args);
     _parseString.erase(pos, _pos - pos);
+    _len = _parseString.length();
+    _pos = pos;
+}
+
+void TeXParser::preprocessDef(wstring& cmd, vector<wstring>& args, int& pos) throw(ex_parse) {
+    // \def needs special handling in firstpass
+    // We need to parse and execute it, then remove it from the string
+    // so it doesn't get executed again in parse()
+    
+    int curPos = pos + 4; // skip "\def"
+    
+    // Skip whitespace
+    while (curPos < _parseString.length()) {
+        wchar_t c = _parseString[curPos];
+        if (c != L' ' && c != L'\t' && c != L'\n' && c != L'\r') break;
+        curPos++;
+    }
+
+    // Get command name (must start with \)
+    wstring name;
+    if (curPos >= _parseString.length() || _parseString[curPos] != L'\\') {
+        throw ex_parse("\\def: command name must start with \\");
+    }
+    curPos++; // skip backslash
+    
+    // Extract command name
+    int cmdStart = curPos;
+    while (curPos < _parseString.length()) {
+        wchar_t c = _parseString[curPos];
+        if (c == L' ' || c == L'\t' || c == L'\n' || c == L'\r' ||
+            (c >= L'0' && c <= L'9') || c == L'#' || c == L'{' || c == L'}' ||
+            c == L'[' || c == L']' || c == L'^' || c == L'_') {
+            break;
+        }
+        curPos++;
+    }
+    name = _parseString.substr(cmdStart, curPos - cmdStart);
+
+    // Get parameter text and count parameters
+    int nbargs = 0;
+    while (curPos < _parseString.length()) {
+        while (curPos < _parseString.length()) {
+            wchar_t c = _parseString[curPos];
+            if (c != L' ' && c != L'\t' && c != L'\n' && c != L'\r') break;
+            curPos++;
+        }
+
+        wchar_t c = _parseString[curPos];
+        if (c == L'#') {
+            curPos++;
+            if (curPos >= _parseString.length()) {
+                throw ex_parse("\\def: incomplete parameter");
+            }
+            wchar_t num = _parseString[curPos];
+            if (num >= L'1' && num <= L'9') {
+                int argNum = num - L'0';
+                if (argNum > nbargs) nbargs = argNum;
+                curPos++;
+            } else {
+                throw ex_parse("\\def: invalid parameter number");
+            }
+        } else if (c == L'{') {
+            break;
+        } else if (c == L'[') {
+            curPos++;
+            int bracketCount = 1;
+            while (curPos < _parseString.length() && bracketCount > 0) {
+                if (_parseString[curPos] == L'[') bracketCount++;
+                else if (_parseString[curPos] == L']') bracketCount--;
+                curPos++;
+            }
+        } else {
+            throw ex_parse("\\def: unexpected character in parameter text");
+        }
+    }
+
+    // Get replacement text
+    while (curPos < _parseString.length()) {
+        wchar_t c = _parseString[curPos];
+        if (c != L' ' && c != L'\t' && c != L'\n' && c != L'\r') break;
+        curPos++;
+    }
+
+    // Find the closing brace
+    int braceStart = curPos;
+    int braceCount = 1;
+    curPos++; // skip opening brace
+    while (curPos < _parseString.length() && braceCount > 0) {
+        wchar_t c = _parseString[curPos];
+        if (c == L'{') braceCount++;
+        else if (c == L'}') braceCount--;
+        curPos++;
+    }
+    
+    wstring code = _parseString.substr(braceStart + 1, curPos - braceStart - 2);
+
+    // Register the macro
+    NewCommandMacro::addDefCommand(name, code, nbargs);
+
+    // Remove the entire \def command from the string
+    _parseString.erase(pos, curPos - pos);
     _len = _parseString.length();
     _pos = pos;
 }
