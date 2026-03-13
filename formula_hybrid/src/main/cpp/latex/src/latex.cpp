@@ -126,14 +126,14 @@ static const unordered_set<wstring> ACCENT_COMMANDS = {
     L"hat", L"widehat", L"tilde", L"widetilde", L"acute", L"grave", L"ddot", L"ddddot", L"dot", L"bar",
     L"breve", L"check", L"vec", L"mathring", L"overline", L"underline", L"overbrace", L"underbrace",
     L"overrightarrow", L"overleftarrow", L"overleftrightarrow", L"underrightarrow", L"underleftarrow",
-    L"underleftrightarrow", L"overbrack", L"underbrack", L"overparen", L"underparen"
+    L"underleftrightarrow", L"overbrack", L"underbrack", L"overparen", L"underparen", L"undertilde"
 };
 
 // 堆叠命令名称集合
-// 规则: 这些命令需要1-3个参数
+// 规则: 这些命令需要2-3个参数
 static const unordered_set<wstring> STACK_COMMANDS = {
     L"stackrel", L"stackbin", L"overset", L"underset", L"sideset", L"prescript",
-    L"accentset", L"underaccent", L"undertilde"
+    L"accentset", L"underaccent"
 };
 
 // 盒子命令名称集合
@@ -310,7 +310,8 @@ static size_t validateBoxCommand(const wstring& latex, size_t p, size_t n, const
             throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " first argument not closed", startBrace, latex));
         
         skipWS(latex, p, n);
-        if (cmd == L"colorbox" || cmd == L"fcolorbox" || cmd == L"scalebox" || cmd == L"resizebox") {
+        if (cmd == L"colorbox" || cmd == L"fcolorbox" || cmd == L"scalebox" || 
+            cmd == L"resizebox" || cmd == L"rotatebox") {
             if (p >= n || latex[p] != L'{') 
                 throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires second argument in braces", p, latex));
             
@@ -318,14 +319,14 @@ static size_t validateBoxCommand(const wstring& latex, size_t p, size_t n, const
             if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
                 throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " second argument not closed", startBrace, latex));
             
-            if (cmd == L"resizebox") {
+            if (cmd == L"fcolorbox" || cmd == L"resizebox") {
                 skipWS(latex, p, n);
                 if (p >= n || latex[p] != L'{') 
-                    throw ex_parse(buildErrorMsg("\\resizebox requires third argument in braces", p, latex));
+                    throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires third argument in braces", p, latex));
                 
                 startBrace = p + 1;
                 if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
-                    throw ex_parse(buildErrorMsg("\\resizebox third argument not closed", startBrace, latex));
+                    throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " third argument not closed", startBrace, latex));
             }
         }
     } else {
@@ -347,7 +348,7 @@ static size_t validateStackCommand(const wstring& latex, size_t p, size_t n, con
         
         skipWS(latex, p, n);
         if (cmd == L"stackrel" || cmd == L"stackbin" || cmd == L"overset" || cmd == L"underset" || 
-            cmd == L"accentset" || cmd == L"underaccent" || cmd == L"undertilde") {
+            cmd == L"accentset" || cmd == L"underaccent") {
             if (p >= n || latex[p] != L'{') 
                 throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires second argument in braces", p, latex));
             
