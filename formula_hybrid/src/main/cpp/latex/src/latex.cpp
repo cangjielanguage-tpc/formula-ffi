@@ -120,6 +120,10 @@ static const unordered_set<wstring> ARRAY_ENVS = {
     L"align", L"flalign", L"alignat", L"gather", L"multline"
 };
 
+static const unordered_set<wstring> ENV_WITH_ARG = {
+    L"array", L"alignat", L"alignedat"
+};
+
 // 重音命令名称集合
 // 规则: 这些命令需要一个参数
 static const unordered_set<wstring> ACCENT_COMMANDS = {
@@ -175,13 +179,13 @@ static const unordered_set<wstring> MATH_TYPE_COMMANDS = {
 static const unordered_set<wstring> OTHER_ARG_COMMANDS = {
     L"operatorname", L"phantom", L"hphantom", L"vphantom", L"llap", L"rlap", L"clap",
     L"mathllap", L"mathrlap", L"mathclap", L"cancel", L"bcancel", L"xcancel", L"st",
-    L"rule", L"includegraphics", L"Braket", L"Set", L"Bra", L"Ket", L"char",
+    L"includegraphics", L"Braket", L"Set", L"Bra", L"Ket", L"char",
     L"roman", L"Roman", L"XML", L"dynamic", L"externalFont", L"cornersize"
 };
 
 // \left/\right 支持的分隔符命令集合
 static const unordered_set<wstring> DELIMITER_COMMANDS = {
-    L"{", L"}", L"langle", L"rangle", L"lfloor", L"rfloor",
+    L"{", L"}", L"|", L"langle", L"rangle", L"lfloor", L"rfloor",
     L"lceil", L"rceil", L"uparrow", L"downarrow", L"updownarrow",
     L"Uparrow", L"Downarrow", L"Updownarrow"
 };
@@ -348,7 +352,7 @@ static size_t validateStackCommand(const wstring& latex, size_t p, size_t n, con
         
         skipWS(latex, p, n);
         if (cmd == L"stackrel" || cmd == L"stackbin" || cmd == L"overset" || cmd == L"underset" || 
-            cmd == L"accentset" || cmd == L"underaccent") {
+            cmd == L"accentset" || cmd == L"underaccent" || cmd == L"sideset" || cmd == L"prescript") {
             if (p >= n || latex[p] != L'{') 
                 throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires second argument in braces", p, latex));
             
@@ -479,6 +483,19 @@ static size_t validateBegin(const wstring& latex, size_t p, size_t n, int& array
         throw ex_parse(buildErrorMsg("\\begin environment name not closed", p, latex));
     p++;
     
+    if (ENV_WITH_ARG.find(env) != ENV_WITH_ARG.end()) {
+        skipWS(latex, p, n);
+        if (p < n && latex[p] == L'{') {
+            p++;
+            int depth = 1;
+            while (p < n && depth > 0) {
+                if (latex[p] == L'{') depth++;
+                else if (latex[p] == L'}') depth--;
+                p++;
+            }
+        }
+    }
+    
     size_t endPos = findMatchingEnd(latex, p, n, env);
     if (endPos == wstring::npos) 
         throw ex_parse(buildErrorMsg("\\begin{" + wide2utf8(env.c_str()) + "} has no matching \\end", p, latex));
@@ -517,8 +534,7 @@ static size_t validateDelimiter(const wstring& latex, size_t p, size_t n, const 
         if (!dc.empty() && !isValidDelimiterCommand(dc)) 
             throw ex_parse(buildErrorMsg(context + " invalid delimiter: \\" + wide2utf8(dc.c_str()), p, latex));
         
-        // dc 为空表示是 \{ 或 \} 这样的转义字符
-        if (dc.empty() && p < n && latex[p] != L'{' && latex[p] != L'}') 
+        if (dc.empty() && p < n && latex[p] != L'{' && latex[p] != L'}' && latex[p] != L'|') 
             throw ex_parse(buildErrorMsg(context + " invalid delimiter", p, latex));
         if (dc.empty() && p < n) p++;
     } else if (isValidDelimiterChar(latex[p])) {
@@ -744,6 +760,10 @@ static void validateLatexFormula(const wstring& latex) {
                 p = validateSingleArgCommand(latex, p, n, cmd);
             }
             else if (OTHER_ARG_COMMANDS.find(cmd) != OTHER_ARG_COMMANDS.end()) {
+                p = validateSingleArgCommand(latex, p, n, cmd);
+            }
+            else if (cmd == L"rule") {
+                p = validateSingleArgCommand(latex, p, n, cmd);
                 p = validateSingleArgCommand(latex, p, n, cmd);
             }
             else if (cmd == L"begin") {

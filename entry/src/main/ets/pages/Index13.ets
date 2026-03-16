@@ -235,7 +235,7 @@ struct Index13 {
     { formula: "\\stackrel{def}{=}", description: "堆叠: 定义符号", category: "normal" },
     { formula: "\\overset{*}{X}", description: "上方堆叠: 星号标记", category: "normal" },
     { formula: "\\underset{n}{\\sum}", description: "下方堆叠: 求和符号", category: "normal" },
-    { formula: "\\sideset{^a_b}{^c_d}\\sum", description: "侧边设置: 双侧标记", category: "normal" },
+    { formula: "\\sideset{^a_b}{^c_d}{\\sum}", description: "侧边设置: 双侧标记", category: "normal" },
     { formula: "\\prescript{a}{b}{X}", description: "前置上下标: 双标记", category: "normal" },
     { formula: "\\sum\\limits_{i=1}^n x_i", description: "limits: 求和上下标", category: "normal" },
     
