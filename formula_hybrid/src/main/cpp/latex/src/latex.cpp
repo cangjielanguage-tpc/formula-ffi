@@ -363,12 +363,17 @@ static size_t validateStackCommand(const wstring& latex, size_t p, size_t n, con
         
         if (cmd == L"sideset" || cmd == L"prescript") {
             skipWS(latex, p, n);
-            if (p >= n || latex[p] != L'{') 
-                throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires third argument in braces", p, latex));
+            if (p >= n || (latex[p] != L'{' && latex[p] != L'[')) 
+                throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " requires third argument in braces or brackets", p, latex));
             
             startBrace = p + 1;
-            if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
-                throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " third argument not closed", startBrace, latex));
+            if (latex[p] == L'{') {
+                if ((p = skipBraces(latex, p + 1, n)) == wstring::npos) 
+                    throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " third argument not closed", startBrace, latex));
+            } else {
+                if ((p = skipBrackets(latex, p + 1, n)) == wstring::npos) 
+                    throw ex_parse(buildErrorMsg("\\" + wide2utf8(cmd.c_str()) + " third argument not closed", startBrace, latex));
+            }
         }
     } else {
         p++;
