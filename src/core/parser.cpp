@@ -641,7 +641,7 @@ sptr<Atom> TeXParser::getArgument() throw(ex_parse) {
             parse();
         }catch(ex_parse& e) {
             _formula = tmp;
-            throw ex_parse("parse() failed:");
+            throw;
         }
         _formula = tmp;
         if (_formula->_root == nullptr) {
