@@ -64,6 +64,45 @@ enum LatexMathColorFormat {
   COLOR_FORMAT_RGB_565, // RGB_565
   COLOR_FORMAT_BGRA_8888 // BGRA_8888
 }
+
+/**
+ * TeX解析结果码枚举
+ */
+enum TeXResultCode {
+  Success = 0,              // 解析成功
+  SyntaxError = 1,          // 语法错误
+  InvalidMatrixError = 2,   // 无效矩阵错误
+  InvalidDelimiterError = 3, // 无效分隔符错误
+  TeXError = 4,             // TeX错误
+  UnknownError = 99         // 未知错误
+}
+
+/**
+ * TeX解析结果接口
+ */
+interface TeXParseResult {
+  imageBytes: ArrayBuffer   // 图片字节数组（成功时有效）
+  formula: string           // 原始公式文本
+  resultCode: TeXResultCode // 结果码（Success表示成功）
+  errorMessage: string      // 错误信息
+}
+
+/*
+* 通过文本参数生成数学公式图片数组数据（带错误信息）
+* 当公式解析失败时，返回详细的错误信息，包括结果码和错误描述
+*
+* 参数 - latexMathTextString 数学公式文本内容
+* 参数 - latexMathTextSize 数学公式文字大小 - 单位px
+* 参数 - latexMathTextColor 数学公式文字颜色
+* 参数 - latexMathBackGroupColor 数学公式背景颜色
+* 参数 - latexMathColorFormat 数学公式图片格式
+* 参数 - resPath 字体资源路径。 默认"/data/storage/el1/bundle/entry/resources/resfile/res"
+*
+* 返回值 - Promise<TeXParseResult> 解析结果对象
+*          - 成功时：resultCode=Success, imageBytes包含图片数据
+*          - 失败时：resultCode为错误码, imageBytes为空, errorMessage包含错误详情
+*/
+latexStringToImageWithError(latexMathTextString: string, latexMathTextSize: number, latexMathTextColor: number, latexMathBackGroupColor: number, latexMathColorFormat: LatexMathColorFormat, resPath?: string): Promise<TeXParseResult>
 ```
 
 ## 使用说明
@@ -132,7 +171,7 @@ struct Index0 {
 
 数学公式效果：
 
-![img1](https://raw.gitcode.com/Cangjie-TPC/formula-ffi/raw/formula-ffi_hybrid_cangjie-plugin_5.1.1_mhchem_test/doc/assets/img.png)
+![img1](https://raw.gitcode.com/Cangjie-TPC/formula-ffi/raw/formula-ffi_hybrid_cangjie-plugin_5.1.1/doc/assets/img.png)
 
 化学公式效果：
 
