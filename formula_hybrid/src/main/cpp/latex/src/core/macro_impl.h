@@ -349,8 +349,49 @@ inline macro(nbsp) {
 inline macro(sqrt) {
     if (args[2].empty())
         return sptr<Atom>(new NthRoot(TeXFormula(tp, args[1], false)._root, nullptr));
+    
+    // Process optional leftroot and uproot commands
+    float leftroot = 0;
+    float uproot = 0;
+    wstring rootArg = args[2];
+    
+    // Check for leftroot command
+    size_t leftrootPos = rootArg.find(L"\\leftroot{");
+    if (leftrootPos != wstring::npos) {
+        size_t endPos = rootArg.find(L"}", leftrootPos);
+        if (endPos != wstring::npos) {
+            wstring value = rootArg.substr(leftrootPos + 9, endPos - leftrootPos - 9);
+            try {
+                leftroot = stof(wide2utf8(value.c_str()));
+            } catch (...) {
+                leftroot = 0;
+            }
+            // Remove leftroot command from root argument
+            rootArg = rootArg.substr(0, leftrootPos) + rootArg.substr(endPos + 1);
+        }
+    }
+    
+    // Check for uproot command
+    size_t uprootPos = rootArg.find(L"\\uproot{");
+    if (uprootPos != wstring::npos) {
+        size_t endPos = rootArg.find(L"}", uprootPos);
+        if (endPos != wstring::npos) {
+            wstring value = rootArg.substr(uprootPos + 8, endPos - uprootPos - 8);
+            try {
+                uproot = stof(wide2utf8(value.c_str()));
+            } catch (...) {
+                uproot = 0;
+            }
+            // Remove uproot command from root argument
+            rootArg = rootArg.substr(0, uprootPos) + rootArg.substr(endPos + 1);
+        }
+    }
+    
     return sptr<Atom>(new NthRoot(
-        TeXFormula(tp, args[1], false)._root, TeXFormula(tp, args[2], false)._root));
+        TeXFormula(tp, args[1], false)._root, 
+        TeXFormula(tp, rootArg, false)._root, 
+        leftroot, 
+        uproot));
 }
 
 inline macro(overrightarrow) {
@@ -1610,6 +1651,293 @@ macro(xml);
 
 inline macro(unicode) {
     return sptr<Atom>(new UnicodeAtom(args[1]));
+}
+
+inline macro(CDATATenv) {
+    wstring content = args[1];
+    
+    vector<vector<wstring>> rows;
+    vector<wstring> currentRow;
+    wstring currentCell;
+    size_t pos = 0;
+    
+    while (pos < content.length()) {
+        if (content[pos] == L'\\' && pos + 1 < content.length() && content[pos + 1] == L'\\') {
+            if (!currentCell.empty()) {
+                currentRow.push_back(currentCell);
+                currentCell.clear();
+            }
+            if (!currentRow.empty()) {
+                rows.push_back(currentRow);
+                currentRow.clear();
+            }
+            pos += 2;
+        } else if (content[pos] == L'&') {
+            if (!currentCell.empty()) {
+                currentRow.push_back(currentCell);
+                currentCell.clear();
+            }
+            pos++;
+        } else {
+            currentCell += content[pos];
+            pos++;
+        }
+    }
+    
+    if (!currentCell.empty()) {
+        currentRow.push_back(currentCell);
+    }
+    if (!currentRow.empty()) {
+        rows.push_back(currentRow);
+    }
+    
+    wstring processed;
+    for (size_t r = 0; r < rows.size(); r++) {
+        for (size_t c = 0; c < rows[r].size(); c++) {
+            wstring cell = rows[r][c];
+            size_t cellPos = 0;
+            wstring processedCell;
+            
+            while (cellPos < cell.length()) {
+                if (cell[cellPos] == L'@' && cellPos + 1 < cell.length()) {
+                    wchar_t arrowType = cell[cellPos + 1];
+                    
+                    if (arrowType == L'>') {
+                        cellPos += 2;
+                        wstring upperLabel;
+                        wstring lowerLabel;
+                        bool hasLower = false;
+                        
+                        while (cellPos < cell.length()) {
+                            if (cell[cellPos] == L'>') {
+                                cellPos++;
+                                if (cellPos < cell.length() && cell[cellPos] == L'>') {
+                                    cellPos++;
+                                    break;
+                                } else {
+                                    hasLower = true;
+                                    while (cellPos < cell.length() && cell[cellPos] != L'>') {
+                                        lowerLabel += cell[cellPos];
+                                        cellPos++;
+                                    }
+                                    if (cellPos < cell.length() && cell[cellPos] == L'>') {
+                                        cellPos++;
+                                        if (cellPos < cell.length() && cell[cellPos] == L'>') {
+                                            cellPos++;
+                                        }
+                                    }
+                                    break;
+                                }
+                            } else {
+                                upperLabel += cell[cellPos];
+                                cellPos++;
+                            }
+                        }
+                        
+                        if (!upperLabel.empty() && !lowerLabel.empty()) {
+                            processedCell += L"\\xrightarrow[" + lowerLabel + L"]{" + upperLabel + L"}";
+                        } else if (!upperLabel.empty()) {
+                            processedCell += L"\\xrightarrow{" + upperLabel + L"}";
+                        } else {
+                            processedCell += L"\\longrightarrow";
+                        }
+                    } else if (arrowType == L'<') {
+                        cellPos += 2;
+                        wstring upperLabel;
+                        wstring lowerLabel;
+                        bool hasLower = false;
+                        
+                        while (cellPos < cell.length()) {
+                            if (cell[cellPos] == L'<') {
+                                cellPos++;
+                                if (cellPos < cell.length() && cell[cellPos] == L'<') {
+                                    cellPos++;
+                                    break;
+                                } else {
+                                    hasLower = true;
+                                    while (cellPos < cell.length() && cell[cellPos] != L'<') {
+                                        lowerLabel += cell[cellPos];
+                                        cellPos++;
+                                    }
+                                    if (cellPos < cell.length() && cell[cellPos] == L'<') {
+                                        cellPos++;
+                                        if (cellPos < cell.length() && cell[cellPos] == L'<') {
+                                            cellPos++;
+                                        }
+                                    }
+                                    break;
+                                }
+                            } else {
+                                upperLabel += cell[cellPos];
+                                cellPos++;
+                            }
+                        }
+                        
+                        if (!upperLabel.empty() && !lowerLabel.empty()) {
+                            processedCell += L"\\xleftarrow[" + lowerLabel + L"]{" + upperLabel + L"}";
+                        } else if (!upperLabel.empty()) {
+                            processedCell += L"\\xleftarrow{" + upperLabel + L"}";
+                        } else {
+                            processedCell += L"\\longleftarrow";
+                        }
+                    } else if (arrowType == L'V' || arrowType == L'v') {
+                        cellPos += 2;
+                        wstring leftLabel;
+                        wstring rightLabel;
+                        bool hasRight = false;
+                        
+                        while (cellPos < cell.length()) {
+                            if (cell[cellPos] == L'V' || cell[cellPos] == L'v') {
+                                cellPos++;
+                                if (cellPos < cell.length() && (cell[cellPos] == L'V' || cell[cellPos] == L'v')) {
+                                    cellPos++;
+                                    break;
+                                } else {
+                                    hasRight = true;
+                                    while (cellPos < cell.length() && (cell[cellPos] != L'V' && cell[cellPos] != L'v')) {
+                                        rightLabel += cell[cellPos];
+                                        cellPos++;
+                                    }
+                                    if (cellPos < cell.length() && (cell[cellPos] == L'V' || cell[cellPos] == L'v')) {
+                                        cellPos++;
+                                        if (cellPos < cell.length() && (cell[cellPos] == L'V' || cell[cellPos] == L'v')) {
+                                            cellPos++;
+                                        }
+                                    }
+                                    break;
+                                }
+                            } else {
+                                leftLabel += cell[cellPos];
+                                cellPos++;
+                            }
+                        }
+                        
+                        if (!leftLabel.empty() && !rightLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"\\quad{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad";
+                            } else {
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad\\quad\\quad";
+                            }
+                        } else if (!leftLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"\\quad\\bigg\\downarrow{}{\\scriptstyle " + leftLabel + L"}\\quad";
+                            } else {
+                                processedCell += L"\\bigg\\downarrow{}{\\scriptstyle " + leftLabel + L"}\\quad\\quad\\quad\\quad\\quad";
+                            }
+                        } else if (!rightLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"\\quad\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad";
+                            } else {
+                                processedCell += L"\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad\\quad\\quad";
+                            }
+                        } else {
+                            if (c == 0) {
+                                processedCell += L"\\quad\\bigg\\downarrow{}\\quad";
+                            } else {
+                                processedCell += L"\\bigg\\downarrow{}\\quad\\quad\\quad\\quad\\quad";
+                            }
+                        } 
+                    } else if (arrowType == L'A' || arrowType == L'a') {
+                        cellPos += 2;
+                        wstring leftLabel;
+                        wstring rightLabel;
+                        bool hasRight = false;
+                        
+                        while (cellPos < cell.length()) {
+                            if (cell[cellPos] == L'A' || cell[cellPos] == L'a') {
+                                cellPos++;
+                                if (cellPos < cell.length() && (cell[cellPos] == L'A' || cell[cellPos] == L'a')) {
+                                    cellPos++;
+                                    break;
+                                } else {
+                                    hasRight = true;
+                                    while (cellPos < cell.length() && (cell[cellPos] != L'A' && cell[cellPos] != L'a')) {
+                                        rightLabel += cell[cellPos];
+                                        cellPos++;
+                                    }
+                                    if (cellPos < cell.length() && (cell[cellPos] == L'A' || cell[cellPos] == L'a')) {
+                                        cellPos++;
+                                        if (cellPos < cell.length() && (cell[cellPos] == L'A' || cell[cellPos] == L'a')) {
+                                            cellPos++;
+                                        }
+                                    }
+                                    break;
+                                }
+                            } else {
+                                leftLabel += cell[cellPos];
+                                cellPos++;
+                            }
+                        }
+                        
+                        if (!leftLabel.empty() && !rightLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"\\quad{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad";
+                            } else {
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad\\quad\\quad";
+                            }
+                        } else if (!leftLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"\\quad\\bigg\\uparrow{}{\\scriptstyle " + leftLabel + L"}\\quad";
+                            } else {
+                                processedCell += L"\\bigg\\uparrow{}{\\scriptstyle " + leftLabel + L"}\\quad\\quad\\quad\\quad\\quad";
+                            }
+                        } else if (!rightLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"\\quad\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad";
+                            } else {
+                                processedCell += L"\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad\\quad\\quad";
+                            }
+                        } else {
+                            if (c == 0) {
+                                processedCell += L"\\quad\\bigg\\uparrow{}\\quad";
+                            } else {
+                                processedCell += L"\\bigg\\uparrow{}\\quad\\quad\\quad\\quad\\quad";
+                            }
+                        }
+                    } else if (arrowType == L'=') {
+                        cellPos += 2;
+                        processedCell += L"\\equal";
+                    } else if (arrowType == L'|') {
+                        cellPos += 2;
+                        if (c == 0) {
+                            processedCell += L"\\quad\\bigg\\Vert{}\\quad";
+                        } else {
+                            processedCell += L"\\bigg\\Vert{}\\quad\\quad\\quad\\quad\\quad";
+                        }
+                    } else if (arrowType == L'.') {
+                        cellPos += 2;
+                        if (c == 0) {
+                            processedCell += L"\\quad\\phantom{\\bigg\\downarrow{}}\\quad\\quad";
+                        } else {
+                            processedCell += L"\\phantom{\\bigg\\downarrow{}}\\quad\\quad\\quad\\quad\\quad";
+                        }
+                    } else {
+                        processedCell += cell[cellPos];
+                        cellPos++;
+                    }
+                } else {
+                    processedCell += cell[cellPos];
+                    cellPos++;
+                }
+            }
+            
+            processed += processedCell;
+            if (c < rows[r].size() - 1) {
+                processed += L" & ";
+            }
+        }
+        if (r < rows.size() - 1) {
+            processed += L" \\\\ ";
+        }
+    }
+    
+    sptr<ArrayOfAtoms> arr(new ArrayOfAtoms());
+    TeXParser parser(tp.getIsPartial(), processed, arr.get(), false);
+    parser.parse();
+    arr->checkDimensions();
+    
+    return sptr<Atom>(new MatrixAtom(
+        tp.getIsPartial(), arr, L"cccc", true));
 }
 
 /**************************************** not implemented *****************************************/

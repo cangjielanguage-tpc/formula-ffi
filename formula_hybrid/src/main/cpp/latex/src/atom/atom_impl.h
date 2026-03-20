@@ -1131,13 +1131,20 @@ private:
     sptr<Atom> _base;
     // root atom to be put in the upper left corner above the root sign
     sptr<Atom> _root;
+    // horizontal shift for the root
+    float _leftroot;
+    // vertical shift for the root
+    float _uproot;
 
 public:
     NthRoot() = delete;
 
-    NthRoot(const sptr<Atom>& base, const sptr<Atom>& root) {
+    //NthRoot(const sptr<Atom>& base, const sptr<Atom>& root) {
+    NthRoot(const sptr<Atom>& base, const sptr<Atom>& root, float leftroot = 0, float uproot = 0) {
         _base = base == nullptr ? sptr<Atom>(new EmptyAtom()) : base;
         _root = root == nullptr ? sptr<Atom>(new EmptyAtom()) : root;
+        _leftroot = leftroot;
+        _uproot = uproot;
     }
 
     sptr<Box> createBox(_out_ TeXEnvironment& env) override;

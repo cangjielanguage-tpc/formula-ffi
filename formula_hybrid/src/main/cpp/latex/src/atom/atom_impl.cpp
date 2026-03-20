@@ -1048,10 +1048,17 @@ sptr<Box> NthRoot::createBox(_out_ TeXEnvironment& env) {
     auto r = _root->createBox(*(env.rootStyle()));
     // shift root up
     float bottomShift = FACTOR * (squareRoot->_height + squareRoot->_depth);
-    r->_shift = squareRoot->_depth - r->_depth - bottomShift;
+    r->_shift = squareRoot->_depth - r->_depth - bottomShift + _uproot + 0.0f;
 
-    // negative kerning
-    sptr<Box> negkern = SpaceAtom(UNIT_MU, -10.f, 0, 0).createBox(env);
+    // move square root down
+    //    squareRoot->_shift = _uproot;
+    if (_root == nullptr) {
+        squareRoot->_shift = 0.0f;  // 普通平方根，不移动
+    } else {
+        squareRoot->_shift = _uproot;  // n 次根号，使用_uproot
+    }
+    // negative kerning with leftroot adjustment
+    sptr<Box> negkern = SpaceAtom(UNIT_MU, -10.f + _leftroot, 0, 0).createBox(env);
 
     // arrange both boxes together with the negative kerning
     sptr<Box> res(new HorizontalBox());

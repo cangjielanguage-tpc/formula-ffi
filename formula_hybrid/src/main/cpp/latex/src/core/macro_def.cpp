@@ -50,12 +50,14 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(2, macro_arrayATATenv, "array@@env"),
     mac(2, macro_alignATATenv, "align@@env"),
     mac(2, macro_alignedATATenv, "aligned@@env"),
+//    mac(1, macro_equationATATenv, "equation@env"),
     mac(2, macro_flalignATATenv, "flalign@@env"),
     mac(2, macro_alignatATATenv, "alignat@@env"),
     mac(2, macro_alignedatATATenv, "alignedat@@env"),
     mac(2, macro_multlineATATenv, "multline@@env"),
     mac(2, macro_gatherATATenv, "gather@@env"),
     mac(2, macro_gatheredATATenv, "gathered@@env"),
+    mac(1, macro_CDATATenv, "CD@env"),
     mac(1, macro_hvspace, "hspace"),
     mac(1, macro_hvspace, "vspace"),
     mac(1, macro_clrlap, "llap"),
@@ -181,6 +183,7 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(1, macro_Set, "Set"),
     mac(2, macro_underset, "underset"),
     mac(1, macro_boldsymbol, "boldsymbol"),
+    mac(1, macro_boldsymbol, "pmb"),
     mac(0, macro_LaTeX, "LaTeX"),
     mac(0, macro_GeoGebra, "GeoGebra"),
     mac(1, macro_big, "big"),
@@ -379,6 +382,7 @@ void NewCommandMacro::_init_() {
     c(1, L"operatorname", L"\\mathop{\\mathrm{#1}}\\nolimits ");
     c(2, L"DeclareMathOperator", L"\\newcommand{#1}{\\mathop{\\mathrm{#2}}\\nolimits}");
     c(1, L"substack", L"{\\scriptstyle\\begin{array}{c}#1\\end{array}}");
+    e(1, L"subarray", L"{\\scriptstyle\\begin{array}{#1}", L"\\end{array}}");
     c(2, L"dfrac", L"\\genfrac{}{}{}{}{#1}{#2}");
     c(2, L"tfrac", L"\\genfrac{}{}{}{1}{#1}{#2}");
     c(2, L"dbinom", L"\\genfrac{(}{)}{0pt}{}{#1}{#2}");
@@ -406,6 +410,9 @@ void NewCommandMacro::_init_() {
     c(1, L"textsf", L"\\mathsf{\\text{#1}}");
     c(1, L"texttt", L"\\mathtt{\\text{#1}}");
     c(1, L"textrm", L"\\text{#1}");
+    c(1, L"norm", L"\\left\\|#1\\right\\|");
+    c(1, L"abs", L"\\left|#1\\right|");
+    c(0, L"esssup", L"\\mathop{\\mathrm{ess\\,sup}}\\nolimits");
     c(0, L"degree", L"^\\circ");
     c(0, L"with", L"\\mathbin{\\&}");
     c(0, L"parr", L"\\mathbin{\\rotatebox[origin=c]{180}{\\&}}");
