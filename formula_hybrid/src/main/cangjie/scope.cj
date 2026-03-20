@@ -26,9 +26,11 @@ public type napi_env = CPointer<Unit>
  */
 public type napi_value = CPointer<Unit>
 
+@When[arch == "aarch64"]
 @FastNative
 foreign func openScope(env: JSEnv): JSScope
 
+@When[arch == "aarch64"]
 @FastNative
 foreign func closeScope(env: JSEnv, scope: JSScope): Unit
 
@@ -36,6 +38,7 @@ foreign func closeScope(env: JSEnv, scope: JSScope): Unit
 * @param runtime {JSContext} in this context you want to create values and call arkts functions/methods
 * @param callback {(} -> T) the lambda function holds the logic
 */
+@When[arch == "aarch64"]
 public func newScope<T>(runtime: JSContext, callback: () -> T): T {
     unsafe {
         let scope = openScope(runtime.env)
