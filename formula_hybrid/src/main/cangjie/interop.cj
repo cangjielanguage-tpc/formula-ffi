@@ -23,7 +23,9 @@ func latexStringToImage(runtime: JSContext, callInfo: JSCallInfo): JSValue {
         synchronized(latexReentrantMutex) {
             let result = latexStringToImage(value0, value1, UInt32(value2), UInt32(value3), Int64(value4), value5)
             runtime.postJSTask {
-                promise.resolve(runtime.arrayBuffer(result).toJSValue())
+                newScope(runtime) {
+                    promise.resolve(runtime.arrayBuffer(result).toJSValue())
+                }
             }
         }
     }
@@ -56,12 +58,14 @@ func latexStringToImageWithError(runtime: JSContext, callInfo: JSCallInfo): JSVa
         }
         let resultCodeNum: Float64 = Float64(data.resultCode)
         runtime.postJSTask {
-            let obj = runtime.object()
-            obj["imageBytes"] = runtime.arrayBuffer(data.imageBytes).toJSValue()
-            obj["formula"] = runtime.string(data.formula).toJSValue()
-            obj["resultCode"] = runtime.number(resultCodeNum).toJSValue()
-            obj["errorMessage"] = runtime.string(data.errorMessage).toJSValue()
-            promise.resolve(obj.toJSValue())
+            newScope(runtime) {
+                let obj = runtime.object()
+                obj["imageBytes"] = runtime.arrayBuffer(data.imageBytes).toJSValue()
+                obj["formula"] = runtime.string(data.formula).toJSValue()
+                obj["resultCode"] = runtime.number(resultCodeNum).toJSValue()
+                obj["errorMessage"] = runtime.string(data.errorMessage).toJSValue()
+                promise.resolve(obj.toJSValue())
+            }
         }
     }
     promise.toJSValue()
