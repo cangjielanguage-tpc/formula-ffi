@@ -338,6 +338,10 @@ inline macro(xrightarrow) {
         TeXFormula(tp, args[1], false)._root, TeXFormula(tp, args[2])._root, false));
 }
 
+inline macro(xlongequal) {
+    return sptr<Atom>(new XEqualAtom(TeXFormula(tp, args[1], false)._root, TeXFormula(tp, args[2])._root));
+}
+
 inline macro(sideset) {
     auto l = TeXFormula(tp, args[1])._root;
     auto r = TeXFormula(tp, args[2])._root;

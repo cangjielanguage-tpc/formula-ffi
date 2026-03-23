@@ -1578,6 +1578,27 @@ public:
 };
 
 /**
+ * An atom representing an extensible equal sign to handle \xlongequal
+ * command in LaTeX.
+ */
+class XEqualAtom : public Atom {
+private:
+    sptr<Atom> _over, _under;
+
+public:
+    XEqualAtom() = delete;
+
+    XEqualAtom(const sptr<Atom>& over, const sptr<Atom>& under) {
+        _over = over;
+        _under = under;
+    }
+
+    sptr<Box> createBox(_out_ TeXEnvironment& env) override;
+
+    __decl_clone(XEqualAtom)
+};
+
+/**
  * An atom representing long division
  */
 class LongDivAtom : public VRowAtom {
