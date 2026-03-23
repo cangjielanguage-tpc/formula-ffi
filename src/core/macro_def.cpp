@@ -30,6 +30,7 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(2, 1, macro_cfrac, "cfrac"),
     mac(1, 1, macro_xleftarrow, "xleftarrow"),
     mac(1, 1, macro_xrightarrow, "xrightarrow"),
+    mac(1, 1, macro_xlongequal, "xlongequal"),
     mac(1, 1, macro_sqrt, "sqrt"),
     mac(1, 1, macro_smash, "smash"),
     mac(1, 1, macro_hdotsfor, "hdotsfor"),

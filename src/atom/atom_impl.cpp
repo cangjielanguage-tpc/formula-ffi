@@ -1182,6 +1182,69 @@ sptr<Box> XArrowAtom::createBox(_out_ TeXEnvironment& env) {
     return sptr<Box>(hb);
 }
 
+sptr<Box> XEqualAtom::createBox(_out_ TeXEnvironment& env) {
+    // 获取上标和下标的盒子
+    auto O = _over != nullptr
+        ? _over->createBox(*(env.supStyle()))
+        : sptr<Box>(new StrutBox(0, 0, 0, 0));
+
+    auto U = _under != nullptr
+        ? _under->createBox(*(env.subStyle()))
+        : sptr<Box>(new StrutBox(0, 0, 0, 0));
+
+    // 为上下标添加适当的间距
+    auto oside = SpaceAtom(UNIT_EM, 1.5f, 0, 0).createBox(*(env.supStyle()));
+    auto uside = SpaceAtom(UNIT_EM, 1.5f, 0, 0).createBox(*(env.subStyle()));
+
+    // 等号两边的空间
+    auto sep = SpaceAtom(UNIT_MU, 0, 2.f, 0).createBox(env);
+
+    // 计算宽度：等号宽度由上下标和间距决定
+    float width = max(
+        O->_width + 2 * oside->_width * 0.4,
+        U->_width + 2 * uside->_width * 0.4
+    );
+
+    // 获取当前字体的默认粗细（rule thickness）
+    float thickness = env.getTeXFont()->getDefaultRuleThickness(env.getStyle());
+
+    // 设定间距值，这样我们就能通过控制gap来调整上下线的间距
+    float gap = thickness * 3;  // 可以调整倍数，控制上下直线的距离
+
+    // 创建一个垂直盒子来包含整体结构
+    sptr<VerticalBox> eq(new VerticalBox());
+
+    // 上下两条横线的粗细一致
+    eq->add(sptr<Box>(new HorizontalRule(thickness * 0.7, width, 0)));  // 上边的横线
+    eq->add(sptr<Box>(new StrutBox(0, gap, 0, 0)));  // 间隔
+    eq->add(sptr<Box>(new HorizontalRule(thickness * 0.7, width, 0)));  // 下边的横线
+
+    // 创建上下标的水平盒子
+    sptr<Box> ohb(new HorizontalBox(O, width, ALIGN_CENTER));
+    sptr<Box> uhb(new HorizontalBox(U, width, ALIGN_CENTER));
+
+    // 垂直盒子容器，用来组合元素
+    sptr<VerticalBox> vb(new VerticalBox());
+
+    vb->add(ohb);
+    vb->add(sep);
+    vb->add(eq);
+    vb->add(sep);
+    vb->add(uhb);
+
+    // 最终盒子的高度和深度
+    float h = vb->_height + vb->_depth;
+    float d = sep->_height + sep->_depth + uhb->_height + uhb->_depth;
+
+    vb->_depth = d;
+    vb->_height = h - d;
+
+    // 包装成水平盒子以确保元素居中
+    HorizontalBox* hb = new HorizontalBox(vb, vb->_width + 2 * sep->_height, ALIGN_CENTER);
+
+    return sptr<Box>(hb);
+}
+
 void LongDivAtom::calculate(_out_ vector<wstring>& results) {
     long quotient = _dividend / _divisor;
     results.push_back(towstring(quotient));
