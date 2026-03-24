@@ -1,0 +1,1 @@
+\ce{A \xlongequal[T]{H^+} B}

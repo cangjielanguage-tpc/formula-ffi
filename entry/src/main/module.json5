@@ -4,18 +4,19 @@
     "type": "entry",
     "description": "$string:module_desc",
     "mainElement": "EntryAbility",
+    "compressNativeLibs": true,
     "deviceTypes": [
       "phone"
     ],
     "deliveryWithInstall": true,
     "installationFree": false,
-    "srcEntry": "ohos_app_cangjie_entry.MyAbilityStage",
+    "pages": "$profile:main_pages",
     "abilities": [
       {
         "name": "EntryAbility",
-        "srcEntry": "ohos_app_cangjie_entry.MainAbility",
+        "srcEntry": "./ets/entryability/EntryAbility.ets",
         "description": "$string:EntryAbility_desc",
-        "icon": "$media:layered_image",
+        "icon": "$media:app_icon",
         "label": "$string:EntryAbility_label",
         "startWindowIcon": "$media:startIcon",
         "startWindowBackground": "$color:start_window_background",
@@ -26,10 +27,24 @@
               "entity.system.home"
             ],
             "actions": [
-              "action.system.home"
+              "ohos.want.action.home"
             ]
           }
         ]
+      }
+    ],
+    "extensionAbilities": [
+      {
+        "name": "EntryBackupAbility",
+        "srcEntry": "./ets/entrybackupability/EntryBackupAbility.ets",
+        "type": "backup",
+        "exported": false,
+        "metadata": [
+          {
+            "name": "ohos.extension.backup",
+            "resource": "$profile:backup_config"
+          }
+        ],
       }
     ]
   }

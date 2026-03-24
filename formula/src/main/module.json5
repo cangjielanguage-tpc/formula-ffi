@@ -1,9 +1,0 @@
-{
-  "module": {
-    "name": "formula",
-    "type": "har",
-    "deviceTypes": [
-      "default"
-    ]
-  }
-}

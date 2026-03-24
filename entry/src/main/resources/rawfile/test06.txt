@@ -1,0 +1,1 @@
+a^m \cdot a^n = a^{m+n}, \quad (a^m)^n = a^{mn}, \quad (ab)^n = a^n b^n

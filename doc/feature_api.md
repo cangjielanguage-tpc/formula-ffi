@@ -1,216 +1,150 @@
-# formula库
+### formula
 
-## 介绍
+```ets
+/*
+* 通过文本参数生成数学公式图片数组数据
+*
+* 参数 - latexMathTextString 数学公式文本内容
+* 参数 - latexMathTextSize 数学公式文字大小 - 单位px
+* 参数 - latexMathTextColor 数学公式文字颜色
+* 参数 - latexMathBackGroupColor 数学公式背景颜色
+* 参数 - latexMathColorFormat 数学公式图片格式
+* 参数 - resPath 字体资源路径。 默认"/data/storage/el1/bundle/entry/resources/resfile/res"
+*
+* 返回值 - Promise<ArrayBuffer> 图片数组数据
+*/
+latexStringToImage(latexMathTextString: string, latexMathTextSize: number, latexMathTextColor: number, latexMathBackGroupColor: number, latexMathColorFormat: LatexMathColorFormat, resPath?: string): Promise<ArrayBuffer>
 
-formula 主要目的是显示用 LaTeX 编写的数学公式。参考地址：https://github.com/NanoMichael/MicroTeX
+/**
+ * 图片格式枚举
+ */
+enum LatexMathColorFormat {
+  COLOR_FORMAT_RGB_565, // RGB_565
+  COLOR_FORMAT_BGRA_8888 // BGRA_8888
+}
 
-## formula
+/**
+ * TeX解析结果码枚举
+ */
+enum TeXResultCode {
+  Success = 0,              // 解析成功
+  SyntaxError = 1,          // 语法错误
+  InvalidMatrixError = 2,   // 无效矩阵错误
+  InvalidDelimiterError = 3, // 无效分隔符错误
+  TeXError = 4,             // TeX错误
+  UnknownError = 99         // 未知错误
+}
 
-前置条件：NA
+/**
+ * TeX解析结果接口
+ */
+interface TeXParseResult {
+  imageBytes: ArrayBuffer   // 图片字节数组（成功时有效）
+  formula: string           // 原始公式文本
+  resultCode: TeXResultCode // 结果码（Success表示成功）
+  errorMessage: string      // 错误信息
+}
 
-场景：
-
-约束：
-
-### 1. Graphic2D
-
-#### 1.1 主要接口
-
+/*
+* 通过文本参数生成数学公式图片数组数据（带错误信息）
+* 当公式解析失败时，返回详细的错误信息，包括结果码和错误描述
+*
+* 参数 - latexMathTextString 数学公式文本内容
+* 参数 - latexMathTextSize 数学公式文字大小 - 单位px
+* 参数 - latexMathTextColor 数学公式文字颜色
+* 参数 - latexMathBackGroupColor 数学公式背景颜色
+* 参数 - latexMathColorFormat 数学公式图片格式
+* 参数 - resPath 字体资源路径。 默认"/data/storage/el1/bundle/entry/resources/resfile/res"
+*
+* 返回值 - Promise<TeXParseResult> 解析结果对象
+*          - 成功时：resultCode=Success, imageBytes包含图片数据
+*          - 失败时：resultCode为错误码, imageBytes为空, errorMessage包含错误详情
+*/
+latexStringToImageWithError(latexMathTextString: string, latexMathTextSize: number, latexMathTextColor: number, latexMathBackGroupColor: number, latexMathColorFormat: LatexMathColorFormat, resPath?: string): Promise<TeXParseResult>
 ```
-public class Graphic2D {
-    /*
-    * 初始化画布
-    *
-    * 参数 - render Render
-    * 参数 - colorFormat 位图像素存储格式
-    *
-    * 返回值 - Unit
-    */
-    public init(render: Render, colorFormat: ColorFormat)
 
-    /*
-    * 获取画布ffi指针
-    *
-    * 返回值 - CPointer<UInt8>
-    */
-    public func getG2(): CPointer<UInt8>
+### 结果码说明
 
-    /*
-    * 获取位图像素存储格式(Int32格式)
-    *
-    * 返回值 - CPointer<UInt8>
-    */
-    public func getColorFormat(): Int32
+| 结果码 | 名称 | 说明 | 示例场景 |
+|--------|------|------|----------|
+| 0 | Success | 解析成功 | 正常的LaTeX公式 |
+| 1 | SyntaxError | 语法错误 | 缺少参数、括号不匹配、命令拼写错误等 |
+| 2 | InvalidMatrixError | 无效矩阵错误 | 矩阵列数不一致、矩阵格式错误等 |
+| 3 | InvalidDelimiterError | 无效分隔符错误 | left/right不匹配、分隔符使用错误等 |
+| 4 | TeXError | TeX错误 | 未定义的命令、不支持的LaTeX特性等 |
+| 99 | UnknownError | 未知错误 | 其他未分类的错误 |
 
-    /*
-    * 画布宽度
-    */
-    public prop width: UInt32
+### 使用示例
 
-    /*
-    * 画布高度
-    */
-    public prop height: UInt32
+```typescript
+import { latexStringToImageWithError, TeXResultCode, LatexMathColorFormat } from '@cangjie-tpc/formula_hybrid';
+
+// 示例1: 正常公式解析
+async function parseNormalFormula() {
+  const result = await latexStringToImageWithError(
+    "\\frac{a}{b}",
+    20,
+    0xFF000000,
+    0xFFFFFFFF,
+    LatexMathColorFormat.COLOR_FORMAT_BGRA_8888
+  );
+  
+  if (result.resultCode === TeXResultCode.Success) {
+    console.log("解析成功");
+    // 使用 result.imageBytes 创建图片
+  } else {
+    console.log("解析失败:", result.errorMessage);
+  }
+}
+
+// 示例2: 异常公式处理
+async function parseErrorFormula() {
+  const result = await latexStringToImageWithError(
+    "\\frac{a}{",  // 缺少右括号
+    20,
+    0xFF000000,
+    0xFFFFFFFF,
+    LatexMathColorFormat.COLOR_FORMAT_BGRA_8888
+  );
+  
+  if (result.resultCode !== TeXResultCode.Success) {
+    console.log("结果码:", result.resultCode); // TeXResultCode.SyntaxError
+    console.log("错误信息:", result.errorMessage);
+    console.log("原始公式:", result.formula);
+  }
+}
+
+// 示例3: 根据结果码进行不同处理
+async function handleFormulaWithResultCode(formula: string) {
+  const result = await latexStringToImageWithError(
+    formula,
+    20,
+    0xFF000000,
+    0xFFFFFFFF,
+    LatexMathColorFormat.COLOR_FORMAT_BGRA_8888
+  );
+  
+  switch (result.resultCode) {
+    case TeXResultCode.Success:
+      console.log("公式解析成功");
+      break;
+    case TeXResultCode.SyntaxError:
+      console.log("语法错误，请检查公式格式");
+      break;
+    case TeXResultCode.InvalidMatrixError:
+      console.log("矩阵格式错误，请检查矩阵定义");
+      break;
+    case TeXResultCode.InvalidDelimiterError:
+      console.log("分隔符错误，请检查left/right配对");
+      break;
+    case TeXResultCode.TeXError:
+      console.log("TeX错误，可能使用了不支持的命令");
+      break;
+    case TeXResultCode.UnknownError:
+      console.log("未知错误:", result.errorMessage);
+      break;
+  }
+  
+  return result;
 }
 ```
-
-### 2. LaTeX
-
-#### 2.1 主要接口
-
-```
-public class LaTeX {
-    /*
-    * 初始化LaTex
-    *
-    * 参数 - rootDir 字体资源路径
-    *
-    * 返回值 - Unit
-    */
-    public init(rootDir: String)
-    
-    /*
-    * 销毁LaTeX
-    *
-    * 返回值 - Unit
-    */
-    public func release(): Unit
-    
-    /*
-    * 解析数学公式
-    *
-    * 参数 - ltx 数学公式字符串
-    * 参数 - width 画布宽度（预设宽度）
-    * 参数 - textSize 字体大小
-    * 参数 - lineSpace 行距
-    * 参数 - foreground 前景色（画笔颜色），ARGB格式，透明度A不能设置为0，不然颜色可能是随机的
-    *
-    * 返回值 - Render
-    */
-    public func parse(ltx: String, width: Int32, textSize: Float32, lineSpace: Float32, foreground: UInt32): Render
-}
-```
-
-### 3. Render
-
-#### 3.1 主要接口
-
-```
-public class Render {
-    /*
-    * 初始化
-    *
-    * 参数 - ptr ffi指针
-    *
-    * 返回值 - Unit
-    */
-    public init(ptr: CPointer<UInt8>)
-    
-    /*
-    * 绘制图片
-    *
-    * 参数 - g2 Graphic2D
-    * 参数 - background 背景色，ARGB格式
-    *
-    * 返回值 - Unit
-    */
-    public func draw(g2: Graphic2D, background: UInt32): Unit
-
-    /*
-    * 获取字体大小
-    *
-    * 返回值 - Int32
-    */
-    public func getTextSize(): Float32
-    
-    /*
-    * 获取绘制的实际高度（非画布高度）
-    *
-    * 返回值 - Int32
-    */
-    public func getHeight(): UInt32
-    
-    /*
-    * 获取绘制的实际宽度（非画布宽度）
-    *
-    * 返回值 - Int32
-    */
-    public func getWidth(): UInt32
-    
-    /*
-    * 销毁Render
-    *
-    * 返回值 - Unit
-    */
-    public func finalize(): Unit
-        
-    /*
-    * 生成bitmap图片资源
-    *
-    * 参数 - g2 Graphic2D
-    *
-    * 返回值 - Array<UInt8>
-    */
-    public func toBitmap(g2: Graphic2D): Array<UInt8> 
-    
-    /*
-    * 获取生成图片资源
-    *
-    * 参数 - g2 Graphic2D
-    *
-    * 返回值 - Array<UInt8>
-    */
-    public func getMapData(g2: Graphic2D): Array<UInt8>
-}
-```
-
-### 示例
-
-test.cj
-
-```
-import formula.*
-import std.fs.*
-
-main(): Int64 {
-
-    var latex = LaTeX("res")
-    var str = ###"
-\sideset{^\backprime}{'}\sum_{x=1}^{\infty} x\sideset{a_1^2}{}\sum_{x=1}^\infty x_0
-\\
-\sideset{_\text{left bottom}'''}{_{\text{right bottom}}'''}\sum_{\text{quite long text}}^\infty x
-\\
-\sideset{}{'}
-\sum_{n<k,\;\text{$n$ odd}} nE_n
-\\
-\sideset{}{'}
-\sum^{n<k,\;\text{$n$ odd}} nE_n
-\\
-M_x''' M'''_x M^{'''}_x M_x{'''} M^{\prime\backprime}
-"###
-    var r = latex.parse(str, 2000, 40.0, 10.0, 0xFF000000)
-    var w = r.getWidth()
-    var h = r.getHeight()
-    var g2 = Graphic2D(r, COLOR_FORMAT_RGB_565)
-    r.draw(g2, 0xFFFFFFFF)
-
-    var arr = r.toBitmap(g2)
-
-    var file: File = File("test.bmp", OpenOption.CreateOrTruncate(false))
-    file.write(arr)
-    file.close()
-
-    return 0
-}
-```
-
-编译运行：
-
-```
-cjc --import-path target/aarch64-linux-ohos/release -Ltarget/aarch64-linux-ohos/release/formula -Llib -lnative_drawing  -llatex -lformula_formula test.cj -o main
-```
-
-运行结果如下：
-
-![test](./assets/test.bmp)
-

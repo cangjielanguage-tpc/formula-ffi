@@ -1,0 +1,11 @@
+{
+  "module": {
+    "name": "formula_hybrid_test",
+    "type": "feature",
+    "deviceTypes": [
+      "phone"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "module": {
+    "name": "formula_hybrid",
+    "type": "har",
+    "deviceTypes": [
+      "default"
+    ]
+  }
+}

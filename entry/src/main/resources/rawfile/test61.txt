@@ -1,0 +1,7 @@
+dp[i][j][k] =
+\begin{cases}
+s1[i] == s2[j] ?,  \text{k = 0}  \\
+\\
+\\
+dp[i][j][k] \cup (dp[i][j][l] \cap dp[i+ l + 1][j + l + 1][k - l -1]) \cup (dp[i][j + k - l][l] \cap dp[i+l+1][j][k - l -1]), & \text{l  in [0,k), k>0 }
+\end{cases}

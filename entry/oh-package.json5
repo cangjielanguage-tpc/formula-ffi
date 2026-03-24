@@ -6,7 +6,7 @@
   "author": "",
   "license": "",
   "dependencies": {
-    "@cangjie-tpc/formula": "file:../formula",
+    "@cangjie-tpc/formula_hybrid": "file:../formula_hybrid"
   }
 }
 

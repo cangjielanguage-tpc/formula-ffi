@@ -1,0 +1,4 @@
+\begin{array}{c}
+  \text{若}\left \{a_{n}\right \}、\left \{b_{n}\right \}\text{为等差数列}, \\
+  \text{则}\left \{a_{n}+ b_{n}\right \}\text{为等差数列}
+\end{array}

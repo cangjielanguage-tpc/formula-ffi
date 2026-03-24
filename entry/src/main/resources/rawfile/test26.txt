@@ -1,0 +1,7 @@
+\begin{aligned}
+\frac{1}{n}\times \sum_{x \in list}(x^2 - 2\times x\times mean_{list}+mean_{list}^2) \\
+& = \frac{1}{n}\times (\sum_{x \in list}x^2 - \sum_{x \in list}2\times x\times mean_{list}+\sum_{x \in list}mean_{list}^2) \\
+& = \frac{1}{n}\times (\sum_{x \in list}x^2 - 2\times sum_{list}\times mean_{list}+mean_{list}^2\times n) \\
+& = \frac{1}{n}\times (\sum_{x \in list}x^2 - \frac{2 \times sum_{list}^2}{n}+\frac{sum_{list}^2}{n}) \\
+& = \frac{1}{n}\times (\sum_{x \in list}x^2 - \frac{sum_{list}^2}{n})
+\end{aligned}
