@@ -3,6 +3,7 @@
         LaTeX_*;
         TeXRender_*;
         initGraphics2D_ffi;
+        formula_*;
     };
     local: *; # Hide everything else.
 };

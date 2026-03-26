@@ -1,0 +1,6 @@
+\begin{gather*}
+    a = b + c \\
+    d = e + f + g \tag{test1}\\
+    h + i = j + k \tag{test2} \\
+    l + m = n
+\end{gather*}

@@ -5,6 +5,9 @@ package formula
 
 foreign {
     func memcpy_s(dest: CPointer<UInt8>, destsz: Int64, src: CPointer<UInt8>, count: Int64): CPointer<UInt8>
+    func formula_string_find(dStr:CString, sStr:CString): Int32
+    func formula_tag(dStr:CString): CString
+    func formula_xingTag(dStr:CString): CString
 
     /* LaTeX */
     func LaTeX_init(rootDir: CString): Unit
@@ -30,4 +33,29 @@ foreign {
 
     /* Graphics2D */
     func initGraphics2D_ffi(x: UInt32, y: UInt32, colorFormat: Int32): CPointer<UInt8>
+}
+
+func find_substring(targetString:String, subSringArr:Array<String>): Int32 {
+    unsafe {
+        var t : CString = LibC.mallocCString(targetString)
+
+        for(i in subSringArr) {
+            var s : CString = LibC.mallocCString(i)
+            var ret = formula_string_find(t, s)
+
+            if (ret == 1) {
+                LibC.free(t)
+                LibC.free(s)
+                return 1
+            } else if (ret == 2) {
+                LibC.free(t)
+                LibC.free(s)
+                return 2
+            }
+            LibC.free(s)
+        }
+
+        LibC.free(t)
+        return 0;
+    }
 }

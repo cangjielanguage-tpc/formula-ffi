@@ -836,6 +836,7 @@ map<int, string> TeXFormula::_symbolFormulaMappings = {
     {9447, "\\textcircled{\\texttt x}"},
     {9448, "\\textcircled{\\texttt y}"},
     {9449, "\\textcircled{\\texttt z}"},
+#ifdef CHEMICAL_SYMBOLS
     {58376, "\\longrightleftharpoons"},
     {58377, "\\longRightleftharpoons"},
     {58378, "\\longLeftrightharpoons"},
@@ -843,4 +844,7 @@ map<int, string> TeXFormula::_symbolFormulaMappings = {
     {58384, "\\tripledash"},
     {58385, "\\mhchemBondTD"},
     {58386, "\\mhchemBondTDD"},
-    {58387, "\\mhchemBondDTD"}};
+    {58387, "\\mhchemBondDTD"}
+#endif
+};
+ 

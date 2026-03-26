@@ -16,6 +16,11 @@ using namespace tex;
 
 namespace tex {
 
+template<typename T, typename... Args>
+inline sptr<T> sptrOf(Args&& ... args) {
+  return std::make_shared<T>(std::forward<Args>(args)...);
+}
+
 #ifndef macro
 #define macro(name) sptr<Atom> macro_##name(TeXParser& tp, vector<wstring>& args)
 #endif
@@ -773,6 +778,43 @@ inline macro(shoveleft) {
     auto a = TeXFormula(tp, args[1])._root;
     a->_alignment = ALIGN_LEFT;
     return a;
+}
+
+inline macro(tag) {
+    //\tag{content}-用于方程编号，显示在右下角
+    // 创建带括号的标签:(content)
+    wstring taggedContent = L"\\left(" + args[1] + L"\\right)";
+    sptr<Atom> taggedFormula = TeXFormula(tp, taggedContent, false)._root;
+    if (taggedFormula == nullptr) {
+        return sptr<Atom>(new SpaceAtom());
+    }
+
+    // 创建一个包含间距和 tag 的行原子
+    auto row = sptrOf<RowAtom>();
+    // 添加适当的间距（2em 空格）
+    row->add(sptrOf<SpaceAtom>(UNIT_EM, 10.0, 0, 0));
+    // 添加 tag 原子
+    row->add(taggedFormula);
+    // 设置右对齐属性，确保所有 tag 在右侧对齐
+    row->_alignment = ALIGN_RIGHT;
+    
+    // 通用处理：返回带右对齐属性的行原子
+    // 这样可以在所有模式下使用，包括 gather 环境
+    return row;
+}
+
+inline macro(notag) {
+    wstring taggedContent = L"";
+    sptr<Atom> taggedFormula = TeXFormula(tp, taggedContent, false)._root;
+    if (taggedFormula == nullptr) {
+        return sptr<Atom>(new SpaceAtom());
+    } 
+    
+    auto row = sptrOf<RowAtom>();
+    row->add(sptrOf<SpaceAtom>(UNIT_EM, 11.5, 0, 0));
+    row->add(taggedFormula);
+    row->_alignment = ALIGN_CENTER;
+    return row;
 }
 
 inline macro(makeatletter) {

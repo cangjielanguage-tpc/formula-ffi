@@ -1,0 +1,5 @@
+\begin{eqnarray*}
+    a + b = c \\
+    b + c + d = e \\
+    d + e + f + g = h
+\end{eqnarray*}
