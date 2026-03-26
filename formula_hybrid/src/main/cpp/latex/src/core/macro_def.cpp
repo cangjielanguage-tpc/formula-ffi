@@ -50,14 +50,21 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(1, macro_matrixATATenv, "matrix@@env"),
     mac(2, macro_arrayATATenv, "array@@env"),
     mac(2, macro_alignATATenv, "align@@env"),
+    mac(2, macro_alignATATenv, "alignX@@env"),
     mac(2, macro_alignedATATenv, "aligned@@env"),
+    mac(2, macro_alignedATATenv, "alignedX@@env"),
 //    mac(1, macro_equationATATenv, "equation@env"),
     mac(2, macro_flalignATATenv, "flalign@@env"),
+    mac(2, macro_flalignATATenv, "flalignX@@env"),
     mac(2, macro_alignatATATenv, "alignat@@env"),
     mac(2, macro_alignedatATATenv, "alignedat@@env"),
     mac(2, macro_multlineATATenv, "multline@@env"),
+    mac(2, macro_multlineATATenv, "multlineX@@env"),
     mac(2, macro_gatherATATenv, "gather@@env"),
+    mac(2, macro_gatherATATenv, "gatherX@@env"),
     mac(2, macro_gatheredATATenv, "gathered@@env"),
+    mac(1, macro_tag, "tag"),
+    mac(0, macro_notag, "notag"),
     mac(1, macro_CDATATenv, "CD@env"),
     mac(1, macro_hvspace, "hspace"),
     mac(1, macro_hvspace, "vspace"),
@@ -367,15 +374,21 @@ void NewCommandMacro::_init_() {
     e(0, L"vmatrix", L"\\left|\\begin{matrix}", L"\\end{matrix}\\right|");
     e(0, L"Vmatrix", L"\\left\\|\\begin{matrix}", L"\\end{matrix}\\right\\|");
     e(0, L"eqnarray", L"\\begin{array}{rcl}", L"\\end{array}");
+    e(0, L"eqnarrayX", L"\\begin{array}{rcl}", L"\\end{array}");
     e(0, L"align", L"\\align@@env{", L"}");
+    e(0, L"alignX", L"\\alignX@@env{", L"}");
     e(0, L"flalign", L"\\flalign@@env{", L"}");
+    e(0, L"flalignX", L"\\flalignX@@env{", L"}");
     e(1, L"alignat", L"\\alignat@@env{#1}{", L"}");
     e(0, L"aligned", L"\\aligned@@env{", L"}");
+    e(0, L"alignedX", L"\\alignedX@@env{", L"}");
     e(1, L"alignedat", L"\\alignedat@@env{#1}{", L"}");
     e(0, L"multline", L"\\multline@@env{", L"}");
+    e(0, L"multlineX", L"\\multlineX@@env{", L"}");
     e(0, L"cases", L"\\left\\{\\begin{array}{@{}ll@{\\,}}", L"\\end{array}\\right.");
     e(0, L"split", L"\\begin{array}{r@{\\;}l}", L"\\end{array}");
     e(0, L"gather", L"\\gather@@env{", L"}");
+    e(0, L"gatherX", L"\\gatherX@@env{", L"}");
     e(0, L"gathered", L"\\gathered@@env{", L"}");
     e(0, L"math", L"\\(", L"\\)");
     e(0, L"displaymath", L"\\[", L"\\]");
