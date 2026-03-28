@@ -584,11 +584,12 @@ private:
     vector<float> _lines;
     float _thickness;
     int _lineCount;
+    color _lineColor;  // Line color
 
 public:
     LineBox() = delete;
 
-    LineBox(const vector<float> lines, float thickness);
+    LineBox(const vector<float> lines, float thickness, color lineColor = black);
 
     void draw(Graphics2D& g2, float x, float y) override;
 
@@ -730,6 +731,7 @@ private:
     sptr<Box> _target;     // 目标值 box
     float _lineThickness;  // 线宽
     float _arrowExtend;    // 箭头延伸长度
+    color _lineColor;      // 线条颜色（包括箭头）
 
     // 安全地计算箭头延伸长度，避免 INF/NaN
     static float safeCalcExtend(float height, float depth) {
@@ -754,26 +756,37 @@ private:
         return max(minVal, min(size, maxVal));
     }
 
-    // 绘制箭头（从左下角到右上角）
+    // 绘制箭头（从起点到终点，箭头在终点处，实心箭头效果）
     void drawArrow(Graphics2D& g2, float x1, float y1, float x2, float y2) {
-        // 绘制主线
-        g2.drawLine(x1, y1, x2, y2);
-
-        // 箭头大小，使用安全线宽
+        // 设置线条宽度（加粗箭头）
         float safeThickness = _lineThickness;
         if (!isfinite(safeThickness) || safeThickness <= 0) {
-            safeThickness = 0.4f;  // 默认线宽
+            safeThickness = 1.2f;  // 提高默认线宽（加粗）
         }
-        float arrowSize = safeThickness * 10;
-        float arrowAngle = PI / 6;  // 30 度
+        
+        // 保存当前线宽和颜色
+        const Stroke& oldStroke = g2.getStroke();
+        float oldLineWidth = oldStroke.lineWidth;
+        int oldColor = g2.getColor();
+        
+        g2.setStrokeWidth(safeThickness);
+        g2.setColor(_lineColor);  // 设置线条颜色为 CancelColor
+        
+        // 绘制主线（实线）
+        g2.drawLine(x1, y1, x2, y2);
 
-        // 计算从终点到起点的向量（用于确定箭头方向）
-        float dx = x1 - x2;
-        float dy = y1 - y2;
+        // 箭头大小
+        float arrowSize = safeThickness * 5;  // 箭头长度
+        float arrowAngle = PI / 8;  // 30 度，箭头角度
+
+        // 计算从起点到终点的向量（用于确定箭头方向）
+        float dx = x2 - x1;
+        float dy = y2 - y1;
         float len = sqrt(dx * dx + dy * dy);
 
         // 防止除零：如果长度为 0 或无效，不绘制箭头
         if (!isfinite(len) || len < PREC) {
+            g2.setStrokeWidth(oldLineWidth);
             return;
         }
 
@@ -793,16 +806,51 @@ private:
         float rx = nx * cosA + ny * sinA;
         float ry = -nx * sinA + ny * cosA;
 
-        // 绘制箭头两翼
-        g2.drawLine(x2, y2, x2 + lx * arrowSize, y2 + ly * arrowSize);
-        g2.drawLine(x2, y2, x2 + rx * arrowSize, y2 + ry * arrowSize);
+        // 计算箭头三角形的三个顶点
+        // 左翼端点
+        float leftX = x2 - lx * arrowSize;
+        float leftY = y2 - ly * arrowSize;
+        // 右翼端点
+        float rightX = x2 - rx * arrowSize;
+        float rightY = y2 - ry * arrowSize;
+        
+        // 绘制实心三角形箭头：使用三条线段组成封闭三角形并黑色填充
+        // 使用黑色填充三角形内部
+        g2.setColor(0x000000);  // 黑色
+        
+        // 使用多条平行线填充三角形内部（模拟实心填充）
+        int fillLines = 15;  // 填充线条数
+        for (int i = 0; i < fillLines; i++) {
+            float t = (float)(i + 1) / (float)fillLines;
+            // 当前填充线的起点（在底边上）
+            float baseX = leftX + (rightX - leftX) * t;
+            float baseY = leftY + (rightY - leftY) * t;
+            // 当前填充线的终点（在顶点方向）
+            float tipX = baseX + (x2 - baseX) * 0.3f;
+            float tipY = baseY + (y2 - baseY) * 0.3f;
+            // 绘制填充线
+            g2.drawLine(baseX, baseY, tipX, tipY);
+        }
+        
+        // 恢复原来的颜色
+        g2.setColor(oldColor);
+        
+        // 绘制三角形三条边（封闭三角形轮廓）
+        g2.setStrokeWidth(safeThickness);
+        g2.drawLine(leftX, leftY, rightX, rightY);      // 底边
+        g2.drawLine(rightX, rightY, x2, y2);            // 右边
+        g2.drawLine(x2, y2, leftX, leftY);              // 左边
+        
+        // 恢复原来的线宽和颜色
+        g2.setStrokeWidth(oldLineWidth);
+        g2.setColor(oldColor);
     }
 
 public:
     CancelToBox() = delete;
 
-    CancelToBox(const sptr<Box>& base, const sptr<Box>& target, float lineThickness)
-        : _base(base), _target(target), _lineThickness(lineThickness) {
+    CancelToBox(const sptr<Box>& base, const sptr<Box>& target, float lineThickness, color lineColor = black)
+        : _base(base), _target(target), _lineThickness(lineThickness), _lineColor(lineColor) {
 
         // 检查 base 是否有效（尺寸不能太小）
         float baseHeight = base->_height + base->_depth;
@@ -838,30 +886,40 @@ public:
     }
 
     void draw(Graphics2D& g2, float x, float y) override {
-        // 绘制基础表达式
-        _base->draw(g2, x, y);
+        // 整体向右偏移量
+        float offsetX = _lineThickness * 8;  // 向右移动 2 倍线宽
+        
+        // 绘制基础表达式（向右偏移）
+        _base->draw(g2, x + offsetX, y);
 
-        // 安全计算起点和终点
+        // 安全计算各部分尺寸
         float safeDepth = isfinite(_base->_depth) ? _base->_depth : 0.0f;
         float safeHeight = isfinite(_base->_height) ? _base->_height : 0.0f;
         float safeWidth = isfinite(_base->_width) ? _base->_width : 0.0f;
-
-        // 起点：左下角
-        float x1 = x;
-        float y1 = y + safeDepth;
-        // 终点：超过表达式右上角（延伸一段距离）
-        float x2 = x + safeWidth + _arrowExtend;
-        float y2 = y - safeHeight - _arrowExtend;
-
-        // 绘制带箭头的斜线
-        drawArrow(g2, x1, y1, x2, y2);
-
-        // 绘制目标值（在箭头终点的右上方）
+        
+        // 计算目标值的位置（在基础表达式右上角的右上方）
         float targetGap = safeCalcGap(_lineThickness);
-        float targetX = x2 + targetGap;
+        float targetOffsetX = _lineThickness * 3;  // 目标值向右偏移 3 倍线宽
+        float targetX = x + offsetX + safeWidth + targetGap + targetOffsetX;
         float safeTargetDepth = isfinite(_target->_depth) ? _target->_depth : 0.0f;
-        float targetY = y2 + safeTargetDepth;
+        float safeTargetHeight = isfinite(_target->_height) ? _target->_height : 0.0f;
+        // 目标值的底部与基础表达式的顶部对齐
+        float targetY = y - safeHeight + safeTargetDepth;
+        
+        // 绘制目标值
         _target->draw(g2, targetX, targetY);
+        
+        // 箭头起点：基础表达式（x^0）的左下角（向下偏移）
+        float offsetY = _lineThickness * 8;  // 向下偏移 2 倍线宽
+        float x1 = x;
+        float y1 = y + safeDepth + offsetY;
+        // 箭头终点：目标值（1）的左上角（箭头指向 1，向上移）
+        float offsetTargetY = _lineThickness * 3;  // 向上偏移 2 倍线宽
+        float x2 = targetX * 1.0f;
+        float y2 = targetY - safeTargetHeight * 0.15f - offsetTargetY;
+
+        // 绘制带箭头的斜线（从 x^0 指向 1）
+        drawArrow(g2, x1, y1, x2, y2);
     }
 
     int getLastFontId() override {

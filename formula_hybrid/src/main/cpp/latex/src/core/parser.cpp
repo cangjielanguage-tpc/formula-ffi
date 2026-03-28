@@ -1,6 +1,7 @@
 #include "core/parser.h"
 #include "atom/atom.h"
 #include "atom/atom_basic.h"
+#include "atom/atom_impl.h"
 #include "common.h"
 #include "core/formula.h"
 #include "core/macro.h"
@@ -85,6 +86,7 @@ void TeXParser::init(
     _formula = formula;
     _ignoreWhiteSpace = true;
     _isPartial = ispartial;
+    
     if (!parsestring.empty()) {
         _parseString = parsestring;
         _len = parsestring.length();
@@ -710,6 +712,61 @@ bool TeXParser::replaceScript() {
 }
 
 void TeXParser::preprocess(wstring& cmd, vector<wstring>& args, int& pos) throw(ex_parse) {
+    // Handle special case: \renewcommand{\CancelColor}{...}
+    if (cmd == L"renewcommand") {
+        // Try to parse and handle CancelColor directly
+        int savedPos = pos;
+        vector<wstring> savedArgs;
+        try {
+            MacroInfo* const mac = MacroInfo::_commands[cmd];
+            getOptsArgs(mac->_nbArgs, mac->_posOpts, savedArgs);
+            
+            // Check if this is CancelColor (args[1] should be the command name)
+            if (savedArgs.size() > 1) {
+                wstring targetCmd = savedArgs[1];
+                // Remove leading backslash if present
+                if (!targetCmd.empty() && targetCmd[0] == L'\\') {
+                    targetCmd = targetCmd.substr(1);
+                }
+                
+                if (targetCmd == L"CancelColor") {
+                    // Handle CancelColor directly
+                    wstring colorArg = savedArgs[2];
+                    wstring colorName;
+                    
+                    // Check if it's \color{...} format or direct color name
+                    if (colorArg.find(L"\\color") != wstring::npos) {
+                        // Extract color name from "\color{colorname}"
+                        size_t start = colorArg.find(L'{');
+                        size_t end = colorArg.find(L'}', start);
+                        if (start != wstring::npos && end != wstring::npos && end > start) {
+                            colorName = colorArg.substr(start + 1, end - start - 1);
+                        }
+                    } else {
+                        // Direct color name (e.g., "blue")
+                        colorName = colorArg;
+                    }
+                    
+                    if (!colorName.empty()) {
+                        // Get color from ColorAtom
+                        color c = ColorAtom::getColor(wide2utf8(colorName.c_str()));
+                        // Set CancelColor
+                        CancelAtom::_cancelColor = c;
+                    }
+                    
+                    // Remove the command from parse string
+                    _parseString.erase(pos, _pos - pos);
+                    _len = _parseString.length();
+                    _pos = pos;
+                    return;
+                }
+            }
+        } catch (...) {
+            // If parsing fails, fall through to normal processing
+            _pos = savedPos;
+        }
+    }
+    
     if (cmd == L"newcommand" || cmd == L"renewcommand") {
         preprocessNewCmd(cmd, args, pos);
     } else if (cmd == L"newenvironment" || cmd == L"renewenvironment") {
@@ -892,6 +949,63 @@ void TeXParser::firstpass() throw(ex_parse) {
         case ESCAPE: {
             spos = _pos;
             wstring cmd = getCommand();
+            
+            // Special handling for \renewcommand{\CancelColor}{...}
+            if (cmd == L"renewcommand") {
+                try {
+                    int savedPos = _pos;
+                    vector<wstring> savedArgs;
+                    MacroInfo* const mac = MacroInfo::_commands[cmd];
+                    getOptsArgs(mac->_nbArgs, mac->_posOpts, savedArgs);
+                    
+                    if (savedArgs.size() > 1) {
+                        wstring targetCmd = savedArgs[1];
+                        // Remove leading backslash if present
+                        if (!targetCmd.empty() && targetCmd[0] == L'\\') {
+                            targetCmd = targetCmd.substr(1);
+                        }
+                        
+                        if (targetCmd == L"CancelColor") {
+                            // Handle CancelColor directly
+                            wstring colorArg = savedArgs[2];
+                            wstring colorName;
+                            
+                            // Check if it's \color{...} format or direct color name
+                            if (colorArg.find(L"\\color") != wstring::npos) {
+                                // Extract color name from "\color{colorname}"
+                                size_t start = colorArg.find(L'{');
+                                size_t end = colorArg.find(L'}', start);
+                                if (start != wstring::npos && end != wstring::npos && end > start) {
+                                    colorName = colorArg.substr(start + 1, end - start - 1);
+                                }
+                            } else {
+                                // Direct color name (e.g., "blue")
+                                colorName = colorArg;
+                            }
+                            
+                            if (!colorName.empty()) {
+                                // Get color from ColorAtom
+                                color c = ColorAtom::getColor(wide2utf8(colorName.c_str()));
+                                // Set CancelColor
+                                CancelAtom::_cancelColor = c;
+                            }
+                            
+                            // Remove the command from parse string
+                            _parseString.erase(spos, _pos - spos);
+                            _len = _parseString.length();
+                            _pos = spos;
+                            args.clear();
+                            continue;
+                        }
+                    }
+                    
+                    // Not CancelColor, restore position and use normal processing
+                    _pos = savedPos;
+                } catch (...) {
+                    // If parsing fails, fall through to normal processing
+                }
+            }
+            
             try {
                 preprocess(cmd, args, spos);
             } catch (ex_parse& e) {
@@ -1062,6 +1176,9 @@ void TeXParser::parse() throw(ex_parse) {
         } break;
         }
     }
+    
+    // Reset CancelColor to default black after parsing is complete
+//    CancelAtom::_cancelColor = black;
 }
 
 sptr<Atom> TeXParser::convertCharacter(wchar_t c, bool oneChar) throw(ex_parse) {
