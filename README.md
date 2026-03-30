@@ -184,6 +184,8 @@ struct Index0 {
 
 1. `resPath`默认参数`"/data/storage/el1/bundle/entry/resources/resfile/res"`，如果修改`entry`命名，需要改成对应的`"/data/storage/el1/bundle/xxxx/resources/resfile/res"`。
 
+2. unicode扩展支持的字符范围请参考[U1D400](https://www.unicode.org/charts/PDF/U1D400.pdf)。
+
 ## 开源协议
 
 本项目基于 [License](https://gitcode.com/Cangjie-TPC/formula-ffi/blob/formula-ffi_hybrid_cangjie-plugin_5.1.1/LICENSE)，请自由的享受和参与开源。
