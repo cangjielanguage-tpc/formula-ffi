@@ -1634,6 +1634,9 @@ private:
     int _cancelType;
 
 public:
+    // Global CancelColor variable (default is black)
+    static color _cancelColor;
+    
     enum CancelType {
         SLASH,
         BACKSLASH,

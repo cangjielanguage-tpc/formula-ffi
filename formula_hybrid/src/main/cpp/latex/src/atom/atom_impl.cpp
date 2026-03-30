@@ -7,6 +7,9 @@ using namespace tex;
 
 color MatrixAtom::LINE_COLOR = trans;
 
+// Global CancelColor variable (default is black)
+color tex::CancelAtom::_cancelColor = black;
+
 map<wstring, wstring> MatrixAtom::_colspeReplacement;
 
 SpaceAtom MatrixAtom::_hsep(UNIT_EM, 1.f, 0.f, 0.f);
@@ -1321,6 +1324,13 @@ LongDivAtom::LongDivAtom(long divisor, long dividend)
 sptr<Box> CancelAtom::createBox(_out_ TeXEnvironment& env) {
     if(_base == nullptr) throw ex_parse("empty atom");
     auto box = _base->createBox(env);
+    
+    // Ensure minimum size for empty content to make cancel lines visible
+    const float minSize = env.getTeXFont()->getDefaultRuleThickness(env.getStyle()) * 10;
+    if (box->_width < minSize) box->_width = minSize;
+    if (box->_height < minSize) box->_height = minSize;
+    if (box->_depth < minSize) box->_depth = minSize * 0.3f;
+    
     vector<float> lines;
     if (_cancelType == SLASH) {
         lines = {
@@ -1344,7 +1354,7 @@ sptr<Box> CancelAtom::createBox(_out_ TeXEnvironment& env) {
                 box->_width, 0,
                 0, box->_height + box->_depth};
             const float rt = env.getTeXFont()->getDefaultRuleThickness(env.getStyle());
-            auto overlap = sptr<Box>(new LineBox(lines, rt));
+            auto overlap = sptr<Box>(new LineBox(lines, rt, _cancelColor));
             overlap->_width = box->_width;
             overlap->_height = box->_height;
             overlap->_depth = box->_depth;
@@ -1355,14 +1365,14 @@ sptr<Box> CancelAtom::createBox(_out_ TeXEnvironment& env) {
         auto targetBox = _target->createBox(env);
         const float rt = env.getTeXFont()->getDefaultRuleThickness(env.getStyle());
         
-        // Use CancelToBox to render base, line and target together
-        return sptr<Box>(new CancelToBox(box, targetBox, rt));
+        // Use CancelToBox to render base, line and target together with cancel color
+        return sptr<Box>(new CancelToBox(box, targetBox, rt, _cancelColor));
     } else {
         return box;
     }
 
     const float rt = env.getTeXFont()->getDefaultRuleThickness(env.getStyle());
-    auto overlap = sptr<Box>(new LineBox(lines, rt));
+    auto overlap = sptr<Box>(new LineBox(lines, rt, _cancelColor));
     overlap->_width = box->_width;
     overlap->_height = box->_height;
     overlap->_depth = box->_depth;

@@ -876,15 +876,18 @@ vector<sptr<Box>> ShiftBox::getChildren() const {
     return {_base};
 }
 
-LineBox::LineBox(const vector<float> lines, float thickness) {
+LineBox::LineBox(const vector<float> lines, float thickness, color lineColor) {
     _thickness = thickness;
+    _lineColor = lineColor;
     if (lines.size() % 4 != 0) throw ex_invalid_param("The vector not represent lines.");
     _lines = lines;
 }
 
 void LineBox::draw(Graphics2D& g2, float x, float y) {
     const float oldThickness = g2.getStroke().lineWidth;
+    const int oldColor = g2.getColor();
     g2.setStrokeWidth(_thickness);
+    g2.setColor(_lineColor);
     g2.translate(0, -_height);
     int count = _lines.size() / 4;
     for (int i = 0; i < count; i++) {
@@ -895,6 +898,7 @@ void LineBox::draw(Graphics2D& g2, float x, float y) {
     }
     g2.translate(0, _height);
     g2.setStrokeWidth(oldThickness);
+    g2.setColor(oldColor);
 }
 
 int LineBox::getLastFontId() {

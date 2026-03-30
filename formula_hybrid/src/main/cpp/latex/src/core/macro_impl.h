@@ -1121,7 +1121,44 @@ inline macro(bbox) {
     // args[0] = command name "bbox"
     // args[1] = math (required, in curly braces)
     // args[2] = options (optional, in square brackets)
-    return sptr<Atom>(new BboxAtom(args[2], TeXFormula(tp, args[1])._root));
+    
+    wstring mathArg = args[1];
+    wstring options = args[2];
+    
+    // Check if the math argument is wrapped in $ signs
+    size_t len = mathArg.length();
+    wstring innerMath;
+    bool hasDollar = false;
+    
+    if (len >= 2 && mathArg[0] == L'$' && mathArg[len - 1] == L'$') {
+        // Check if it's $$ (display math)
+        if (len >= 4 && mathArg[1] == L'$' && mathArg[len - 2] == L'$') {
+            innerMath = mathArg.substr(2, len - 4);
+            hasDollar = true;
+        } else {
+            // Single $
+            innerMath = mathArg.substr(1, len - 2);
+            hasDollar = true;
+        }
+    } else {
+        innerMath = mathArg;
+    }
+    
+    // Parse the inner math content
+    sptr<Atom> innerAtom = TeXFormula(tp, innerMath)._root;
+    
+    // If there were $ signs, wrap with $ characters
+    if (hasDollar) {
+        // Create a row: $ + innerMath + $
+        RowAtom* row = new RowAtom();
+        // Use SymbolAtom to get the correct dollar sign symbol
+        row->add(SymbolAtom::get("textdollar"));  // Leading $
+        row->add(innerAtom);
+        row->add(SymbolAtom::get("textdollar"));  // Trailing $
+        return sptr<Atom>(new BboxAtom(options, sptr<Atom>(row)));
+    } else {
+        return sptr<Atom>(new BboxAtom(options, innerAtom));
+    }
 }
 
 inline macro(cong) {
@@ -1680,6 +1717,8 @@ macro(left);
 macro(intertext);
 
 macro(newcommand);
+
+macro(cancelcolor);
 
 macro(renewcommand);
 

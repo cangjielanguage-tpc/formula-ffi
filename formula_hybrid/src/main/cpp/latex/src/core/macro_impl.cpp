@@ -348,13 +348,50 @@ macro(renewcommand) {
         throw ex_parse("Invalid name for the command: " + wide2utf8(newcmd.c_str()));
 
     if (!args[3].empty()) valueof(args[3], nbArgs);
-
+    
+        // Handle special case: \renewcommand{\CancelColor}{\color{blue}}
+    if (newcmd == L"CancelColor") {
+        // Parse the color from args[2] (e.g., "\color{blue}" or just "blue")
+        wstring colorArg = args[2];
+        wstring colorName;
+        
+        // Check if it's \color{...} format or direct color name
+        if (colorArg.find(L"\\color") != wstring::npos) {
+            // Extract color name from "\color{colorname}"
+            size_t start = colorArg.find(L'{');
+            size_t end = colorArg.find(L'}', start);
+            if (start != wstring::npos && end != wstring::npos && end > start) {
+                colorName = colorArg.substr(start + 1, end - start - 1);
+            }
+        } else {
+            // Direct color name (e.g., "blue")
+            colorName = colorArg;
+        }
+        
+        if (!colorName.empty()) {
+            // Get color from ColorAtom
+            color c = ColorAtom::getColor(wide2utf8(colorName.c_str()));
+            // Set CancelColor
+            CancelAtom::_cancelColor = c;
+        }
+        return nullptr;
+    }
+    
     if (args[4].empty()) {
         NewCommandMacro::addRenewCommand(newcmd.substr(1), args[2], nbArgs);
     } else {
         NewCommandMacro::addRenewCommand(newcmd.substr(1), args[2], nbArgs, args[4]);
     }
 
+    return nullptr;
+}
+// \CancelColor{blue} - Set cancel line color
+macro(cancelcolor) {
+    wstring colorName = args[1];
+    if (!colorName.empty()) {
+        color c = ColorAtom::getColor(wide2utf8(colorName.c_str()));
+        CancelAtom::_cancelColor = c;
+    }
     return nullptr;
 }
 

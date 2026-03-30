@@ -25,6 +25,7 @@ inline static PredefMacroInfo* m(int nbargs, MacroDelegate del) {
 map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(2, 2, macro_newcommand, "newcommand"),
     mac(2, 2, macro_renewcommand, "renewcommand"),
+    mac(1, macro_cancelcolor, "CancelColor"),
     mac(2, 1, macro_rule, "rule"),
     mac(1, 1, macro_includegraphics, "includegraphics"),
     mac(2, 1, macro_cfrac, "cfrac"),
