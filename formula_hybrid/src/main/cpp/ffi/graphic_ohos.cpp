@@ -294,7 +294,7 @@ void Graphics2D_ohos::drawText(const wstring& t, float x, float y) {
     char *family = (char *)malloc(len + 1);
     tmp.copy(family, len, 0);
     family[len] = '\0';
-    const char *fontFamilies[] = {family};
+    const char *fontFamilies[] = {family, "serif", "Noto Sans Math"};
     float s = _font->getSize();
     OH_Drawing_SetTextStyleFontSize(_txtStyle, s);
     OH_Drawing_SetTextStyleBaseLine(_txtStyle, TEXT_BASELINE_ALPHABETIC);
@@ -304,7 +304,7 @@ void Graphics2D_ohos::drawText(const wstring& t, float x, float y) {
     if (file[0] != '\0') {
         OH_Drawing_RegisterFont(fontCollection, fontFamilies[0], file);
     }
-    OH_Drawing_SetTextStyleFontFamilies(_txtStyle, 1, fontFamilies);
+    OH_Drawing_SetTextStyleFontFamilies(_txtStyle, 3, fontFamilies);
     OH_Drawing_SetTextStyleLocale(_txtStyle, "en");
 
     OH_Drawing_TypographyCreate *handler = OH_Drawing_CreateTypographyHandler(_typoStyle, fontCollection);
