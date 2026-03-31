@@ -11,8 +11,8 @@
 #define TAG_XING 1
 #define TAG_NOXING 2
 
-std::vector<std::string> alignmentXClass = {"aligned*", "align*", "flalign*", "gather*", "multline*", "eqnarray*"};
-std::vector<std::string> alignmentClass = {"aligned", "align", "flalign", "gather", "multline", "eqnarray"};
+std::vector<std::string> alignmentXClass = {"aligned*", "align*", "flalign*", "gather*", "multline*", "eqnarray*", "equation*", "CD*"};
+std::vector<std::string> alignmentClass = {"aligned", "align", "flalign", "gather", "multline", "eqnarray", "equation", "CD"};
 
 int32_t formula_string_find(char* dStr, char* sStr) {
     std::string fatherStr(dStr);
@@ -83,6 +83,15 @@ char* formula_tag(char* dStr) {
         size_t tagEndPos = fstr.find("g", notagPos);
         tagPoss.push_back(tagEndPos + 1);
         notagPos += 5;
+    }
+    
+    size_t nonumberPos = 0;
+    while ((nonumberPos = fstr.find("\\nonumber", nonumberPos)) != std::string::npos && nonumberPos < fstr.length()) {
+        size_t tagEndPos = nonumberPos + 9;  // \nonumber 的长度
+        if (tagEndPos < fstr.length()) {
+            tagPoss.push_back(tagEndPos);
+        }
+        nonumberPos += 9;
     }
 
     std::sort(tagPoss.begin(), tagPoss.end());
@@ -176,6 +185,13 @@ char* formula_xingTag(char* dStr) {
         // 删除\notag
         fstr.erase(notagPos, 6);
         notagPos += 1;
+    }
+    
+    size_t nonumberPos = 0;
+    while ((nonumberPos = fstr.find("\\nonumber", nonumberPos)) != std::string::npos && nonumberPos < fstr.length()) {
+        // 删除\nonumber
+        fstr.erase(nonumberPos, 9);
+        nonumberPos += 1;
     }
 
     size_t tagPos = 0;

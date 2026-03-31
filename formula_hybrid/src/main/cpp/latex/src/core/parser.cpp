@@ -464,7 +464,9 @@ void TeXParser::getOptsArgs(int nbArgs, int opts, _out_ vector<wstring>& args) {
         }
 
         // we get the next arguments
-        for (int i = 2; i <= nbArgs; i++) {
+        // When opts == 1 (optional args after command name), the number of required args is nbArgs - 1
+        int requiredArgs = (opts == 1) ? nbArgs - 1 : nbArgs;
+        for (int i = 2; i <= requiredArgs; i++) {
             skipWhiteSpace();
             try {
                 args[i] = getGroup(L_GROUP, R_GROUP);

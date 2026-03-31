@@ -134,4 +134,5 @@ map<wstring, wstring> TeXFormula::_predefinedTeXFormulasAsString = {
     {L"vbar", L"\\Vert"},
     {L"Android", L"\\Huge{\\android}\\normalsize"},
     {L"AndroidTeX", L"\\Android\\large{\\dT\\dE\\dX}\\normalsize"},
+    {L"dashrightarrow", L"\\-\\rightarrow"},
     {L"TeX", L"\\large{\\dT\\dE\\dX}\\normalsize"}};
