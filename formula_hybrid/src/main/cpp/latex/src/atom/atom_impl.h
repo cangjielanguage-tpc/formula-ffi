@@ -1899,8 +1899,8 @@ public:
         space += paddingAddition;
 
         if (istrans(_bg)) {
-            // No background color, just add padding
-            return sptr<Box>(new FramedBox(bbase, drt, space));
+             // No background color, just add padding	 
+             return sptr<Box>(new FramedBox(bbase, drt, space));
         }
 
         env._isColored = true;

@@ -74,7 +74,7 @@ public func latexStringToImageWithError(latexMathTextString: String, latexMathTe
 }
 
 func getLatexmathWidth(strLatexMath: String): Int32 {
-    if (strLatexMath.contains("aligned") || strLatexMath.contains("align") || strLatexMath.contains("flalign") || strLatexMath.contains("gather") || strLatexMath.contains("multline") || strLatexMath.contains("eqnarray")) {
+    if (strLatexMath.contains("aligned") || strLatexMath.contains("align") || strLatexMath.contains("flalign") || strLatexMath.contains("gather") || strLatexMath.contains("multline") || strLatexMath.contains("eqnarray") || strLatexMath.contains("equation")) {
         Int32(10)
     } else {
         Int32(2000)

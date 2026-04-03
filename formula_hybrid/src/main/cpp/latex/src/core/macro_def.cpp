@@ -66,6 +66,7 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(2, macro_gatheredATATenv, "gathered@@env"),
     mac(1, macro_tag, "tag"),
     mac(0, macro_notag, "notag"),
+    mac(0, macro_notag, "nonumber"),
     mac(1, macro_CDATATenv, "CD@env"),
     mac(1, macro_hvspace, "hspace"),
     mac(1, macro_hvspace, "vspace"),
@@ -376,6 +377,8 @@ void NewCommandMacro::_init_() {
     e(0, L"Vmatrix", L"\\left\\|\\begin{matrix}", L"\\end{matrix}\\right\\|");
     e(0, L"eqnarray", L"\\begin{array}{rcl}", L"\\end{array}");
     e(0, L"eqnarrayX", L"\\begin{array}{rcl}", L"\\end{array}");
+    e(0, L"equation", L"\\begin{array}{rcl}", L"\\end{array}");
+    e(0, L"equationX", L"\\begin{array}{rcl}", L"\\end{array}");
     e(0, L"align", L"\\align@@env{", L"}");
     e(0, L"alignX", L"\\alignX@@env{", L"}");
     e(0, L"flalign", L"\\flalign@@env{", L"}");

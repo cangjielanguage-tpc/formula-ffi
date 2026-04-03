@@ -10,7 +10,6 @@
 #include "core/parser.h"
 #include "fonts/alphabet.h"
 #include "graphic/graphic.h"
-
 using namespace std;
 using namespace tex;
 
@@ -1740,7 +1739,6 @@ inline macro(unicode) {
 
 inline macro(CDATATenv) {
     wstring content = args[1];
-    
     vector<vector<wstring>> rows;
     vector<wstring> currentRow;
     wstring currentCell;
@@ -1819,7 +1817,11 @@ inline macro(CDATATenv) {
                             }
                         }
                         
-                        if (!upperLabel.empty() && !lowerLabel.empty()) {
+                        // Check if upperLabel is a LaTeX command (starts with \)
+                        if (!upperLabel.empty() && upperLabel[0] == L'\\') {
+                            // Use the command directly as the arrow type
+                            processedCell += upperLabel;
+                        } else if (!upperLabel.empty() && !lowerLabel.empty()) {
                             processedCell += L"\\xrightarrow[" + lowerLabel + L"]{" + upperLabel + L"}";
                         } else if (!upperLabel.empty()) {
                             processedCell += L"\\xrightarrow{" + upperLabel + L"}";
@@ -1865,27 +1867,27 @@ inline macro(CDATATenv) {
                         } else {
                             processedCell += L"\\longleftarrow";
                         }
-                    } else if (arrowType == L'V' || arrowType == L'v') {
+                    } else if (arrowType == L'V') {
                         cellPos += 2;
                         wstring leftLabel;
                         wstring rightLabel;
                         bool hasRight = false;
                         
                         while (cellPos < cell.length()) {
-                            if (cell[cellPos] == L'V' || cell[cellPos] == L'v') {
+                            if (cell[cellPos] == L'V') {
                                 cellPos++;
-                                if (cellPos < cell.length() && (cell[cellPos] == L'V' || cell[cellPos] == L'v')) {
+                                if (cellPos < cell.length() && (cell[cellPos] == L'V')) {
                                     cellPos++;
                                     break;
                                 } else {
                                     hasRight = true;
-                                    while (cellPos < cell.length() && (cell[cellPos] != L'V' && cell[cellPos] != L'v')) {
+                                    while (cellPos < cell.length() && (cell[cellPos] != L'V')) {
                                         rightLabel += cell[cellPos];
                                         cellPos++;
                                     }
-                                    if (cellPos < cell.length() && (cell[cellPos] == L'V' || cell[cellPos] == L'v')) {
+                                    if (cellPos < cell.length() && (cell[cellPos] == L'V')) {
                                         cellPos++;
-                                        if (cellPos < cell.length() && (cell[cellPos] == L'V' || cell[cellPos] == L'v')) {
+                                        if (cellPos < cell.length() && (cell[cellPos] == L'V')) {
                                             cellPos++;
                                         }
                                     }
@@ -1899,50 +1901,50 @@ inline macro(CDATATenv) {
                         
                         if (!leftLabel.empty() && !rightLabel.empty()) {
                             if (c == 0) {
-                                processedCell += L"\\quad{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad";
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad";
                             } else {
-                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad\\quad\\quad";
-                            }
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad";
+                            } 
                         } else if (!leftLabel.empty()) {
                             if (c == 0) {
-                                processedCell += L"\\quad\\bigg\\downarrow{}{\\scriptstyle " + leftLabel + L"}\\quad";
-                            } else {
-                                processedCell += L"\\bigg\\downarrow{}{\\scriptstyle " + leftLabel + L"}\\quad\\quad\\quad\\quad\\quad";
-                            }
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}\\quad\\quad";
+                            } else  {
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}\\quad\\quad";
+                            } 
                         } else if (!rightLabel.empty()) {
                             if (c == 0) {
-                                processedCell += L"\\quad\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad";
+                                processedCell += L"\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad";
                             } else {
-                                processedCell += L"\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad\\quad\\quad";
-                            }
+                                processedCell += L"\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad";
+                            } 
                         } else {
                             if (c == 0) {
-                                processedCell += L"\\quad\\bigg\\downarrow{}\\quad";
+                                processedCell += L"\\bigg\\downarrow{}\\quad\\quad\\quad";
                             } else {
-                                processedCell += L"\\bigg\\downarrow{}\\quad\\quad\\quad\\quad\\quad";
-                            }
+                                processedCell += L"\\bigg\\downarrow{}\\quad\\quad\\quad";
+                            } 
                         } 
-                    } else if (arrowType == L'A' || arrowType == L'a') {
+                    } else if (arrowType == L'A') {
                         cellPos += 2;
                         wstring leftLabel;
                         wstring rightLabel;
                         bool hasRight = false;
                         
                         while (cellPos < cell.length()) {
-                            if (cell[cellPos] == L'A' || cell[cellPos] == L'a') {
+                            if (cell[cellPos] == L'A') {
                                 cellPos++;
-                                if (cellPos < cell.length() && (cell[cellPos] == L'A' || cell[cellPos] == L'a')) {
+                                if (cellPos < cell.length() && (cell[cellPos] == L'A')) {
                                     cellPos++;
                                     break;
                                 } else {
                                     hasRight = true;
-                                    while (cellPos < cell.length() && (cell[cellPos] != L'A' && cell[cellPos] != L'a')) {
+                                    while (cellPos < cell.length() && (cell[cellPos] != L'A')) {
                                         rightLabel += cell[cellPos];
                                         cellPos++;
                                     }
-                                    if (cellPos < cell.length() && (cell[cellPos] == L'A' || cell[cellPos] == L'a')) {
+                                    if (cellPos < cell.length() && (cell[cellPos] == L'A')) {
                                         cellPos++;
-                                        if (cellPos < cell.length() && (cell[cellPos] == L'A' || cell[cellPos] == L'a')) {
+                                        if (cellPos < cell.length() && (cell[cellPos] == L'A')) {
                                             cellPos++;
                                         }
                                     }
@@ -1956,27 +1958,27 @@ inline macro(CDATATenv) {
                         
                         if (!leftLabel.empty() && !rightLabel.empty()) {
                             if (c == 0) {
-                                processedCell += L"\\quad{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad";
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad";
                             } else {
-                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad\\quad\\quad";
-                            }
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad";
+                            } 
                         } else if (!leftLabel.empty()) {
                             if (c == 0) {
-                                processedCell += L"\\quad\\bigg\\uparrow{}{\\scriptstyle " + leftLabel + L"}\\quad";
+                                  processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}\\quad\\quad\\quad";
                             } else {
-                                processedCell += L"\\bigg\\uparrow{}{\\scriptstyle " + leftLabel + L"}\\quad\\quad\\quad\\quad\\quad";
-                            }
+                                  processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}\\quad\\quad\\quad";
+                            } 
                         } else if (!rightLabel.empty()) {
                             if (c == 0) {
-                                processedCell += L"\\quad\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad";
+                                processedCell += L"\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad";
                             } else {
-                                processedCell += L"\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad\\quad\\quad";
-                            }
+                                processedCell += L"\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad";
+                            } 
                         } else {
                             if (c == 0) {
-                                processedCell += L"\\quad\\bigg\\uparrow{}\\quad";
+                                processedCell += L"\\bigg\\uparrow{}\\quad\\quad\\quad";
                             } else {
-                                processedCell += L"\\bigg\\uparrow{}\\quad\\quad\\quad\\quad\\quad";
+                                processedCell += L"\\bigg\\uparrow{}\\quad\\quad\\quad";
                             }
                         }
                     } else if (arrowType == L'=') {
@@ -1985,17 +1987,40 @@ inline macro(CDATATenv) {
                     } else if (arrowType == L'|') {
                         cellPos += 2;
                         if (c == 0) {
-                            processedCell += L"\\quad\\bigg\\Vert{}\\quad";
+                            processedCell += L"\\bigg\\Vert{}\\quad\\quad\\quad";
+                        } else  {
+                            processedCell += L"\\bigg\\Vert{}\\quad\\quad\\quad";
+                        } 
+                    } else if (arrowType == L'\\') {
+//                         Handle @\command> syntax (e.g., @\dashrightarrow>)
+                        cellPos += 2;
+                        wstring arrowName;
+
+                        // Read the arrow command name until we find '>'
+                        while (cellPos < cell.length() && cell[cellPos] != L'>') {
+                            arrowName += cell[cellPos];
+                            cellPos++;
+                        }
+
+                        // Skip the closing '>'
+                        if (cellPos < cell.length() && cell[cellPos] == L'>') {
+                            cellPos++;
+                        }
+
+                        // For \dashrightarrow, convert to @ - -> > format
+                        if (arrowName == L"dashrightarrow") {
+                            processedCell += L"\\@-\\rightarrow>";
                         } else {
-                            processedCell += L"\\bigg\\Vert{}\\quad\\quad\\quad\\quad\\quad";
+                            // Convert to LaTeX command
+                            processedCell += L"\\" + arrowName;
                         }
                     } else if (arrowType == L'.') {
                         cellPos += 2;
                         if (c == 0) {
-                            processedCell += L"\\quad\\phantom{\\bigg\\downarrow{}}\\quad\\quad";
+                            processedCell += L"\\phantom{\\bigg\\downarrow{}}\\quad\\quad";
                         } else {
-                            processedCell += L"\\phantom{\\bigg\\downarrow{}}\\quad\\quad\\quad\\quad\\quad";
-                        }
+                            processedCell += L"\\phantom{\\bigg\\downarrow{}}\\quad\\quad";
+                        } 
                     } else {
                         processedCell += cell[cellPos];
                         cellPos++;
@@ -2008,6 +2033,9 @@ inline macro(CDATATenv) {
             
             processed += processedCell;
             if (c < rows[r].size() - 1) {
+                if (c == 0) {
+                    processed += L"\\quad\\quad\\quad";
+                }
                 processed += L" & ";
             }
         }
@@ -2022,7 +2050,7 @@ inline macro(CDATATenv) {
     arr->checkDimensions();
     
     return sptr<Atom>(new MatrixAtom(
-        tp.getIsPartial(), arr, L"cccc", true));
+        tp.getIsPartial(), arr, L"llll", true));
 }
 
 /**************************************** not implemented *****************************************/
