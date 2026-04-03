@@ -186,6 +186,8 @@ struct Index0 {
 
 2. unicode扩展支持的字符范围请参考[U1D400](https://www.unicode.org/charts/PDF/U1D400.pdf)。
 
+3. NewCommand扩展包仅支持\def,\newenvironment,\renewenvironment
+
 ## 开源协议
 
 本项目基于 [License](https://gitcode.com/Cangjie-TPC/formula-ffi/blob/formula-ffi_hybrid_cangjie-plugin_5.1.1/LICENSE)，请自由的享受和参与开源。

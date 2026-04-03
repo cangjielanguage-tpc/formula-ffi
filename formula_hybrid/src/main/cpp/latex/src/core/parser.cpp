@@ -1182,6 +1182,18 @@ void TeXParser::parse() throw(ex_parse) {
 }
 
 sptr<Atom> TeXParser::convertCharacter(wchar_t c, bool oneChar) throw(ex_parse) {
+    if ((c >= CJK_UNIFIED_IDEOGRAPHS_START && c <= CJK_UNIFIED_IDEOGRAPHS_END) ||
+        (c >= CJK_UNIFIED_IDEOGRAPHS_EXT_A_START && c <= CJK_UNIFIED_IDEOGRAPHS_EXT_A_END) ||
+        (c >= CJK_COMPATIBILITY_IDEOGRAPHS_START && c <= CJK_COMPATIBILITY_IDEOGRAPHS_END)) {
+        FontInfos *fontInfos = TeXFormula::getExternalFont(UnicodeBlock::of(c));
+        if (fontInfos != nullptr) {
+            return sptr<Atom>(new TextRenderingAtom(towstring(c), fontInfos));
+        } else {
+#ifdef HAVE_LOG
+            __log << "[Warning] CJK font not found for character: " << wide2utf8(&c) << "\n";
+#endif
+        }
+    }
     if (_ignoreWhiteSpace) {
         // the unicode Greek Letters in math mode are not drawn with the Greek font
         if (c >= 945 && c <= 969) {

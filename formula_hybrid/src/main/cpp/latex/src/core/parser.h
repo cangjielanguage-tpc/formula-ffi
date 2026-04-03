@@ -11,6 +11,19 @@ using namespace std;
 
 namespace tex {
 
+// CJK Unicode ranges
+constexpr wchar_t CJK_UNIFIED_IDEOGRAPHS_START        = 0x4E00;
+constexpr wchar_t CJK_UNIFIED_IDEOGRAPHS_END          = 0x9FFF;
+
+constexpr wchar_t CJK_UNIFIED_IDEOGRAPHS_EXT_A_START  = 0x3400;
+constexpr wchar_t CJK_UNIFIED_IDEOGRAPHS_EXT_A_END    = 0x4DBF;
+
+constexpr char32_t CJK_UNIFIED_IDEOGRAPHS_EXT_B_START = 0x20000;
+constexpr char32_t CJK_UNIFIED_IDEOGRAPHS_EXT_F_END   = 0x2EBEF;
+
+constexpr wchar_t CJK_COMPATIBILITY_IDEOGRAPHS_START  = 0xF900;
+constexpr wchar_t CJK_COMPATIBILITY_IDEOGRAPHS_END    = 0xFAFF;
+
 /**
  * Convert a character to roman-number if it is a digit localized
  * @param c character to be converted
