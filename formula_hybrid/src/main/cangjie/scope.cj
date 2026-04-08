@@ -1,47 +1,30 @@
 package formula
+internal import ohos.ark_interop.*
 
-import ohos.ark_interop.*
-
-@C
-struct JSHClassPrivate {}
-
-@C
-struct JSScopePrivate {}
-
-type JSEnv = IntNative
-
-type JSScope = CPointer<JSScopePrivate>
-
-type JSHClass = CPointer<JSHClassPrivate>
-
-type JSAsyncCallback = CFunc<(JSEnv, Int64) -> Unit>
-
-/**
- * Alias for type which is `CPointer<Unit>`.
- */
-public type napi_env = CPointer<Unit>
-
-/**
- * Alias for type which is `CPointer<Unit>`.
- */
-public type napi_value = CPointer<Unit>
-
-@When[arch == "aarch64"]
 @FastNative
-foreign func openScope(env: JSEnv): JSScope
+foreign func napi_open_handle_scope(env: CPointer<Unit>, scope: CPointer<CPointer<Unit>>): Int32
 
-@When[arch == "aarch64"]
 @FastNative
-foreign func closeScope(env: JSEnv, scope: JSScope): Unit
+foreign func napi_close_handle_scope(env: CPointer<Unit>, scope: CPointer<Unit>): Int32
 
-/**
-* @param runtime {JSContext} in this context you want to create values and call arkts functions/methods
-* @param callback {(} -> T) the lambda function holds the logic
-*/
-@When[arch == "aarch64"]
-public func newScope<T>(runtime: JSContext, callback: () -> T): T {
+public func openScope(env:CPointer<Unit>):CPointer<Unit>{
+    var scopePtr:CPointer<Unit> = CPointer<Unit>()
+    let res = unsafe {
+        napi_open_handle_scope(env,inout scopePtr)
+    }
+    if(res != 0){
+        throw Exception("napi_open_handle_scope failed")
+    }
+    return scopePtr
+}
+
+public func closeScope(env:CPointer<Unit>,scope:CPointer<Unit>):Int32{
+    return unsafe {napi_close_handle_scope(env,scope)}
+}
+
+func newScope<T>(runtime: JSContext, callback: () -> T): T {
     unsafe {
-        let scope = openScope(runtime.env)
+        let scope = openScope(runtime.getNapiEnv())
         let result = try {
             callback()
         } catch (e: Exception) {
@@ -49,7 +32,7 @@ public func newScope<T>(runtime: JSContext, callback: () -> T): T {
         } catch (e: Error) {
             throw e
         } finally {
-            closeScope(runtime.env, scope)
+            closeScope(runtime.getNapiEnv(), scope)
         }
         return result
     }
