@@ -8,6 +8,7 @@ import ohos.ark_interop.JSCallInfo
 import ohos.ark_interop.JSValue
 import ohos.ark_interop.JSContext
 import std.sync.Mutex
+import ohos.base.AppLog
 
 let latexReentrantMutex: Mutex = Mutex()
 
@@ -20,12 +21,22 @@ func latexStringToImage(runtime: JSContext, callInfo: JSCallInfo): JSValue {
     let value5 = callInfo[5].toString(runtime)
     let promise = runtime.promiseCapability()
     spawn {
-        synchronized(latexReentrantMutex) {
-            let result = latexStringToImage(value0, value1, UInt32(value2), UInt32(value3), Int64(value4), value5)
-            runtime.postJSTask {
-                newScope(runtime) {
-                    promise.resolve(runtime.arrayBuffer(result).toJSValue())
+        try{
+            synchronized(latexReentrantMutex) {
+                let result = latexStringToImage(value0, value1, UInt32(value2), UInt32(value3), Int64(value4), value5)
+                runtime.postJSTask {
+                    newScope(runtime) {
+                        promise.resolve(runtime.arrayBuffer(result).toJSValue())
+                    }
                 }
+            }
+        }catch (e:Exception) {
+            AppLog.error("${e.printStackTrace()}")
+            runtime.postJSTask {
+                =>
+                    newScope(runtime){
+                        promise.reject(e.printStackTrace().toJSValue(runtime))
+                    }
             }
         }
     }
@@ -49,23 +60,33 @@ func latexStringToImageWithError(runtime: JSContext, callInfo: JSCallInfo): JSVa
     let value5 = callInfo[5].toString(runtime)
     let promise = runtime.promiseCapability()
     spawn {
-        let data = LatexResultData()
-        synchronized(latexReentrantMutex) {
-            let result = latexStringToImageWithError(value0, value1, UInt32(value2), UInt32(value3), Int64(value4), value5)
-            data.imageBytes = result.imageBytes
-            data.formula = result.formula
-            data.resultCode = result.resultCode.toInt()
-            data.errorMessage = result.errorMessage
-        }
-        let resultCodeNum: Float64 = Float64(data.resultCode)
-        runtime.postJSTask {
-            newScope(runtime) {
-                let obj = runtime.object()
-                obj["imageBytes"] = runtime.arrayBuffer(data.imageBytes).toJSValue()
-                obj["formula"] = runtime.string(data.formula).toJSValue()
-                obj["resultCode"] = runtime.number(resultCodeNum).toJSValue()
-                obj["errorMessage"] = runtime.string(data.errorMessage).toJSValue()
-                promise.resolve(obj.toJSValue())
+        try{
+            let data = LatexResultData()
+            synchronized(latexReentrantMutex) {
+                let result = latexStringToImageWithError(value0, value1, UInt32(value2), UInt32(value3), Int64(value4), value5)
+                data.imageBytes = result.imageBytes
+                data.formula = result.formula
+                data.resultCode = result.resultCode.toInt()
+                data.errorMessage = result.errorMessage
+            }
+            let resultCodeNum: Float64 = Float64(data.resultCode)
+            runtime.postJSTask {
+                newScope(runtime) {
+                    let obj = runtime.object()
+                    obj["imageBytes"] = runtime.arrayBuffer(data.imageBytes).toJSValue()
+                    obj["formula"] = runtime.string(data.formula).toJSValue()
+                    obj["resultCode"] = runtime.number(resultCodeNum).toJSValue()
+                    obj["errorMessage"] = runtime.string(data.errorMessage).toJSValue()
+                    promise.resolve(obj.toJSValue())
+                }
+            }
+        }catch (e:Exception) {
+            AppLog.error("${e.printStackTrace()}")
+        	runtime.postJSTask {
+                =>
+                    newScope(runtime){
+                        promise.reject(e.printStackTrace().toJSValue(runtime))
+                    }
             }
         }
     }

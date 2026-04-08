@@ -1,10 +1,10 @@
 package formula
 internal import ohos.ark_interop.*
 
-@FastNative
+
 foreign func napi_open_handle_scope(env: CPointer<Unit>, scope: CPointer<CPointer<Unit>>): Int32
 
-@FastNative
+
 foreign func napi_close_handle_scope(env: CPointer<Unit>, scope: CPointer<Unit>): Int32
 
 public func openScope(env:CPointer<Unit>):CPointer<Unit>{
