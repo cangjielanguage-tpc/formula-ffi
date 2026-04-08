@@ -11,7 +11,6 @@ import std.sync.Mutex
 
 let latexReentrantMutex: Mutex = Mutex()
 
-@When[arch == "aarch64"]
 func latexStringToImage(runtime: JSContext, callInfo: JSCallInfo): JSValue {
     let value0 = callInfo[0].toString(runtime)
     let value1 = callInfo[1].toNumber()
@@ -33,25 +32,6 @@ func latexStringToImage(runtime: JSContext, callInfo: JSCallInfo): JSValue {
     promise.toJSValue()
 }
 
-@When[arch == "x86_64"]
-func latexStringToImage(runtime: JSContext, callInfo: JSCallInfo): JSValue {
-    let value0 = callInfo[0].toString(runtime)
-    let value1 = callInfo[1].toNumber()
-    let value2 = callInfo[2].toNumber()
-    let value3 = callInfo[3].toNumber()
-    let value4 = callInfo[4].toNumber()
-    let value5 = callInfo[5].toString(runtime)
-    let promise = runtime.promiseCapability()
-    spawn {
-        synchronized(latexReentrantMutex) {
-            let result = latexStringToImage(value0, value1, UInt32(value2), UInt32(value3), Int64(value4), value5)
-            runtime.postJSTask {
-                promise.resolve(runtime.arrayBuffer(result).toJSValue())
-            }
-        }
-    }
-    promise.toJSValue()
-}
 
 class LatexResultData {
     public var imageBytes: Array<Byte> = Array<Byte>()
@@ -60,7 +40,6 @@ class LatexResultData {
     public var errorMessage: String = ""
 }
 
-@When[arch == "aarch64"]
 func latexStringToImageWithError(runtime: JSContext, callInfo: JSCallInfo): JSValue {
     let value0 = callInfo[0].toString(runtime)
     let value1 = callInfo[1].toNumber()
@@ -88,37 +67,6 @@ func latexStringToImageWithError(runtime: JSContext, callInfo: JSCallInfo): JSVa
                 obj["errorMessage"] = runtime.string(data.errorMessage).toJSValue()
                 promise.resolve(obj.toJSValue())
             }
-        }
-    }
-    promise.toJSValue()
-}
-
-@When[arch == "x86_64"]
-func latexStringToImageWithError(runtime: JSContext, callInfo: JSCallInfo): JSValue {
-    let value0 = callInfo[0].toString(runtime)
-    let value1 = callInfo[1].toNumber()
-    let value2 = callInfo[2].toNumber()
-    let value3 = callInfo[3].toNumber()
-    let value4 = callInfo[4].toNumber()
-    let value5 = callInfo[5].toString(runtime)
-    let promise = runtime.promiseCapability()
-    spawn {
-        let data = LatexResultData()
-        synchronized(latexReentrantMutex) {
-            let result = latexStringToImageWithError(value0, value1, UInt32(value2), UInt32(value3), Int64(value4), value5)
-            data.imageBytes = result.imageBytes
-            data.formula = result.formula
-            data.resultCode = result.resultCode.toInt()
-            data.errorMessage = result.errorMessage
-        }
-        let resultCodeNum: Float64 = Float64(data.resultCode)
-        runtime.postJSTask {
-            let obj = runtime.object()
-            obj["imageBytes"] = runtime.arrayBuffer(data.imageBytes).toJSValue()
-            obj["formula"] = runtime.string(data.formula).toJSValue()
-            obj["resultCode"] = runtime.number(resultCodeNum).toJSValue()
-            obj["errorMessage"] = runtime.string(data.errorMessage).toJSValue()
-            promise.resolve(obj.toJSValue())
         }
     }
     promise.toJSValue()
