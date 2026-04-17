@@ -169,29 +169,51 @@ void BondRenderer::drawTriple(Graphics2D& g2, const ChemPoint& from, const ChemP
     g2.drawLine(f2.x, f2.y, t2.x, t2.y);
 }
 
-void BondRenderer::drawWedgeUp(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale) {
+void BondRenderer::drawWedgeHollow(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale, bool up) {
+    if (up) {
+        drawWedgeHollowUp(g2, from, to, scale);
+    } else {
+        drawWedgeHollowDown(g2, from, to, scale);
+    }
+}
+
+void BondRenderer::drawWedgeHollowUp(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale) {
     BondGeometry bg(from, to);
     if (bg.len < EPSILON) return;
 
-    ChemPoint base1 = from + bg.perp * WEDGE_WIDTH * scale;
-    ChemPoint base2 = from - bg.perp * WEDGE_WIDTH * scale;
-    g2.drawLine(base1.x, base1.y, to.x, to.y);
-    g2.drawLine(base2.x, base2.y, to.x, to.y);
+    float wideW = WEDGE_WIDTH * scale;
+    float narrowW = WEDGE_WIDTH * scale * 0.2f;
+
+    ChemPoint base1 = from + bg.perp * wideW;
+    ChemPoint base2 = from - bg.perp * wideW;
+    ChemPoint tip1 = to + bg.perp * narrowW;
+    ChemPoint tip2 = to - bg.perp * narrowW;
+
     g2.drawLine(base1.x, base1.y, base2.x, base2.y);
+    g2.drawLine(base2.x, base2.y, tip2.x, tip2.y);
+    g2.drawLine(tip2.x, tip2.y, tip1.x, tip1.y);
+    g2.drawLine(tip1.x, tip1.y, base1.x, base1.y);
 }
 
-void BondRenderer::drawWedgeDown(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale) {
+void BondRenderer::drawWedgeHollowDown(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale) {
     BondGeometry bg(from, to);
     if (bg.len < EPSILON) return;
 
-    ChemPoint tip1 = to + bg.perp * WEDGE_WIDTH * scale;
-    ChemPoint tip2 = to - bg.perp * WEDGE_WIDTH * scale;
-    g2.drawLine(from.x, from.y, tip1.x, tip1.y);
-    g2.drawLine(from.x, from.y, tip2.x, tip2.y);
-    g2.drawLine(tip1.x, tip1.y, tip2.x, tip2.y);
+    float wideW = WEDGE_WIDTH * scale;
+    float narrowW = WEDGE_WIDTH * scale * 0.2f;
+
+    ChemPoint base1 = from + bg.perp * narrowW;
+    ChemPoint base2 = from - bg.perp * narrowW;
+    ChemPoint tip1 = to + bg.perp * wideW;
+    ChemPoint tip2 = to - bg.perp * wideW;
+
+    g2.drawLine(base1.x, base1.y, base2.x, base2.y);
+    g2.drawLine(base2.x, base2.y, tip2.x, tip2.y);
+    g2.drawLine(tip2.x, tip2.y, tip1.x, tip1.y);
+    g2.drawLine(tip1.x, tip1.y, base1.x, base1.y);
 }
 
-void BondRenderer::drawWedgeDashed(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale, bool up) {
+void BondRenderer::drawWedgeDotted(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale, bool up) {
     BondGeometry bg(from, to);
     if (bg.len < EPSILON) return;
 
@@ -200,18 +222,66 @@ void BondRenderer::drawWedgeDashed(Graphics2D& g2, const ChemPoint& from, const 
     for (int i = 0; i <= NUM_DASHES; i++) {
         float t = static_cast<float>(i) / NUM_DASHES;
         ChemPoint p = from + delta * t;
-        float w = WEDGE_WIDTH * scale * (up ? (1 - t) : t);
+        float w = WEDGE_WIDTH * scale * (up ? (1 - t) : t );
         ChemPoint p1 = p + bg.perp * w;
         ChemPoint p2 = p - bg.perp * w;
         g2.drawLine(p1.x, p1.y, p2.x, p2.y);
     }
 }
 
-void BondRenderer::drawWedgeHollow(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale, bool up) {
+void BondRenderer::drawWedgeSolid(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale, bool up) {
     if (up) {
-        drawWedgeUp(g2, from, to, scale);
+        drawWedgeSolidUp(g2, from, to, scale);
     } else {
-        drawWedgeDown(g2, from, to, scale);
+        drawWedgeSolidDown(g2, from, to, scale);
+    }
+}
+
+void BondRenderer::drawWedgeSolidUp(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale) {
+    BondGeometry bg(from, to);
+    if (bg.len < EPSILON) return;
+
+    float wideW = WEDGE_WIDTH * scale;
+    float narrowW = WEDGE_WIDTH * scale * 0.2f;
+
+    ChemPoint base1 = from + bg.perp * wideW;
+    ChemPoint base2 = from - bg.perp * wideW;
+    ChemPoint tip1 = to + bg.perp * narrowW;
+    ChemPoint tip2 = to - bg.perp * narrowW;
+
+    ChemPoint delta = to - from;
+    int steps = std::max(2, static_cast<int>(bg.len / (0.02f * scale)));
+    for (int i = 0; i <= steps; i++) {
+        float t = static_cast<float>(i) / steps;
+        float w = wideW + (narrowW - wideW) * t;
+        ChemPoint p = from + delta * t;
+        ChemPoint p1 = p + bg.perp * w;
+        ChemPoint p2 = p - bg.perp * w;
+        g2.drawLine(p1.x, p1.y, p2.x, p2.y);
+    }
+}
+
+void BondRenderer::drawWedgeSolidDown(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale) {
+    BondGeometry bg(from, to);
+    if (bg.len < EPSILON) return;
+
+    float wideW = WEDGE_WIDTH * scale;
+    float narrowW = WEDGE_WIDTH * scale * 0.2f;
+
+    ChemPoint base1 = from + bg.perp * narrowW;
+    ChemPoint base2 = from - bg.perp * narrowW;
+    ChemPoint tip1 = to + bg.perp * wideW;
+    ChemPoint tip2 = to - bg.perp * wideW;
+
+    ChemPoint delta = to - from;
+    int steps = std::max(2, static_cast<int>(bg.len / (0.02f * scale)));
+    for (int i = 0; i <= steps; i++) {
+        float t = static_cast<float>(i) / steps;
+        float w = narrowW + (wideW - narrowW) * t;
+        ChemPoint p = from + delta * t;
+        ChemPoint p1 = p + bg.perp * w;
+        ChemPoint p2 = p - bg.perp * w;
+        g2.drawLine(p1.x, p1.y, p2.x, p2.y);
     }
 }
 
@@ -244,38 +314,38 @@ void BondRenderer::drawBond(Graphics2D& g2, BondType type,
     switch (type) {
         case BOND_SINGLE:
             if (ts.isDashed) {
-                drawDashedLine(g2, actualFrom.x, actualFrom.y, actualTo.x, actualTo.y, scale);
+                drawDashedLine(g2, from.x, from.y, to.x, to.y, scale);
             } else {
-                drawSingle(g2, actualFrom, actualTo, scale);
+                drawSingle(g2, from, to, scale);
             }
             break;
         case BOND_DOUBLE:
-            drawDouble(g2, actualFrom, actualTo, scale, ringCenter, inRing);
+            drawDouble(g2, from, to, scale, ringCenter, inRing);
             break;
         case BOND_TRIPLE:
-            drawTriple(g2, actualFrom, actualTo, scale);
-            break;
-        case BOND_WEDGE_UP:
-            drawWedgeUp(g2, actualFrom, actualTo, scale);
-            break;
-        case BOND_WEDGE_DOWN:
-            drawWedgeDown(g2, actualFrom, actualTo, scale);
-            break;
-        case BOND_WEDGE_DASHED_UP:
-            drawWedgeDashed(g2, actualFrom, actualTo, scale, true);
-            break;
-        case BOND_WEDGE_DASHED_DOWN:
-            drawWedgeDashed(g2, actualFrom, actualTo, scale, false);
+            drawTriple(g2, from, to, scale);
             break;
         case BOND_WEDGE_HOLLOW_UP:
-            drawWedgeHollow(g2, actualFrom, actualTo, scale, true);
+            drawWedgeHollowUp(g2, from, to, scale);
             break;
         case BOND_WEDGE_HOLLOW_DOWN:
-            drawWedgeHollow(g2, actualFrom, actualTo, scale, false);
+            drawWedgeHollowDown(g2, from, to, scale);
+            break;
+        case BOND_WEDGE_DOTTED_UP:
+            drawWedgeDotted(g2, from, to, scale, true);
+            break;
+        case BOND_WEDGE_DOTTED_DOWN:
+            drawWedgeDotted(g2, from, to, scale, false);
+            break;
+        case BOND_WEDGE_SOLID_UP:
+            drawWedgeSolid(g2, from, to, scale, true);
+            break;
+        case BOND_WEDGE_SOLID_DOWN:
+            drawWedgeSolid(g2, from, to, scale, false);
             break;
         case BOND_AROMATIC:
         default:
-            drawSingle(g2, actualFrom, actualTo, scale);
+            drawSingle(g2, from, to, scale);
             break;
     }
 

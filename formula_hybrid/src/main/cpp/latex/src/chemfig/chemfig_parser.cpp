@@ -340,16 +340,16 @@ BondType ChemfigParser::parseBondType(const wchar_t*& p) {
     if (ch == L'>') {
         p++;
         wchar_t next = peek(p);
-        if (next == L':') { p++; return BOND_WEDGE_DASHED_UP; }
+        if (next == L':') { p++; return BOND_WEDGE_DOTTED_UP; }
         if (next == L'|') { p++; return BOND_WEDGE_HOLLOW_UP; }
-        return BOND_WEDGE_UP;
+        return BOND_WEDGE_SOLID_UP;
     }
     if (ch == L'<') {
         p++;
         wchar_t next = peek(p);
-        if (next == L':') { p++; return BOND_WEDGE_DASHED_DOWN; }
+        if (next == L':') { p++; return BOND_WEDGE_DOTTED_DOWN; }
         if (next == L'|') { p++; return BOND_WEDGE_HOLLOW_DOWN; }
-        return BOND_WEDGE_DOWN;
+        return BOND_WEDGE_SOLID_DOWN;
     }
     return BOND_SINGLE;
 }

@@ -18,10 +18,13 @@ private:
     static void drawDouble(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale,
                            const ChemPoint& ringCenter, bool inRing);
     static void drawTriple(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale);
-    static void drawWedgeUp(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale);
-    static void drawWedgeDown(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale);
-    static void drawWedgeDashed(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale, bool up);
+    static void drawWedgeHollowUp(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale);
+    static void drawWedgeHollowDown(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale);
+    static void drawWedgeDotted(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale, bool up);
     static void drawWedgeHollow(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale, bool up);
+    static void drawWedgeSolid(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale, bool up);
+    static void drawWedgeSolidUp(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale);
+    static void drawWedgeSolidDown(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale);
     
     static void drawLine(Graphics2D& g2, float x1, float y1, float x2, float y2, float scale);
     static void drawDashedLine(Graphics2D& g2, float x1, float y1, float x2, float y2, float scale);
