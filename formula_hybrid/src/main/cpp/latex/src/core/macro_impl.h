@@ -3,6 +3,7 @@
 
 #include "atom/atom_basic.h"
 #include "atom/atom_impl.h"
+#include "chemfig/chemfig_atom.h"
 #include "common.h"
 #include "core/core.h"
 #include "core/formula.h"
@@ -2069,6 +2070,16 @@ inline macro(GeoGebra) {
 
 inline macro(dynamic) {
     return nullptr;
+}
+
+inline macro(chemfig) {
+    try {
+        return sptr<Atom>(new ChemfigAtom(args[1]));
+    } catch (const ex_parse&) {
+        throw;
+    } catch (const std::exception& e) {
+        throw ex_parse(std::string("Chemfig error: ") + e.what());
+    }
 }
 
 }  // namespace tex

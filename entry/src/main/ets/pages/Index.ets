@@ -290,6 +290,25 @@ struct Index {
             .width(10)
         }
         .width('100%')
+
+        Row() {
+          Text("")
+            .width(10)
+          Button("15 Chemfig 分子结构图渲染测试")
+            .height(50)// 高度
+            .layoutWeight(1)
+            .fontColor(0xFFFFFFFF)
+            .backgroundColor(0xFFFF0000)
+            .margin({ top: 5, bottom: 5 })
+            .align(Alignment.Center)
+            .fontSize(10)
+            .onClick(e => {
+              router.pushUrl({ url: 'pages/Index15' })
+            })
+          Text("")
+            .width(10)
+        }
+        .width('100%')
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)

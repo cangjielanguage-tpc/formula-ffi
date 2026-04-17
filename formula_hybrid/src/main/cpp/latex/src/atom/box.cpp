@@ -703,6 +703,8 @@ void FramedBox::draw(Graphics2D& g2, float x, float y) {
         g2.setColor(_line);
         g2.drawRect(x + th, y - _height + th, _width - _thickness, _height + _depth - _thickness);
         g2.setColor(prev);
+    } else {
+        g2.drawRect(x + th, y - _height + th, _width - _thickness, _height + _depth - _thickness);
     }
     g2.setStroke(st);
     _box->draw(g2, x + _space + _thickness, y);
