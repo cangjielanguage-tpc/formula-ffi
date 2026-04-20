@@ -11,7 +11,7 @@ namespace {
     constexpr float TEXT_BOND_GAP = 0.12f;
     constexpr float BOND_LINE_WIDTH = 0.055f;
     constexpr float SUBSCRIPT_SCALE = 0.7f;
-    constexpr float SUPERSCRIPT_RISE = 0.55f;
+    constexpr float SUPERSCRIPT_RISE = 0.35f;
     constexpr float EPSILON = 0.0001f;
     constexpr float CHEMFIG_PI = 3.14159265358979f;
 
@@ -53,10 +53,6 @@ namespace {
                 flushCurrent();
                 currentType = (ch == L'_') ? SEG_SUBSCRIPT : SEG_SUPERSCRIPT;
             } else {
-                if (currentType != SEG_NORMAL && !current.empty()) {
-                    flushCurrent();
-                    currentType = SEG_NORMAL;
-                }
                 current += ch;
             }
         }
@@ -70,8 +66,21 @@ namespace {
 
     float computeSegmentsTotalWidth(const std::vector<TextSegment>& segments) {
         float total = 0;
-        for (const auto& seg : segments) {
-            total += seg.width;
+        for (size_t i = 0; i < segments.size(); i++) {
+            const auto& seg = segments[i];
+            bool isScriptPair = false;
+            if (i + 1 < segments.size()) {
+                TextSegmentType nextType = segments[i + 1].type;
+                if ((seg.type == SEG_SUPERSCRIPT && nextType == SEG_SUBSCRIPT) ||
+                    (seg.type == SEG_SUBSCRIPT && nextType == SEG_SUPERSCRIPT)) {
+                    isScriptPair = true;
+                    total += std::max(seg.width, segments[i + 1].width);
+                    i++;
+                }
+            }
+            if (!isScriptPair) {
+                total += seg.width;
+            }
         }
         return total;
     }
@@ -97,8 +106,8 @@ namespace {
         }
 
         float baselineOffset = -tm.normalHeight / 2 + tm.normalAscent;
-        float topExtent = baselineOffset;
-        float bottomExtent = baselineOffset - tm.normalHeight;
+        float topExtent = baselineOffset - tm.normalAscent;
+        float bottomExtent = baselineOffset + (tm.normalHeight - tm.normalAscent);
 
         for (const auto& seg : segments) {
             if (seg.type == SEG_SUBSCRIPT) {
@@ -106,8 +115,7 @@ namespace {
                 float subBottom = subBaseline + (seg.height - seg.ascent);
                 bottomExtent = std::max(bottomExtent, subBottom);
             } else if (seg.type == SEG_SUPERSCRIPT) {
-                float subTop = baselineOffset - SUPERSCRIPT_RISE * tm.normalHeight
-                               - (seg.ascent - seg.height);
+                float subTop = baselineOffset - SUPERSCRIPT_RISE * tm.normalHeight - seg.ascent;
                 topExtent = std::min(topExtent, subTop);
             }
         }
@@ -277,7 +285,8 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
             float baselineY = layout.y + layout.textOffsetY;
             float xCursor = 0;
 
-            for (const auto& seg : layout.segments) {
+            for (size_t i = 0; i < layout.segments.size(); i++) {
+                const auto& seg = layout.segments[i];
                 float segX = baseX + xCursor;
                 float segY = baselineY;
 
@@ -294,7 +303,18 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
                 g2.scale(1.f / s, 1.f / s);
                 g2.translate(-segX, -segY);
 
-                xCursor += seg.width;
+                bool isScriptPair = false;
+                if (i + 1 < layout.segments.size()) {
+                    TextSegmentType nextType = layout.segments[i + 1].type;
+                    if ((seg.type == SEG_SUPERSCRIPT && nextType == SEG_SUBSCRIPT) ||
+                        (seg.type == SEG_SUBSCRIPT && nextType == SEG_SUPERSCRIPT)) {
+                        isScriptPair = true;
+                    }
+                }
+
+                if (!isScriptPair) {
+                    xCursor += seg.width;
+                }
             }
         } else {
             float drawX = layout.x + layout.textOffsetX;

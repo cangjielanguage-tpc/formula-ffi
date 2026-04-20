@@ -173,9 +173,7 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
             p++;
             int branchAtomIdx = ring.atomIndices[i];
             ChemPoint branchPos = mol.atoms[branchAtomIdx].position;
-            int nextIdx = ring.atomIndices[(i + 1) % ringSize];
-            ChemPoint nextPos = mol.atoms[nextIdx].position;
-            float branchAngle = std::atan2(-(nextPos.y - branchPos.y), nextPos.x - branchPos.x);
+            float branchAngle = std::atan2(-(branchPos.y - ring.center.y), branchPos.x - ring.center.x);
             parseBranch(p, mol, atomIndex, branchAtomIdx, branchAngle);
             continue;
         }
@@ -407,14 +405,11 @@ BondParams ChemfigParser::parseBondParams(const wchar_t*& p, float currentAngle)
                     params.angle = sign * std::stof(numStr) * CHEMFIG_PI / 180.0f;
                 } catch (...) {}
             }
-        } else if (af[0] == L'-') {
-            params.hasAngle = true;
-            try { params.angle = -std::stof(af.substr(1)) * CHEMFIG_PI / 180.0f; } catch (...) {}
         } else {
             try {
                 params.hasAngle = true;
                 params.isRelativeAngle = false;
-                params.angle = std::stoi(af) * ANGLE_INCREMENT;
+                params.angle = std::stof(af) * ANGLE_INCREMENT;
             } catch (...) {}
         }
     }
@@ -438,6 +433,32 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
             label += ch;
             p++;
         } else {
+            if (ch == L'^' && peekNext(p) == L'{') {
+                label += ch;
+                p++;
+                p++;
+                while (peek(p) != L'\0' && peek(p) != L'}') {
+                    label += *p;
+                    p++;
+                }
+                if (peek(p) == L'}') {
+                    p++;
+                }
+                continue;
+            }
+            if (ch == L'_' && peekNext(p) == L'{') {
+                label += ch;
+                p++;
+                p++;
+                while (peek(p) != L'\0' && peek(p) != L'}') {
+                    label += *p;
+                    p++;
+                }
+                if (peek(p) == L'}') {
+                    p++;
+                }
+                continue;
+            }
             if ((ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z') ||
                 (ch >= L'0' && ch <= L'9') || ch == L'_' || ch == L'^' || ch == L'+' || ch == L' ' || ch == L'|') {
                 label += ch;
