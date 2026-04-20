@@ -20,8 +20,11 @@ private:
     static BondType parseBondType(const wchar_t*& p);
     static BondParams parseBondParams(const wchar_t*& p, float currentAngle);
     static std::wstring parseAtomGroup(const wchar_t*& p);
+    static std::wstring parseHookName(const wchar_t*& p);
+    static std::wstring parseAnchorName(const wchar_t*& p);
     static float parseAngleSpec(const wchar_t*& p, float currentAngle);
     static float parseNumber(const wchar_t*& p);
+    static void resolveHooks(Molecule& mol);
     
     static wchar_t peek(const wchar_t* p);
     static wchar_t peekNext(const wchar_t* p);

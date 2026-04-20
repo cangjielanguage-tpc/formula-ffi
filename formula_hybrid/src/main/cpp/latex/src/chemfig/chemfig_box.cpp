@@ -49,7 +49,10 @@ namespace {
         };
 
         for (wchar_t ch : text) {
-            if (ch == L'_' || ch == L'^') {
+            if (ch == L'|') {
+                flushCurrent();
+                currentType = SEG_NORMAL;
+            } else if (ch == L'_' || ch == L'^') {
                 flushCurrent();
                 currentType = (ch == L'_') ? SEG_SUBSCRIPT : SEG_SUPERSCRIPT;
             } else {
@@ -61,7 +64,7 @@ namespace {
     }
 
     bool hasSubOrSuper(const std::wstring& text) {
-        return text.find_first_of(L"_^") != std::wstring::npos;
+        return text.find_first_of(L"_^|") != std::wstring::npos;
     }
 
     float computeSegmentsTotalWidth(const std::vector<TextSegment>& segments) {
@@ -284,6 +287,7 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
             float baseX = layout.x + layout.textOffsetX;
             float baselineY = layout.y + layout.textOffsetY;
             float xCursor = 0;
+            float prevNormalAscent = layout.normalAscent;
 
             for (size_t i = 0; i < layout.segments.size(); i++) {
                 const auto& seg = layout.segments[i];
@@ -291,9 +295,9 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
                 float segY = baselineY;
 
                 if (seg.type == SEG_SUBSCRIPT) {
-                    segY = baselineY - layout.normalAscent / 2 + seg.ascent;
+                    segY = baselineY - prevNormalAscent / 2 + seg.ascent;
                 } else if (seg.type == SEG_SUPERSCRIPT) {
-                    segY -= SUPERSCRIPT_RISE * layout.normalHeight;
+                    segY = baselineY - SUPERSCRIPT_RISE * layout.normalHeight;
                 }
 
                 float s = baseScale * ((seg.type != SEG_NORMAL) ? SUBSCRIPT_SCALE : 1.0f);
@@ -302,6 +306,10 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
                 seg.layout->draw(g2, 0, 0);
                 g2.scale(1.f / s, 1.f / s);
                 g2.translate(-segX, -segY);
+
+                if (seg.type == SEG_NORMAL) {
+                    prevNormalAscent = seg.ascent;
+                }
 
                 bool isScriptPair = false;
                 if (i + 1 < layout.segments.size()) {

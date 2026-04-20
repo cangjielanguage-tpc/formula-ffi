@@ -98,10 +98,31 @@ struct Ring {
     Ring() : sides(6), hasInnerCircle(false), innerStartAngle(0), innerEndAngle(360), radius(1.0f) {}
 };
 
+struct Hook {
+    std::wstring name;
+    int atomIndex;
+    BondType bondType;
+    BondParams params;
+
+    Hook() : atomIndex(-1), bondType(BOND_SINGLE) {}
+    Hook(const std::wstring& n, int idx, BondType bt = BOND_SINGLE, const BondParams& bp = BondParams())
+        : name(n), atomIndex(idx), bondType(bt), params(bp) {}
+};
+
+struct Anchor {
+    std::wstring name;
+    int atomIndex;
+
+    Anchor() : atomIndex(-1) {}
+    Anchor(const std::wstring& n, int idx) : name(n), atomIndex(idx) {}
+};
+
 struct Molecule {
     std::vector<AtomNode> atoms;
     std::vector<Bond> bonds;
     std::vector<Ring> rings;
+    std::vector<Hook> hooks;
+    std::vector<Anchor> anchors;
     
     float minX, maxX, minY, maxY;
 

@@ -36,7 +36,11 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
     const wchar_t* p = input.c_str();
     skipWhitespace(p);
     int atomIndex = 0;
-    return (peek(p) == L'*') ? parseRing(p, mol, atomIndex) : parseChain(p, mol, atomIndex, -1, 0);
+    bool result = (peek(p) == L'*') ? parseRing(p, mol, atomIndex) : parseChain(p, mol, atomIndex, -1, 0);
+    if (result) {
+        resolveHooks(mol);
+    }
+    return result;
 }
 
 bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex) {
@@ -187,10 +191,19 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         ring.bondTypes.push_back(bt);
         mol.addBond(ring.atomIndices[i], ring.atomIndices[(i + 1) % ringSize], bt, params);
 
+        int targetAtom = ring.atomIndices[(i + 1) % ringSize];
         if (!label.empty()) {
-            int targetAtom = ring.atomIndices[(i + 1) % ringSize];
             mol.atoms[targetAtom].text = label;
         }
+
+        skipWhitespace(p);
+        if (peek(p) == L'?' && peekNext(p) == L'[') {
+            std::wstring hookName = parseHookName(p);
+            if (!hookName.empty()) {
+                mol.hooks.push_back(Hook(hookName, targetAtom));
+            }
+        }
+
         bondCount++;
     }
 
@@ -244,6 +257,22 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
         }
     }
 
+    skipWhitespace(p);
+    if (peek(p) == L'@' && peekNext(p) == L'{') {
+        std::wstring anchorName = parseAnchorName(p);
+        if (!anchorName.empty()) {
+            mol.anchors.push_back(Anchor(anchorName, lastAtomId));
+        }
+    }
+
+    skipWhitespace(p);
+    if (peek(p) == L'?' && peekNext(p) == L'[') {
+        std::wstring hookName = parseHookName(p);
+        if (!hookName.empty()) {
+            mol.hooks.push_back(Hook(hookName, lastAtomId));
+        }
+    }
+
     float lastAngle = currentAngle;
 
     while (peek(p) != L'\0') {
@@ -266,8 +295,9 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
             continue;
         }
 
+        bool hasExplicitBond = (ch == L'-' || ch == L'=' || ch == L'~' || ch == L'>' || ch == L'<');
         BondType bondType = BOND_SINGLE;
-        if (ch == L'-' || ch == L'=' || ch == L'~' || ch == L'>' || ch == L'<') {
+        if (hasExplicitBond) {
             bondType = parseBondType(p);
         }
 
@@ -277,8 +307,30 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
         skipWhitespace(p);
         std::wstring label = parseAtomGroup(p);
 
-        lastAtomId = addAtomAndBond(mol, lastAtomId, label, bondType, params, bondAngle, atomIndex);
-        lastAngle = bondAngle;
+        if (!hasExplicitBond && !label.empty()) {
+            if (lastAtomId >= 0 && lastAtomId < static_cast<int>(mol.atoms.size())) {
+                mol.atoms[lastAtomId].text += label;
+            }
+        } else {
+            lastAtomId = addAtomAndBond(mol, lastAtomId, label, bondType, params, bondAngle, atomIndex);
+            lastAngle = bondAngle;
+        }
+
+        skipWhitespace(p);
+        if (peek(p) == L'@' && peekNext(p) == L'{') {
+            std::wstring anchorName = parseAnchorName(p);
+            if (!anchorName.empty()) {
+                mol.anchors.push_back(Anchor(anchorName, lastAtomId));
+            }
+        }
+
+        skipWhitespace(p);
+        if (peek(p) == L'?' && peekNext(p) == L'[') {
+            std::wstring hookName = parseHookName(p);
+            if (!hookName.empty()) {
+                mol.hooks.push_back(Hook(hookName, lastAtomId));
+            }
+        }
     }
 
     mol.calculateBounds();
@@ -310,8 +362,9 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
             continue;
         }
 
+        bool hasExplicitBond = (ch == L'-' || ch == L'=' || ch == L'~' || ch == L'>' || ch == L'<');
         BondType bondType = BOND_SINGLE;
-        if (ch == L'-' || ch == L'=' || ch == L'~' || ch == L'>' || ch == L'<') {
+        if (hasExplicitBond) {
             bondType = parseBondType(p);
         }
 
@@ -323,6 +376,22 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
 
         savedLastAtomId = addAtomAndBond(mol, savedLastAtomId, label, bondType, params, bondAngle, atomIndex);
         savedLastAngle = bondAngle;
+
+        skipWhitespace(p);
+        if (peek(p) == L'@' && peekNext(p) == L'{') {
+            std::wstring anchorName = parseAnchorName(p);
+            if (!anchorName.empty()) {
+                mol.anchors.push_back(Anchor(anchorName, savedLastAtomId));
+            }
+        }
+
+        skipWhitespace(p);
+        if (peek(p) == L'?' && peekNext(p) == L'[') {
+            std::wstring hookName = parseHookName(p);
+            if (!hookName.empty()) {
+                mol.hooks.push_back(Hook(hookName, savedLastAtomId));
+            }
+        }
     }
 
     match(p, L')');
@@ -429,7 +498,16 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
     while (peek(p) != L'\0') {
         wchar_t ch = peek(p);
         if (inBraces) {
-            if (ch == L'}') { p++; break; }
+            if (ch == L'}') {
+                p++;
+                skipWhitespace(p);
+                if (peek(p) == L'{') {
+                    p++;
+                    label += L'|';
+                    continue;
+                }
+                break;
+            }
             label += ch;
             p++;
         } else {
@@ -469,14 +547,15 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
         }
     }
 
-    while (!label.empty() && (label.back() == L' ' || label.back() == L'|')) {
+    while (!label.empty() && label.back() == L' ') {
         label.pop_back();
     }
 
     std::wstring result;
     result.reserve(label.size());
     for (wchar_t c : label) {
-        if (c != L' ' && c != L'|') result += c;
+        if (c == L' ') result += L'|';
+        else result += c;
     }
 
     return result;
@@ -506,6 +585,58 @@ float ChemfigParser::parseAngleSpec(const wchar_t*& p, float currentAngle) {
 
     angle = angle * CHEMFIG_PI / 180.0f;
     return isRelative ? currentAngle + angle : angle;
+}
+
+std::wstring ChemfigParser::parseHookName(const wchar_t*& p) {
+    if (!match(p, L'?')) return L"";
+    if (!match(p, L'[')) return L"";
+
+    std::wstring name;
+    while (peek(p) != L'\0' && peek(p) != L']') {
+        name += *p;
+        p++;
+    }
+    match(p, L']');
+    return name;
+}
+
+std::wstring ChemfigParser::parseAnchorName(const wchar_t*& p) {
+    if (!match(p, L'@')) return L"";
+    if (!match(p, L'{')) return L"";
+
+    std::wstring name;
+    while (peek(p) != L'\0' && peek(p) != L'}') {
+        name += *p;
+        p++;
+    }
+    match(p, L'}');
+    return name;
+}
+
+void ChemfigParser::resolveHooks(Molecule& mol) {
+    std::map<std::wstring, std::vector<int>> hookMap;
+
+    for (const auto& hook : mol.hooks) {
+        hookMap[hook.name].push_back(hook.atomIndex);
+    }
+
+    for (const auto& pair : hookMap) {
+        const std::vector<int>& atoms = pair.second;
+        if (atoms.size() >= 2) {
+            for (size_t i = 0; i < atoms.size() - 1; i++) {
+                for (size_t j = i + 1; j < atoms.size(); j++) {
+                    int from = atoms[i];
+                    int to = atoms[j];
+
+                    if (from >= 0 && to >= 0 &&
+                        from < static_cast<int>(mol.atoms.size()) &&
+                        to < static_cast<int>(mol.atoms.size())) {
+                        mol.addBond(from, to, BOND_SINGLE);
+                    }
+                }
+            }
+        }
+    }
 }
 
 } // namespace tex
