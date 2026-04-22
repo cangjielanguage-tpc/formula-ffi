@@ -3,7 +3,7 @@
 </div>
 
 <p align="center">
-<img alt="" src="https://img.shields.io/badge/release-v1.3.0-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/release-v1.4.0-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/build-pass-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjc-v1.0.5-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-NA-red" style="display: inline-block;" />
@@ -12,7 +12,7 @@
 
 ## 介绍
 
-formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化学公式。
+formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化学公式和化学分子结构式功能。
 
 ### 特性
 
@@ -176,6 +176,10 @@ struct Index0 {
 化学公式效果：
 
 ![img1](https://raw.gitcode.com/Cangjie-TPC/formula-ffi/raw/formula-ffi_hybrid_cangjie-plugin_5.1.1/doc/assets/img.jpg)
+
+化学分子结构式功能效果：
+
+![img1](https://raw.gitcode.com/Cangjie-TPC/formula-ffi/raw/formula-ffi_hybrid_cangjie-plugin_5.1.1/doc/assets/chemfig.png)
 
 ## 约束与限制
 
