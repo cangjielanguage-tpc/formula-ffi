@@ -169,7 +169,6 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
             parseRing(p, mol, atomIndex, fromIdx, toIdx);
             ring.bondTypes.push_back(BOND_SINGLE);
             mol.addBond(fromIdx, toIdx, BOND_SINGLE);
-            bondCount++;
             continue;
         }
 
