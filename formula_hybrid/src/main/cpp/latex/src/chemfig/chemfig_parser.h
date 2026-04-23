@@ -14,7 +14,7 @@ public:
 private:
     static bool parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex);
     static bool parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
-                           int sharedFromAtom, int sharedToAtom);
+                           int sharedFromAtom, int sharedToAtom, BondType* sharedBondType = nullptr);
     static bool parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex, int prevAtom, float currentAngle);
     static bool parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex, int branchAtom, float branchAngle);
     static BondType parseBondType(const wchar_t*& p);

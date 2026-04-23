@@ -45,11 +45,11 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
 }
 
 bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex) {
-    return parseRing(p, mol, atomIndex, -1, -1);
+    return parseRing(p, mol, atomIndex, -1, -1, nullptr);
 }
 
 bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
-                               int sharedFromAtom, int sharedToAtom) {
+                               int sharedFromAtom, int sharedToAtom, BondType* sharedBondTypeOut) {
     if (!match(p, L'*')) return false;
 
     bool hasInnerCircle = match(p, L'*');
@@ -154,17 +154,24 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         ring.center = ChemPoint(cx / ringSize, cy / ringSize);
     }
 
+    int currentRingIndex = mol.rings.size();
+    mol.rings.push_back(ring);
+
     int bondCount = 0;
     while (bondCount < ringSize && peek(p) != L')' && peek(p) != L'\0') {
         int i = bondCount;
         if (isFused && i == ringSize - 1) {
             skipWhitespace(p);
-            parseBondType(p);
+            BondType sharedBondType = parseBondType(p);
             skipWhitespace(p);
             parseBondParams(p, 0);
             skipWhitespace(p);
             parseAtomGroup(p);
-            ring.bondTypes.push_back(BOND_SINGLE);
+            mol.rings[currentRingIndex].bondTypes.push_back(sharedBondType);
+            mol.addBond(sharedToAtom, sharedFromAtom, sharedBondType, BondParams(), currentRingIndex);
+            if (sharedBondTypeOut) {
+                *sharedBondTypeOut = sharedBondType;
+            }
             bondCount++;
             continue;
         }
@@ -172,28 +179,26 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         skipWhitespace(p);
 
         if (peek(p) == L'*') {
-            int fromIdx = ring.atomIndices[i];
-            int toIdx = ring.atomIndices[(i + 1) % ringSize];
-            parseRing(p, mol, atomIndex, fromIdx, toIdx);
-            ring.bondTypes.push_back(BOND_SINGLE);
-            mol.addBond(fromIdx, toIdx, BOND_SINGLE);
+            int fromIdx = mol.rings[currentRingIndex].atomIndices[i];
+            int toIdx = mol.rings[currentRingIndex].atomIndices[(i + 1) % ringSize];
+            BondType nestedSharedBondType = BOND_SINGLE;
+            parseRing(p, mol, atomIndex, fromIdx, toIdx, &nestedSharedBondType);
+            mol.rings[currentRingIndex].bondTypes.push_back(nestedSharedBondType);
             continue;
         }
 
         if (peek(p) == L'(') {
             p++;
-            int branchAtomIdx = ring.atomIndices[i];
+            int branchAtomIdx = mol.rings[currentRingIndex].atomIndices[i];
             ChemPoint branchPos = mol.atoms[branchAtomIdx].position;
             float branchAngle;
             if (ringSize == 3) {
-                // 三角形环分支角度：根据原子位置调整角度，在现有基础上顺时针旋转180度
                 float angleStep = 2.0f * CHEMFIG_PI / ringSize;
-                float startAngle = CHEMFIG_PI;  // 在现有基础上顺时针旋转180度后起始角度为π
+                float startAngle = CHEMFIG_PI;
                 float atomAngle = startAngle + i * angleStep;
-                // 分支角度垂直于环的切线方向
                 branchAngle = atomAngle + CHEMFIG_PI / 2;
             } else {
-                branchAngle = std::atan2(-(branchPos.y - ring.center.y), branchPos.x - ring.center.x);
+                branchAngle = std::atan2(-(branchPos.y - mol.rings[currentRingIndex].center.y), branchPos.x - mol.rings[currentRingIndex].center.x);
             }
             parseBranch(p, mol, atomIndex, branchAtomIdx, branchAngle);
             continue;
@@ -205,10 +210,10 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         skipWhitespace(p);
         std::wstring label = parseAtomGroup(p);
 
-        ring.bondTypes.push_back(bt);
-        mol.addBond(ring.atomIndices[i], ring.atomIndices[(i + 1) % ringSize], bt, params);
+        mol.rings[currentRingIndex].bondTypes.push_back(bt);
+        mol.addBond(mol.rings[currentRingIndex].atomIndices[i], mol.rings[currentRingIndex].atomIndices[(i + 1) % ringSize], bt, params, currentRingIndex);
 
-        int targetAtom = ring.atomIndices[(i + 1) % ringSize];
+        int targetAtom = mol.rings[currentRingIndex].atomIndices[(i + 1) % ringSize];
         if (!label.empty()) {
             mol.atoms[targetAtom].text = label;
         }
@@ -226,7 +231,6 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
 
     while (peek(p) != L')' && peek(p) != L'\0') p++;
     match(p, L')');
-    mol.rings.push_back(ring);
     atomIndex += ringSize - (isFused ? 2 : (isChained ? 1 : 0));
     mol.calculateBounds();
     return true;

@@ -275,9 +275,15 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
             }
         }
 
-        ChemPoint scaledCenter(ringCenter.x * scale + offsetX, ringCenter.y * scale + offsetY);
+        ChemPoint bondRingCenter = ringCenter;
+        bool bondInRing = hasRing;
+        if (bond.ringIndex >= 0 && bond.ringIndex < static_cast<int>(_molecule.rings.size())) {
+            bondRingCenter = _molecule.rings[bond.ringIndex].center;
+            bondInRing = true;
+        }
+        ChemPoint scaledCenter(bondRingCenter.x * scale + offsetX, bondRingCenter.y * scale + offsetY);
         BondRenderer::drawBond(g2, bond.type, ChemPoint(fromX, fromY), ChemPoint(toX, toY),
-                               scale, bond.params, scaledCenter, hasRing);
+                               scale, bond.params, scaledCenter, bondInRing);
     }
 
     for (const auto& layout : _atomLayouts) {
