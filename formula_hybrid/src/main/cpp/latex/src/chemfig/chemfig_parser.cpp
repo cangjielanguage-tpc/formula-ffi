@@ -1,6 +1,7 @@
 #include "chemfig_parser.h"
 #include "common.h"
 #include <cmath>
+#include <cwctype>
 
 namespace tex {
 
@@ -21,7 +22,7 @@ wchar_t ChemfigParser::peekNext(const wchar_t* p) {
 }
 
 void ChemfigParser::skipWhitespace(const wchar_t*& p) {
-    while (p && *p == L' ') p++;
+    while (p && iswspace(*p)) p++;
 }
 
 bool ChemfigParser::match(const wchar_t*& p, wchar_t expected) {
