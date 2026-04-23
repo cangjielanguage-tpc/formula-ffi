@@ -117,7 +117,14 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         }
         ChemPoint firstPos = mol.atoms[sharedFromAtom].position;
         float angleStep = 2.0f * CHEMFIG_PI / ringSize;
-        float startAngle = -(CHEMFIG_PI - CHEMFIG_PI / ringSize);
+        float startAngle;
+        if (ringSize == 3) {
+            // 三角形环：在现有基础上顺时针旋转180度，起始角度为 π
+            startAngle = CHEMFIG_PI;
+        } else {
+            // 其他环：使用原有公式
+            startAngle = -(CHEMFIG_PI - CHEMFIG_PI / ringSize);
+        }
 
         ChemPoint centerOffset(ring.radius * std::cos(startAngle),
                               -ring.radius * std::sin(startAngle));
@@ -176,7 +183,17 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
             p++;
             int branchAtomIdx = ring.atomIndices[i];
             ChemPoint branchPos = mol.atoms[branchAtomIdx].position;
-            float branchAngle = std::atan2(-(branchPos.y - ring.center.y), branchPos.x - ring.center.x);
+            float branchAngle;
+            if (ringSize == 3) {
+                // 三角形环分支角度：根据原子位置调整角度，在现有基础上顺时针旋转180度
+                float angleStep = 2.0f * CHEMFIG_PI / ringSize;
+                float startAngle = CHEMFIG_PI;  // 在现有基础上顺时针旋转180度后起始角度为π
+                float atomAngle = startAngle + i * angleStep;
+                // 分支角度垂直于环的切线方向
+                branchAngle = atomAngle + CHEMFIG_PI / 2;
+            } else {
+                branchAngle = std::atan2(-(branchPos.y - ring.center.y), branchPos.x - ring.center.x);
+            }
             parseBranch(p, mol, atomIndex, branchAtomIdx, branchAngle);
             continue;
         }

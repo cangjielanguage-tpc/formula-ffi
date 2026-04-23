@@ -5,10 +5,9 @@
 namespace tex {
 
 namespace {
-    constexpr float DOUBLE_BOND_OFFSET = 0.15f;
-    constexpr float TRIPLE_BOND_OFFSET = 0.12f;
+    constexpr float DOUBLE_BOND_OFFSET = 0.1f;
+    constexpr float TRIPLE_BOND_OFFSET = 0.4f;
     constexpr float WEDGE_WIDTH = 0.18f;
-    constexpr float INNER_BOND_SHORTEN = 0.15f;
     constexpr float DEFAULT_BOND_WIDTH_PT = 0.8f;
     constexpr float EPSILON = 0.001f;
 
@@ -140,9 +139,14 @@ void BondRenderer::drawDouble(Graphics2D& g2, const ChemPoint& from, const ChemP
 
         g2.drawLine(from.x, from.y, to.x, to.y);
 
+        float perpDotCenter = bg.perp.x * toCenter.x + bg.perp.y * toCenter.y;
+        bool isTriangle = (perpDotCenter < 0);
+        float shortenRatio = isTriangle ? 0.618f : 0.75f;
+        float actualShorten = bg.len * (1.0f - shortenRatio) * 0.5f;
+
         ChemPoint lineOffset = bg.perp * offset * 2.0f;
-        ChemPoint innerFrom = from + lineOffset + bg.dir * INNER_BOND_SHORTEN * scale;
-        ChemPoint innerTo = to + lineOffset - bg.dir * INNER_BOND_SHORTEN * scale;
+        ChemPoint innerFrom = from + lineOffset + bg.dir * actualShorten;
+        ChemPoint innerTo = to + lineOffset - bg.dir * actualShorten;
         g2.drawLine(innerFrom.x, innerFrom.y, innerTo.x, innerTo.y);
     } else {
         ChemPoint off1 = bg.perp * offset;
@@ -159,10 +163,11 @@ void BondRenderer::drawTriple(Graphics2D& g2, const ChemPoint& from, const ChemP
     if (bg.len < EPSILON) return;
 
     float offset = TRIPLE_BOND_OFFSET * scale;
+    float halfOffset = offset * 0.5f;
     g2.drawLine(from.x, from.y, to.x, to.y);
 
-    ChemPoint off1 = bg.perp * offset;
-    ChemPoint off2 = bg.perp * (-offset);
+    ChemPoint off1 = bg.perp * halfOffset;
+    ChemPoint off2 = bg.perp * (-halfOffset);
     ChemPoint f1 = from + off1, t1 = to + off1;
     ChemPoint f2 = from + off2, t2 = to + off2;
     g2.drawLine(f1.x, f1.y, t1.x, t1.y);
