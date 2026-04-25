@@ -32,7 +32,7 @@ struct ChemfigCard {
 
     try {
       const result: TeXParseResult = await latexStringToImageWithError(
-        this.item.formula, fp2px(40), 0xFF000000, 0xFFFFFFFF,
+        this.item.formula, fp2px(25), 0xFF000000, 0xFFFFFFFF,
         LatexMathColorFormat.COLOR_FORMAT_RGB_565
       );
       this.resultCode = result.resultCode;
@@ -79,10 +79,15 @@ struct ChemfigCard {
         .margin({ bottom: 8 })
 
       if (this.pixelMap) {
-        Image(this.pixelMap)
-          .objectFit(ImageFit.Contain)
-          .width(Math.min(this.imgWidth, 320))
-          .height(this.imgHeight * Math.min(1, 320 / this.imgWidth))
+        Scroll() {
+          Image(this.pixelMap)
+            .objectFit(ImageFit.Fill)
+            .width(this.imgWidth)
+            .height(this.imgHeight)
+        }
+        .width('100%')
+        .scrollable(ScrollDirection.Horizontal)
+        .scrollBar(BarState.Auto)
       } else if (this.errorMessage) {
         Text(`渲染失败: ${this.errorMessage}`)
           .fontSize(12)
@@ -149,6 +154,8 @@ struct Index15 {
     { description: '[4] 环语法 - 环三键*6(~-~-~-~-~)', formula: '\\chemfig{*6(~-~-~-~-~)}' },
     { description: '[4] 环语法 - 嵌套环6+5', formula: '\\chemfig{*6(-*5(-----)-=--)}' },
     { description: '[4] 环语法 - 嵌套环6+4', formula: '\\chemfig{*6(-*4(=-=-)--=)}' },
+    { description: '[4] 环语法 - 嵌套环6', formula: '\\chemfig{*6(---=)}' },
+    { description: '[4] 环语法 - 嵌套环6', formula: '\\chemfig{*6(--=--)}' },
     { description: '[4] 环语法 - 环上分支-[1]A', formula: '\\chemfig{*6(-[1]A------)}' },
     { description: '[4] 环语法 - 环上分支-[1]X', formula: '\\chemfig{*6(=-(-[1]X)-=--=)}' },
     { description: '[4] 环语法 - 芳香环**5', formula: '\\chemfig{**5(-----)}' },
@@ -212,7 +219,7 @@ struct Index15 {
 
     { description: '[13] 锚点 - 原子锚点@{n1}', formula: '\\chemfig{A@{n1}-B@{n2}-C@{n3}}' },
     { description: '[13] 锚点 - 分支锚点', formula: '\\chemfig{A-B(-[1]C@{branch1})-[7]D@{branch2}}' },
-    // { description: '[13] 锚点 - 环上锚点', formula: '\\chemfig{*6(-A@{r1}-B-C@{r2}-D-E)}' },
+    { description: '[13] 锚点 - 环上锚点', formula: '\\chemfig{*6(-A@{r1}-B-C@{r2}-D-E)}' },
     { description: '[13] 锚点 - 混合锚点钩子', formula: '\\chemfig{A@{a1}-B?[x]-C@{a2}-D?[x]}' },
     { description: '[13] 锚点 - 键位置锚点@{mid1}', formula: '\\chemfig{A-[@{mid1},1]B-[@{mid2},2]C}' },
     { description: '[13] 锚点 - 键位置偏移@{p1,0.3}', formula: '\\chemfig{A-[@{p1,0.3},1]B}' },
@@ -230,6 +237,27 @@ struct Index15 {
     { description: '[18] 真实分子 - 葡萄糖', formula: '\\chemfig{*6((=O)-(-[2]OH)-(-[2]OH)-(-[2]OH)-(-[2]OH)-)}' },
     { description: '[18] 真实分子 - 咖啡因', formula: '\\chemfig{*6((=O)-N(-CH_3)-=N(-CH_3)-=)}' },
     { description: '[18] 真实分子 - 阿司匹林', formula: '\\chemfig{*6(=-(-COOH)=(-OC(=O)CH_3)-=)}' },
+
+    { description: '[19] issu174', formula: '\\chemfig{CH_3-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-\n' +
+      '        CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-\n' +
+      '        CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-\n' +
+      '        CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-\n' +
+      '        CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_3}' },
+    { description: '[19] issu173吲哚', formula: '\\chemfig{*6(-=N-*5(-NH-=-=)-=-=)}' },
+    { description: '[19] issu172', formula: '\\chemfig{*6(-=-=-=)*6(-=-=-=)}' },
+    { description: '[19] issu172', formula: '\\chemfig{*6(-=-=-=)*5(-NH-=-=)}' },
+    { description: '[19] issu172', formula: '\\chemfig{*6(-=N-=*5(-S-=-=)-=)}' },
+    { description: '[19] issu171', formula: '\\chemfig{CH_3-(CH_2)_{50}-CH_3}' },
+    { description: '[19] issu170', formula: '\\chemfig{CH_3-(CH2)_{10}-COOH}' },
+    { description: '[19] issu168', formula: '\\chemfig{*6(-(-CH_2-CH(-CH_3)_2)=-(-CH(-CH_3)-COOH)=-=-)}' },
+
+    { description: '[19] issu165', formula: '\\chemfig{CH3-CH2-OH} 乙醇' },
+    { description: '[19] issu164', formula: '\\chemfig{CH#CH}' },
+    { description: '[19] issu163', formula: '\\chemfig{CH3-CH3}' },
+    { description: '[19] issu163', formula: '\\chemfig{CH2=CH2}' },
+    { description: '[19] issu162', formula: '\\chemfig{*6(=-(-COOH)=(-OC(=O)CH_3)-=)}' },
+
+
   ]
 
   private getPageItems(): ChemfigItem[] {

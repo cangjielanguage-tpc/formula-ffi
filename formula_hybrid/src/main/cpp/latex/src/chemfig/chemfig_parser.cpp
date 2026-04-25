@@ -7,10 +7,19 @@ namespace tex {
 
 namespace {
     constexpr float CHEMFIG_PI = 3.14159265358979f;
-    constexpr float DEFAULT_BOND_LENGTH = 2.5f;
-    constexpr float DEFAULT_RING_RADIUS = 2.5f;
+    constexpr float DEFAULT_BOND_LENGTH = 3.0f; // 与TeX Live chemfig的3em一致
     constexpr float ANGLE_INCREMENT = 45.0f * CHEMFIG_PI / 180.0f;
     constexpr float EPSILON = 0.0001f;
+    
+    // 根据环大小计算环半径，与TeX Live chemfig一致
+    inline float calculateRingRadius(int ringSize) {
+        // 六元环的半径约为键长的1.15倍，其他环按比例调整
+        float baseRadius = DEFAULT_BOND_LENGTH * 1.15f;
+        if (ringSize == 3) return baseRadius * 0.577f; // 三角形
+        if (ringSize == 4) return baseRadius * 0.707f; // 正方形
+        if (ringSize == 5) return baseRadius * 0.85f;  // 五元环
+        return baseRadius; // 六元环及以上
+    }
 }
 
 wchar_t ChemfigParser::peek(const wchar_t* p) {
@@ -40,6 +49,7 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
     bool result = (peek(p) == L'*') ? parseRing(p, mol, atomIndex) : parseChain(p, mol, atomIndex, -1, 0);
     if (result) {
         resolveHooks(mol);
+        mol.normalizeBondLengths();
     }
     return result;
 }
@@ -77,7 +87,7 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
     ring.hasInnerCircle = hasInnerCircle;
     ring.innerStartAngle = innerStartAngle;
     ring.innerEndAngle = innerEndAngle;
-    ring.radius = DEFAULT_RING_RADIUS;
+    ring.radius = calculateRingRadius(ringSize);
 
     bool isChained = (sharedFromAtom >= 0 && sharedToAtom < 0);
     bool isFused = (sharedFromAtom >= 0 && sharedToAtom >= 0);
@@ -238,7 +248,11 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
 
 static float resolveBondAngle(const BondParams& params, float lastAngle) {
     if (!params.hasAngle) return lastAngle;
-    return params.isRelativeAngle ? lastAngle + params.angle : params.angle;
+    float newAngle = params.isRelativeAngle ? lastAngle + params.angle : params.angle;
+    // 归一化角度到 [0, 2π) 范围，避免累积误差
+    while (newAngle >= 2.0f * CHEMFIG_PI) newAngle -= 2.0f * CHEMFIG_PI;
+    while (newAngle < 0) newAngle += 2.0f * CHEMFIG_PI;
+    return newAngle;
 }
 
 static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& label,
@@ -247,11 +261,23 @@ static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& lab
     if (fromAtomId < 0 || fromAtomId >= static_cast<int>(mol.atoms.size())) {
         throw ex_parse("Chemfig: invalid from-atom index in bond");
     }
+    
+    mol.updateMaxAtomWidth(mol.atoms[fromAtomId].text);
+    mol.updateMaxAtomWidth(label);
+    
     float bondLength = DEFAULT_BOND_LENGTH * params.lengthCoeff;
-    float fromTextLen = static_cast<float>(mol.atoms[fromAtomId].text.length());
-    float toTextLen = static_cast<float>(label.length());
-    if (fromTextLen > 4) bondLength += (fromTextLen - 4) * 0.5f;
-    if (toTextLen > 4) bondLength += (toTextLen - 4) * 0.5f;
+    
+    // 与TeX Live chemfig一致的键长调整逻辑
+    float fromAtomWidth = Molecule::calculateAtomWidth(mol.atoms[fromAtomId].text);
+    float toAtomWidth = Molecule::calculateAtomWidth(label);
+    
+    // 基于原子宽度的键长调整，更接近TeX Live chemfig的行为
+    float widthAdjustment = (fromAtomWidth + toAtomWidth - 2.0f) * 0.15f;
+    bondLength += widthAdjustment;
+    
+    // 确保最小键长
+    bondLength = std::max(bondLength, DEFAULT_BOND_LENGTH * 0.8f);
+    
     ChemPoint lastPos = mol.atoms[fromAtomId].position;
     ChemPoint newPos(lastPos.x + bondLength * std::cos(bondAngle),
                      lastPos.y - bondLength * std::sin(bondAngle));
@@ -374,7 +400,11 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
 
         if (ch == L'(') {
             p++;
+            int tempLastAtomId = savedLastAtomId;
+            float tempLastAngle = savedLastAngle;
             parseBranch(p, mol, atomIndex, savedLastAtomId, savedLastAngle);
+            savedLastAtomId = tempLastAtomId;
+            savedLastAngle = tempLastAngle;
             continue;
         }
 
@@ -615,7 +645,7 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
                 continue;
             }
             if ((ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z') ||
-                (ch >= L'0' && ch <= L'9') || ch == L'_' || ch == L'^' || ch == L'+' || ch == L' ' || ch == L'|') {
+                (ch >= L'0' && ch <= L'9') || ch == L'_' || ch == L'^' || ch == L'+' || ch == L' ' || ch == L'|' || ch == L'#') {
                 label += ch;
                 p++;
             } else {

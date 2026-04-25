@@ -4,6 +4,7 @@
 #include "common.h"
 #include <vector>
 #include <string>
+#include <algorithm>
 
 namespace tex {
 
@@ -126,8 +127,9 @@ struct Molecule {
     std::vector<Anchor> anchors;
     
     float minX, maxX, minY, maxY;
+    float maxAtomWidth;
 
-    Molecule() : minX(0), maxX(0), minY(0), maxY(0) {}
+    Molecule() : minX(0), maxX(0), minY(0), maxY(0), maxAtomWidth(0) {}
 
     void calculateBounds() {
         if (atoms.empty()) {
@@ -167,6 +169,67 @@ struct Molecule {
         bond.ringIndex = ringIdx;
         bonds.push_back(bond);
         return id;
+    }
+
+    static float calculateAtomWidth(const std::wstring& atomLabel) {
+        if (atomLabel.empty()) return 1.0f;
+        
+        float width = 0.0f;
+        bool inSubscript = false;
+        bool inSuperscript = false;
+        
+        for (wchar_t ch : atomLabel) {
+            if (ch == L'_') {
+                inSubscript = true;
+                continue;
+            } else if (ch == L'^') {
+                inSuperscript = true;
+                continue;
+            } else if (ch == L'{' || ch == L'}') {
+                continue;
+            }
+            
+            // 更精确的字符宽度计算，接近TeX Live chemfig的行为
+            if (inSubscript || inSuperscript) {
+                // 下标/上标字符宽度约为正常字符的0.7倍
+                width += 0.7f;
+            } else {
+                // 正常字符宽度，考虑不同字符的实际宽度差异
+                if (ch >= L'A' && ch <= L'Z') width += 1.0f;  // 大写字母
+                else if (ch >= L'a' && ch <= L'z') width += 0.8f; // 小写字母
+                else if (ch >= L'0' && ch <= L'9') width += 0.6f; // 数字
+                else width += 0.8f; // 其他字符
+            }
+        }
+        
+        // 最小原子宽度为1.0，与TeX Live chemfig一致
+        return std::max(1.0f, width);
+    }
+
+    void updateMaxAtomWidth(const std::wstring& atomLabel) {
+        float width = calculateAtomWidth(atomLabel);
+        if (width > maxAtomWidth) {
+            maxAtomWidth = width;
+        }
+    }
+
+    void normalizeBondLengths() {
+        // 与TeX Live chemfig一致的键长统一逻辑
+        // 即使maxAtomWidth <= 1.0f，也要确保所有键长一致
+        float scaleFactor = 1.0f;
+        
+        // 更精确的缩放因子计算，接近TeX Live chemfig的行为
+        if (maxAtomWidth > 1.0f) {
+            // 使用更平滑的缩放曲线，避免过度放大
+            scaleFactor = 1.0f + (maxAtomWidth - 1.0f) * 0.25f;
+        }
+        
+        // 统一所有键的lengthCoeff
+        for (auto& bond : bonds) {
+            bond.params.lengthCoeff = scaleFactor;
+        }
+        
+        calculateBounds();
     }
 };
 
