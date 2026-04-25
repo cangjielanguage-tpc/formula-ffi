@@ -248,6 +248,10 @@ static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& lab
         throw ex_parse("Chemfig: invalid from-atom index in bond");
     }
     float bondLength = DEFAULT_BOND_LENGTH * params.lengthCoeff;
+    float fromTextLen = static_cast<float>(mol.atoms[fromAtomId].text.length());
+    float toTextLen = static_cast<float>(label.length());
+    if (fromTextLen > 4) bondLength += (fromTextLen - 4) * 0.5f;
+    if (toTextLen > 4) bondLength += (toTextLen - 4) * 0.5f;
     ChemPoint lastPos = mol.atoms[fromAtomId].position;
     ChemPoint newPos(lastPos.x + bondLength * std::cos(bondAngle),
                      lastPos.y - bondLength * std::sin(bondAngle));
@@ -532,6 +536,58 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
             label += ch;
             p++;
         } else {
+            if (ch == L'(') {
+                const wchar_t* scan = p + 1;
+                int depth = 1;
+                while (*scan != L'\0' && depth > 0) {
+                    if (*scan == L'(') depth++;
+                    else if (*scan == L')') depth--;
+                    if (depth > 0) scan++;
+                }
+                if (*scan == L')' && (*(scan + 1) == L'_' || *(scan + 1) == L'^') && *(scan + 2) == L'{') {
+                    label += L'(';
+                    p++;
+                    depth = 1;
+                    while (peek(p) != L'\0' && depth > 0) {
+                        if (peek(p) == L'(') depth++;
+                        else if (peek(p) == L')') {
+                            depth--;
+                            if (depth == 0) break;
+                        }
+                        wchar_t c = *p;
+                        label += c;
+                        p++;
+                        if ((c == L'_' || c == L'^') && peek(p) != L'{') {
+                            while (peek(p) != L'\0' && 
+                                   ((peek(p) >= L'0' && peek(p) <= L'9') || 
+                                    (peek(p) >= L'a' && peek(p) <= L'z') ||
+                                    (peek(p) >= L'A' && peek(p) <= L'Z'))) {
+                                label += *p;
+                                p++;
+                            }
+                            label += L'|';
+                        }
+                    }
+                    if (peek(p) == L')') {
+                        label += L')';
+                        p++;
+                    }
+                    if ((peek(p) == L'_' || peek(p) == L'^') && peekNext(p) == L'{') {
+                        label += *p;
+                        p++;
+                        p++;
+                        while (peek(p) != L'\0' && peek(p) != L'}') {
+                            label += *p;
+                            p++;
+                        }
+                        if (peek(p) == L'}') {
+                            p++;
+                        }
+                    }
+                    continue;
+                }
+                break;
+            }
             if (ch == L'^' && peekNext(p) == L'{') {
                 label += ch;
                 p++;
