@@ -306,16 +306,6 @@ void BondRenderer::drawBond(Graphics2D& g2, BondType type,
         g2.setColor(ts.lineColor);
     }
 
-    ChemPoint actualFrom = from;
-    ChemPoint actualTo = to;
-    if (params.hasOffset) {
-        BondGeometry bg(from, to);
-        float startOff = params.offsetStart * scale * 0.02f;
-        float endOff = params.offsetEnd * scale * 0.02f;
-        actualFrom = from - bg.perp * startOff;
-        actualTo = to - bg.perp * endOff;
-    }
-
     switch (type) {
         case BOND_SINGLE:
             if (ts.isDashed) {

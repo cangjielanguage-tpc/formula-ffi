@@ -272,6 +272,15 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
                 toX -= dirX * shorten;
                 toY -= dirY * shorten;
             }
+
+            if (bond.params.hasOffset) {
+                float startGap = bond.params.offsetStart * scale * 0.06f;
+                float endGap = bond.params.offsetEnd * scale * 0.06f;
+                fromX += dirX * startGap;
+                fromY += dirY * startGap;
+                toX -= dirX * endGap;
+                toY -= dirY * endGap;
+            }
         }
 
         ChemPoint bondRingCenter = ringCenter;

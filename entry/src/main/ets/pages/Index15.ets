@@ -32,7 +32,7 @@ struct ChemfigCard {
 
     try {
       const result: TeXParseResult = await latexStringToImageWithError(
-        this.item.formula, fp2px(25), 0xFF000000, 0xFFFFFFFF,
+        this.item.formula, fp2px(18), 0xFF000000, 0xFFFFFFFF,
         LatexMathColorFormat.COLOR_FORMAT_RGB_565
       );
       this.resultCode = result.resultCode;
@@ -81,7 +81,7 @@ struct ChemfigCard {
       if (this.pixelMap) {
         Scroll() {
           Image(this.pixelMap)
-            .objectFit(ImageFit.Fill)
+            .objectFit(ImageFit.Contain)
             .width(this.imgWidth)
             .height(this.imgHeight)
         }
@@ -224,11 +224,12 @@ struct Index15 {
     { description: '[13] 锚点 - 键位置锚点@{mid1}', formula: '\\chemfig{A-[@{mid1},1]B-[@{mid2},2]C}' },
     { description: '[13] 锚点 - 键位置偏移@{p1,0.3}', formula: '\\chemfig{A-[@{p1,0.3},1]B}' },
 
+    { description: '[14] 键偏移 - 参照0偏移', formula: '\\chemfig{A-B}' },
     { description: '[14] 键偏移 - #(5pt)', formula: '\\chemfig{A-#(5pt)B}' },
-    { description: '[14] 键偏移 - #(10pt)链', formula: '\\chemfig{A-#(10pt)B-#(10pt)C}' },
     { description: '[14] 键偏移 - 非对称#(10pt,5pt)', formula: '\\chemfig{A-#(10pt,5pt)B}' },
     { description: '[14] 键偏移 - 非对称#(5pt,10pt)', formula: '\\chemfig{A-#(5pt,10pt)B}' },
     { description: '[14] 键偏移 - 双键偏移', formula: '\\chemfig{A=#(5pt)B}' },
+    { description: '[14] 键偏移 - #(10pt)链', formula: '\\chemfig{A-#(10pt)B-#(10pt)C}' },
 
     { description: '[18] 真实分子 - 甲烷', formula: '\\chemfig{C(-[2]H)(-[4]H)(-[6]H)(-[8]H)}' },
     { description: '[18] 真实分子 - 乙醇', formula: '\\chemfig{CH_3-CH_2-OH}' },
@@ -236,7 +237,7 @@ struct Index15 {
     { description: '[18] 真实分子 - 苯', formula: '\\chemfig{*6(=-=-=-)}' },
     { description: '[18] 真实分子 - 葡萄糖', formula: '\\chemfig{*6((=O)-(-[2]OH)-(-[2]OH)-(-[2]OH)-(-[2]OH)-)}' },
     { description: '[18] 真实分子 - 咖啡因', formula: '\\chemfig{*6((=O)-N(-CH_3)-=N(-CH_3)-=)}' },
-    { description: '[18] 真实分子 - 阿司匹林', formula: '\\chemfig{*6(=-(-COOH)=(-OC(=O)CH_3)-=)}' },
+    //{ description: '[18] 真实分子 - 阿司匹林', formula: '\\chemfig{*6(=-(-COOH)=(-OC(=O)CH_3)-=)}' },
 
     { description: '[19] issu174', formula: '\\chemfig{CH_3-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-\n' +
       '        CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-CH_2-\n' +
@@ -249,7 +250,7 @@ struct Index15 {
     { description: '[19] issu172', formula: '\\chemfig{*6(-=N-=*5(-S-=-=)-=)}' },
     { description: '[19] issu171', formula: '\\chemfig{CH_3-(CH_2)_{50}-CH_3}' },
     { description: '[19] issu170', formula: '\\chemfig{CH_3-(CH2)_{10}-COOH}' },
-    { description: '[19] issu168', formula: '\\chemfig{*6(-(-CH_2-CH(-CH_3)_2)=-(-CH(-CH_3)-COOH)=-=-)}' },
+    { description: '[19] issu168', formula: '\\chemfig{(CH_3)_2CH-CH_2-*6(-=-=-=)-CH(CH_3)-COOH}' },
 
     { description: '[19] issu165', formula: '\\chemfig{CH3-CH2-OH} 乙醇' },
     { description: '[19] issu164', formula: '\\chemfig{CH#CH}' },
