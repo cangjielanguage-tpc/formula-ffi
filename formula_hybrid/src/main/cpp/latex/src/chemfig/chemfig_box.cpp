@@ -199,8 +199,24 @@ void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
 
         AtomLayout layout;
         layout.text = atom.text;
+
+        auto anchorsYOffset = 0.0f;
+
+        if(_molecule.anchors.size() > 0) {
+            if (i > _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
+                anchorsYOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
+            } else {
+                int anchorIndex = 0;
+                while (i > _molecule.anchors[anchorIndex].atomIndex) {
+                    anchorIndex++;
+                }
+                anchorsYOffset = (_textBoundsMinY * 0.5) * anchorIndex;
+            }
+        }
+
         layout.x = atom.position.x * scale + offsetX;
-        layout.y = atom.position.y * scale + offsetY;
+        layout.y = atom.position.y * scale + offsetY - anchorsYOffset;
+
         layout.normalAscent = 0;
         layout.normalHeight = 0;
 
@@ -239,6 +255,7 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
     float offsetX = x - _textBoundsMinX * scale + PADDING * scale;
     float offsetY = y - _textBoundsMinY * scale - (_molecule.maxY - _textBoundsMinY) * scale / 2;
 
+    int bondCount = 0;
     for (const auto& bond : _molecule.bonds) {
         if (bond.fromAtom < 0 || bond.fromAtom >= static_cast<int>(_molecule.atoms.size())) continue;
         if (bond.toAtom < 0 || bond.toAtom >= static_cast<int>(_molecule.atoms.size())) continue;
@@ -247,9 +264,26 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
         const AtomNode& to = _molecule.atoms[bond.toAtom];
 
         float fromX = from.position.x * scale + offsetX;
-        float fromY = from.position.y * scale + offsetY;
         float toX = to.position.x * scale + offsetX;
-        float toY = to.position.y * scale + offsetY;
+        float fromY = 0.0f;
+        float toY = 0.0f;
+        auto anchorYOffset = 0.0f;
+
+        if (_molecule.anchors.size() > 0) {
+            if (bondCount >= _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
+                anchorYOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
+            } else {
+                int anchorIndex = 0;
+                while (bondCount >= _molecule.anchors[anchorIndex].atomIndex) {
+                    anchorIndex++;
+                }
+                anchorYOffset = (_textBoundsMinY * 0.5) * anchorIndex;
+            }
+        }
+
+
+        fromY = from.position.y * scale + offsetY - anchorYOffset;    
+        toY = to.position.y * scale + offsetY - anchorYOffset;
 
         float dx = toX - fromX;
         float dy = toY - fromY;
@@ -261,16 +295,16 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
 
             auto itFrom = _atomTextBounds.find(bond.fromAtom);
             if (itFrom != _atomTextBounds.end()) {
-                float shorten = computeShortening(dirX, dirY, itFrom->second.halfW, itFrom->second.halfH);
-                fromX += dirX * shorten;
-                fromY += dirY * shorten;
+                    float shorten = computeShortening(dirX, dirY, itFrom->second.halfW, itFrom->second.halfH);
+                    fromX += dirX * shorten;
+                    fromY += dirY * shorten;
             }
 
             auto itTo = _atomTextBounds.find(bond.toAtom);
             if (itTo != _atomTextBounds.end()) {
-                float shorten = computeShortening(-dirX, -dirY, itTo->second.halfW, itTo->second.halfH);
-                toX -= dirX * shorten;
-                toY -= dirY * shorten;
+                    float shorten = computeShortening(-dirX, -dirY, itTo->second.halfW, itTo->second.halfH);
+                    toX -= dirX * shorten;
+                    toY -= dirY * shorten;
             }
 
             if (bond.params.hasOffset) {
@@ -292,6 +326,7 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
         ChemPoint scaledCenter(bondRingCenter.x * scale + offsetX, bondRingCenter.y * scale + offsetY);
         BondRenderer::drawBond(g2, bond.type, ChemPoint(fromX, fromY), ChemPoint(toX, toY),
                                scale, bond.params, scaledCenter, bondInRing);
+        bondCount++;
     }
 
     for (const auto& layout : _atomLayouts) {
@@ -372,6 +407,8 @@ void ChemfigBox::draw(Graphics2D& g2, float x, float y) {
     float scale = BOND_SCALE;
     float offsetX = x - _textBoundsMinX * scale + PADDING * scale;
     float offsetY = y - _textBoundsMinY * scale - (_molecule.maxY - _textBoundsMinY) * scale / 2;
+
+
     buildAtomLayouts(offsetX, offsetY, scale);
 
     drawMolecule(g2, x, y);
