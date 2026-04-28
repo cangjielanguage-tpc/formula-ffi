@@ -47,6 +47,67 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
     skipWhitespace(p);
     int atomIndex = 0;
     bool result = (peek(p) == L'*') ? parseRing(p, mol, atomIndex) : parseChain(p, mol, atomIndex, -1, 0);
+    if (!result) return false;
+    skipWhitespace(p);
+    while (peek(p) != L'\0') {
+        if (peek(p) == L'*') {
+            if (mol.rings.empty()) return false;
+            size_t atomCountBefore = mol.atoms.size();
+            size_t bondCountBefore = mol.bonds.size();
+            size_t ringCountBefore = mol.rings.size();
+            int savedAtomIndex = atomIndex;
+            result = parseRing(p, mol, atomIndex);
+            if (!result || mol.rings.size() <= ringCountBefore) return false;
+            Ring& firstRing = mol.rings[ringCountBefore - 1];
+            Ring& secondRing = mol.rings.back();
+            int rightmostAtom = -1;
+            float maxX = -1e30f;
+            for (int idx : firstRing.atomIndices) {
+                if (idx >= 0 && idx < static_cast<int>(mol.atoms.size())) {
+                    if (mol.atoms[idx].position.x > maxX) {
+                        maxX = mol.atoms[idx].position.x;
+                        rightmostAtom = idx;
+                    }
+                }
+            }
+            int leftmostNewAtom = -1;
+            float minX = 1e30f;
+            for (size_t i = atomCountBefore; i < mol.atoms.size(); i++) {
+                if (mol.atoms[i].position.x < minX) {
+                    minX = mol.atoms[i].position.x;
+                    leftmostNewAtom = static_cast<int>(i);
+                }
+            }
+            if (rightmostAtom >= 0 && leftmostNewAtom >= 0) {
+                ChemPoint fromPos = mol.atoms[rightmostAtom].position;
+                ChemPoint toPos = mol.atoms[leftmostNewAtom].position;
+                float bondLen = DEFAULT_BOND_LENGTH;
+                ChemPoint offset(fromPos.x + bondLen - toPos.x, fromPos.y - toPos.y);
+                for (size_t i = atomCountBefore; i < mol.atoms.size(); i++) {
+                    mol.atoms[i].position.x += offset.x;
+                    mol.atoms[i].position.y += offset.y;
+                }
+                secondRing.center.x += offset.x;
+                secondRing.center.y += offset.y;
+                mol.addBond(rightmostAtom, leftmostNewAtom, BOND_SINGLE, BondParams());
+            }
+        } else {
+            int lastAtomId = -1;
+            if (!mol.atoms.empty()) lastAtomId = static_cast<int>(mol.atoms.size()) - 1;
+            float lastAngle = 0.0f;
+            if (!mol.rings.empty()) {
+                auto& lastRing = mol.rings.back();
+                if (!lastRing.atomIndices.empty()) {
+                    lastAtomId = lastRing.atomIndices.back();
+                    ChemPoint lp = mol.atoms[lastAtomId].position;
+                    lastAngle = std::atan2(-(lp.y - lastRing.center.y), lp.x - lastRing.center.x);
+                }
+            }
+            result = parseChain(p, mol, atomIndex, lastAtomId, lastAngle);
+            if (!result) return false;
+        }
+        skipWhitespace(p);
+    }
     if (result) {
         resolveHooks(mol);
         mol.normalizeBondLengths();
@@ -233,6 +294,14 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
             std::wstring hookName = parseHookName(p);
             if (!hookName.empty()) {
                 mol.hooks.push_back(Hook(hookName, targetAtom));
+            }
+        }
+
+        skipWhitespace(p);
+        if (peek(p) == L'@' && peekNext(p) == L'{') {
+            std::wstring anchorName = parseAnchorName(p);
+            if (!anchorName.empty()) {
+                mol.anchors.push_back(Anchor(anchorName, targetAtom));
             }
         }
 
