@@ -235,7 +235,6 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
     if (_molecule.atoms.empty()) return;
 
     ChemPoint ringCenter = _molecule.center();
-    bool hasRing = !_molecule.rings.empty();
     float scale = BOND_SCALE;
     float offsetX = x - _textBoundsMinX * scale + PADDING * scale;
     float offsetY = y - _textBoundsMinY * scale - (_molecule.maxY - _textBoundsMinY) * scale / 2;
@@ -276,7 +275,7 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
         }
 
         ChemPoint bondRingCenter = ringCenter;
-        bool bondInRing = hasRing;
+        bool bondInRing = false;
         if (bond.ringIndex >= 0 && bond.ringIndex < static_cast<int>(_molecule.rings.size())) {
             bondRingCenter = _molecule.rings[bond.ringIndex].center;
             bondInRing = true;

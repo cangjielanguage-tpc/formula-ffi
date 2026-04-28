@@ -325,6 +325,7 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
     }
 
     float lastAngle = currentAngle;
+    int lastBranchAtomId = -1;
 
     while (peek(p) != L'\0') {
         skipWhitespace(p);
@@ -333,7 +334,11 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
 
         if (ch == L'(') {
             p++;
+            size_t prevAtomCount = mol.atoms.size();
             parseBranch(p, mol, atomIndex, lastAtomId, lastAngle);
+            if (mol.atoms.size() > prevAtomCount) {
+                lastBranchAtomId = static_cast<int>(mol.atoms.size()) - 1;
+            }
             continue;
         }
 
@@ -343,6 +348,7 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
                 auto& lastRing = mol.rings.back();
                 lastAtomId = lastRing.atomIndices.back();
             }
+            lastBranchAtomId = -1;
             continue;
         }
 
@@ -359,13 +365,16 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
         std::wstring label = parseAtomGroup(p);
 
         if (!hasExplicitBond && !label.empty()) {
-            if (lastAtomId >= 0 && lastAtomId < static_cast<int>(mol.atoms.size())) {
+            if (lastBranchAtomId >= 0 && lastBranchAtomId < static_cast<int>(mol.atoms.size())) {
+                mol.atoms[lastBranchAtomId].text += label;
+            } else if (lastAtomId >= 0 && lastAtomId < static_cast<int>(mol.atoms.size())) {
                 mol.atoms[lastAtomId].text += label;
             }
         } else {
             lastAtomId = addAtomAndBond(mol, lastAtomId, label, bondType, params, bondAngle, atomIndex);
             lastAngle = bondAngle;
         }
+        lastBranchAtomId = -1;
 
         skipWhitespace(p);
         if (peek(p) == L'@' && peekNext(p) == L'{') {
@@ -392,6 +401,7 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
                                  int branchAtom, float branchAngle) {
     int savedLastAtomId = branchAtom;
     float savedLastAngle = branchAngle;
+    int lastBranchAtomId = -1;
 
     while (peek(p) != L'\0' && peek(p) != L')') {
         skipWhitespace(p);
@@ -402,7 +412,11 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
             p++;
             int tempLastAtomId = savedLastAtomId;
             float tempLastAngle = savedLastAngle;
+            size_t prevAtomCount = mol.atoms.size();
             parseBranch(p, mol, atomIndex, savedLastAtomId, savedLastAngle);
+            if (mol.atoms.size() > prevAtomCount) {
+                lastBranchAtomId = static_cast<int>(mol.atoms.size()) - 1;
+            }
             savedLastAtomId = tempLastAtomId;
             savedLastAngle = tempLastAngle;
             continue;
@@ -414,6 +428,7 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
                 auto& lastRing = mol.rings.back();
                 savedLastAtomId = lastRing.atomIndices.back();
             }
+            lastBranchAtomId = -1;
             continue;
         }
 
@@ -429,8 +444,17 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
         skipWhitespace(p);
         std::wstring label = parseAtomGroup(p);
 
-        savedLastAtomId = addAtomAndBond(mol, savedLastAtomId, label, bondType, params, bondAngle, atomIndex);
-        savedLastAngle = bondAngle;
+        if (!hasExplicitBond && !label.empty()) {
+            if (lastBranchAtomId >= 0 && lastBranchAtomId < static_cast<int>(mol.atoms.size())) {
+                mol.atoms[lastBranchAtomId].text += label;
+            } else if (savedLastAtomId >= 0 && savedLastAtomId < static_cast<int>(mol.atoms.size())) {
+                mol.atoms[savedLastAtomId].text += label;
+            }
+        } else {
+            savedLastAtomId = addAtomAndBond(mol, savedLastAtomId, label, bondType, params, bondAngle, atomIndex);
+            savedLastAngle = bondAngle;
+        }
+        lastBranchAtomId = -1;
 
         skipWhitespace(p);
         if (peek(p) == L'@' && peekNext(p) == L'{') {
