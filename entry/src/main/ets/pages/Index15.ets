@@ -257,8 +257,6 @@ struct Index15 {
     { description: '[19] issu163', formula: '\\chemfig{CH3-CH3}' },
     { description: '[19] issu163', formula: '\\chemfig{CH2=CH2}' },
     { description: '[19] issu162', formula: '\\chemfig{*6(=-(-COOH)=(-OC(=O)CH_3)-=)}' },
-
-
   ]
 
   private getPageItems(): ChemfigItem[] {

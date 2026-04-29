@@ -193,6 +193,14 @@ void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
     _atomTextBounds.clear();
     float textScale = 0.1f * _sizeFactor;
 
+    bool hasAngleControl = false;
+    for (const auto& b : _molecule.bonds) {
+        if (b.params.hasAngle) {
+            hasAngleControl = true;
+            break;
+        }
+    }
+
     for (int i = 0; i < static_cast<int>(_molecule.atoms.size()); i++) {
         const auto& atom = _molecule.atoms[i];
         if (atom.text.empty()) continue;
@@ -202,15 +210,17 @@ void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
 
         auto anchorsYOffset = 0.0f;
 
-        if(_molecule.anchors.size() > 0) {
-            if (i > _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
-                anchorsYOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
-            } else {
-                int anchorIndex = 0;
-                while (i > _molecule.anchors[anchorIndex].atomIndex) {
-                    anchorIndex++;
+        if (!_molecule.rings.size() && !hasAngleControl) {
+            if(_molecule.anchors.size() > 0) {
+                if (i > _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
+                    anchorsYOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
+                } else {
+                    int anchorIndex = 0;
+                    while (i > _molecule.anchors[anchorIndex].atomIndex) {
+                        anchorIndex++;
+                    }
+                    anchorsYOffset = (_textBoundsMinY * 0.5) * anchorIndex;
                 }
-                anchorsYOffset = (_textBoundsMinY * 0.5) * anchorIndex;
             }
         }
 
@@ -268,22 +278,66 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
         float fromY = 0.0f;
         float toY = 0.0f;
         auto anchorYOffset = 0.0f;
+        auto anchorYFromOffset = 0.0f;
+        auto anchorYToOffset = 0.0f;
 
-        if (_molecule.anchors.size() > 0) {
-            if (bondCount >= _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
-                anchorYOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
-            } else {
-                int anchorIndex = 0;
-                while (bondCount >= _molecule.anchors[anchorIndex].atomIndex) {
-                    anchorIndex++;
+        bool hasAngleControl = bond.params.hasAngle;
+
+        if (!_molecule.rings.size() && !hasAngleControl) {
+            if (_molecule.anchors.size() > 0 && !bond.isHook) {
+                if (bondCount >= _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
+                    anchorYOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
+                } else {
+                    int anchorIndex = 0;
+                    while (bondCount >= _molecule.anchors[anchorIndex].atomIndex) {
+                        anchorIndex++;
+                    }
+                    anchorYOffset = (_textBoundsMinY * 0.5) * anchorIndex;
                 }
-                anchorYOffset = (_textBoundsMinY * 0.5) * anchorIndex;
+            } else if (_molecule.anchors.size() > 0 && bond.isHook) {
+                if (bond.fromAtom > _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
+                    anchorYFromOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
+                    anchorYToOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
+                } else if (bond.toAtom > _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
+                    anchorYToOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
+                    if (bond.fromAtom < _molecule.anchors[0].atomIndex) {
+                        anchorYFromOffset = 0.0f;
+                    } else if (bond.fromAtom > _molecule.anchors[0].atomIndex) {
+                        int anchorIndex = 0;
+                        while (bond.fromAtom > _molecule.anchors[anchorIndex].atomIndex) {
+                            anchorIndex++;
+                        }
+                        anchorYFromOffset = (_textBoundsMinY * 0.5) * anchorIndex;
+                    }
+                }  else if (bond.toAtom < _molecule.anchors[0].atomIndex) {
+                    anchorYFromOffset = 0.0f;
+                    anchorYToOffset = 0.0f;
+                } else if (bond.toAtom < _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
+                    if (bond.fromAtom < _molecule.anchors[0].atomIndex) {
+                        anchorYFromOffset = 0.0f;
+                        int anchorIndex = 0;
+                        while (bond.toAtom > _molecule.anchors[anchorIndex].atomIndex) {
+                            anchorIndex++;
+                        }
+                        anchorYToOffset = (_textBoundsMinY * 0.5) * anchorIndex;
+                    } else if (bond.fromAtom > _molecule.anchors[0].atomIndex) {
+                        int anchorIndex = 0;
+                        while (bond.fromAtom > _molecule.anchors[anchorIndex].atomIndex) {
+                            anchorIndex++;
+                        }
+                        anchorYFromOffset = (_textBoundsMinY * 0.5) * anchorIndex;
+                        while (bond.toAtom > _molecule.anchors[anchorIndex].atomIndex) {
+                            anchorIndex++;
+                        }
+                        anchorYToOffset = (_textBoundsMinY * 0.5) * anchorIndex;
+                    }
+                }
             }
         }
 
 
-        fromY = from.position.y * scale + offsetY - anchorYOffset;    
-        toY = to.position.y * scale + offsetY - anchorYOffset;
+        fromY = from.position.y * scale + offsetY - anchorYOffset - anchorYFromOffset;    
+        toY = to.position.y * scale + offsetY - anchorYOffset - anchorYToOffset;
 
         float dx = toX - fromX;
         float dy = toY - fromY;
@@ -295,16 +349,16 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
 
             auto itFrom = _atomTextBounds.find(bond.fromAtom);
             if (itFrom != _atomTextBounds.end()) {
-                    float shorten = computeShortening(dirX, dirY, itFrom->second.halfW, itFrom->second.halfH);
-                    fromX += dirX * shorten;
-                    fromY += dirY * shorten;
+                float shorten = computeShortening(dirX, dirY, itFrom->second.halfW, itFrom->second.halfH);
+                fromX += dirX * shorten;
+                fromY += dirY * shorten;
             }
 
             auto itTo = _atomTextBounds.find(bond.toAtom);
             if (itTo != _atomTextBounds.end()) {
-                    float shorten = computeShortening(-dirX, -dirY, itTo->second.halfW, itTo->second.halfH);
-                    toX -= dirX * shorten;
-                    toY -= dirY * shorten;
+                float shorten = computeShortening(-dirX, -dirY, itTo->second.halfW, itTo->second.halfH);
+                toX -= dirX * shorten;
+                toY -= dirY * shorten;
             }
 
             if (bond.params.hasOffset) {

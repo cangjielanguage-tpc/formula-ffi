@@ -831,7 +831,7 @@ void ChemfigParser::resolveHooks(Molecule& mol) {
                     if (from >= 0 && to >= 0 &&
                         from < static_cast<int>(mol.atoms.size()) &&
                         to < static_cast<int>(mol.atoms.size())) {
-                        mol.addBond(from, to, BOND_SINGLE);
+                        mol.addBond(from, to, BOND_SINGLE, BondParams(), -1, true);
                     }
                 }
             }

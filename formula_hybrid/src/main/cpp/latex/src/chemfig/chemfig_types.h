@@ -83,8 +83,9 @@ struct Bond {
     int fromAtom;
     int toAtom;
     int ringIndex;
+    bool isHook;
 
-    Bond() : type(BOND_SINGLE), fromAtom(-1), toAtom(-1), ringIndex(-1) {}
+    Bond() : type(BOND_SINGLE), fromAtom(-1), toAtom(-1), ringIndex(-1), isHook(false) {}
 };
 
 struct Ring {
@@ -159,7 +160,7 @@ struct Molecule {
         return id;
     }
     
-    int addBond(int from, int to, BondType type, const BondParams& params = BondParams(), int ringIdx = -1) {
+    int addBond(int from, int to, BondType type, const BondParams& params = BondParams(), int ringIdx = -1, bool isHook = false) {
         int id = bonds.size();
         Bond bond;
         bond.fromAtom = from;
@@ -167,6 +168,7 @@ struct Molecule {
         bond.type = type;
         bond.params = params;
         bond.ringIndex = ringIdx;
+        bond.isHook = isHook;
         bonds.push_back(bond);
         return id;
     }
