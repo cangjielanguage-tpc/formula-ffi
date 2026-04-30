@@ -6,7 +6,7 @@
 namespace tex {
 
 namespace {
-    constexpr float PADDING = 0.3f;
+    constexpr float PADDING = 0.5f;
     constexpr float BOND_SCALE = 1.0f;
     constexpr float TEXT_BOND_GAP = 0.12f;
     constexpr float BOND_LINE_WIDTH = 0.055f;
@@ -30,7 +30,7 @@ namespace {
         Rect bounds;
         seg.layout->getBounds(bounds);
         float scale = (type != SEG_NORMAL) ? SUBSCRIPT_SCALE : 1.0f;
-        seg.width = (bounds.w + bounds.x + 0.4f) * textScale * scale;
+        seg.width = (bounds.w + bounds.x + 0.6f) * textScale * scale;
         seg.height = bounds.h * textScale * scale;
         seg.ascent = -bounds.y * textScale * scale;
         return seg;
@@ -131,7 +131,7 @@ namespace {
         auto layout = TextLayout::create(text, font);
         Rect bounds;
         layout->getBounds(bounds);
-        float textW = (bounds.w + bounds.x + 0.4f) * textScale;
+        float textW = (bounds.w + bounds.x + 0.6f) * textScale;
         float textH = bounds.h * textScale;
         return {textW / 2, textH / 2, -bounds.y * textScale, textH};
     }
@@ -243,7 +243,7 @@ void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
             layout.layout = TextLayout::create(atom.text, _font);
             Rect bounds;
             layout.layout->getBounds(bounds);
-            float textW = (bounds.w + bounds.x + 0.4f) * textScale;
+            float textW = (bounds.w + bounds.x + 0.6f) * textScale;
             float textH = bounds.h * textScale;
             float textY = -bounds.y * textScale;
             layout.textOffsetX = -textW / 2;
