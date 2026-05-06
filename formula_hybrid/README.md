@@ -180,7 +180,16 @@ struct Index0 {
 ## 约束与限制
 
     在下述版本验证通过：    
-        IDE: DevEco Studio 5.1.1 Release(Build Version:5.1.1.851)
+| 编号 | 依赖构建工具                           | 版本号       |
+|----|----------------------------------|-----------|
+| 1  | **DevEco Studio**                | 5.1.1.851 |
+| 2  | **cjc**                          | v1.0.5    |
+
+formula依赖三方库： 
+
+| 编号 | 依赖三方库         | 版本号      |
+|----|---------------|----------|
+| 1  | stdx          | v1.0.1.1 |
 
 1. `resPath`默认参数`"/data/storage/el1/bundle/entry/resources/resfile/res"`，如果修改`entry`命名，需要改成对应的`"/data/storage/el1/bundle/xxxx/resources/resfile/res"`。
 
