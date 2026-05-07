@@ -28,7 +28,7 @@ namespace {
         seg.type = type;
         seg.layout = TextLayout::create(text, font);
         Rect bounds;
-        seg.layout->getBounds(bounds);
+        if (seg.layout) seg.layout->getBounds(bounds);
         float scale = (type != SEG_NORMAL) ? SUBSCRIPT_SCALE : 1.0f;
         seg.width = (bounds.w + bounds.x + 0.6f) * textScale * scale;
         seg.height = bounds.h * textScale * scale;
@@ -130,7 +130,7 @@ namespace {
                                           const sptr<Font>& font, float textScale) {
         auto layout = TextLayout::create(text, font);
         Rect bounds;
-        layout->getBounds(bounds);
+        if (layout) layout->getBounds(bounds);
         float textW = (bounds.w + bounds.x + 0.6f) * textScale;
         float textH = bounds.h * textScale;
         return {textW / 2, textH / 2, -bounds.y * textScale, textH};
@@ -216,7 +216,7 @@ void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
                     anchorsYOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
                 } else {
                     int anchorIndex = 0;
-                    while (i > _molecule.anchors[anchorIndex].atomIndex) {
+                    while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && i > _molecule.anchors[anchorIndex].atomIndex) {
                         anchorIndex++;
                     }
                     anchorsYOffset = (_textBoundsMinY * 0.5) * anchorIndex;
@@ -242,7 +242,7 @@ void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
         } else {
             layout.layout = TextLayout::create(atom.text, _font);
             Rect bounds;
-            layout.layout->getBounds(bounds);
+            if (layout.layout) layout.layout->getBounds(bounds);
             float textW = (bounds.w + bounds.x + 0.6f) * textScale;
             float textH = bounds.h * textScale;
             float textY = -bounds.y * textScale;
@@ -289,7 +289,7 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
                     anchorYOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
                 } else {
                     int anchorIndex = 0;
-                    while (bondCount >= _molecule.anchors[anchorIndex].atomIndex) {
+                    while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && bondCount >= _molecule.anchors[anchorIndex].atomIndex) {
                         anchorIndex++;
                     }
                     anchorYOffset = (_textBoundsMinY * 0.5) * anchorIndex;
@@ -304,7 +304,7 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
                         anchorYFromOffset = 0.0f;
                     } else if (bond.fromAtom > _molecule.anchors[0].atomIndex) {
                         int anchorIndex = 0;
-                        while (bond.fromAtom > _molecule.anchors[anchorIndex].atomIndex) {
+                        while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && bond.fromAtom > _molecule.anchors[anchorIndex].atomIndex) {
                             anchorIndex++;
                         }
                         anchorYFromOffset = (_textBoundsMinY * 0.5) * anchorIndex;
@@ -316,17 +316,17 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
                     if (bond.fromAtom < _molecule.anchors[0].atomIndex) {
                         anchorYFromOffset = 0.0f;
                         int anchorIndex = 0;
-                        while (bond.toAtom > _molecule.anchors[anchorIndex].atomIndex) {
+                        while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && bond.toAtom > _molecule.anchors[anchorIndex].atomIndex) {
                             anchorIndex++;
                         }
                         anchorYToOffset = (_textBoundsMinY * 0.5) * anchorIndex;
                     } else if (bond.fromAtom > _molecule.anchors[0].atomIndex) {
                         int anchorIndex = 0;
-                        while (bond.fromAtom > _molecule.anchors[anchorIndex].atomIndex) {
+                        while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && bond.fromAtom > _molecule.anchors[anchorIndex].atomIndex) {
                             anchorIndex++;
                         }
                         anchorYFromOffset = (_textBoundsMinY * 0.5) * anchorIndex;
-                        while (bond.toAtom > _molecule.anchors[anchorIndex].atomIndex) {
+                        while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && bond.toAtom > _molecule.anchors[anchorIndex].atomIndex) {
                             anchorIndex++;
                         }
                         anchorYToOffset = (_textBoundsMinY * 0.5) * anchorIndex;
@@ -385,6 +385,7 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
 
     for (const auto& layout : _atomLayouts) {
         float baseScale = 0.1f * _sizeFactor;
+        if (baseScale < EPSILON) baseScale = EPSILON;
 
         if (!layout.segments.empty()) {
             float baseX = layout.x + layout.textOffsetX;
@@ -406,7 +407,7 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
                 float s = baseScale * ((seg.type != SEG_NORMAL) ? SUBSCRIPT_SCALE : 1.0f);
                 g2.translate(segX, segY);
                 g2.scale(s, s);
-                seg.layout->draw(g2, 0, 0);
+                if (seg.layout) seg.layout->draw(g2, 0, 0);
                 g2.scale(1.f / s, 1.f / s);
                 g2.translate(-segX, -segY);
 
@@ -432,14 +433,14 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
             float drawY = layout.y + layout.textOffsetY;
             g2.translate(drawX, drawY);
             g2.scale(baseScale, baseScale);
-            layout.layout->draw(g2, 0, 0);
+            if (layout.layout) layout.layout->draw(g2, 0, 0);
             g2.scale(1.f / baseScale, 1.f / baseScale);
             g2.translate(-drawX, -drawY);
         }
     }
 
     for (const auto& ring : _molecule.rings) {
-        if (ring.hasInnerCircle) {
+        if (ring.hasInnerCircle && ring.sides > 0) {
             float cx = ring.center.x * scale + offsetX;
             float cy = ring.center.y * scale + offsetY;
             float apothem = ring.radius * scale * std::cos(CHEMFIG_PI / ring.sides);

@@ -246,8 +246,9 @@ void BondRenderer::drawWedgeSolidUp(Graphics2D& g2, const ChemPoint& from, const
     BondGeometry bg(from, to);
     if (bg.len < EPSILON) return;
 
-    float wideW = WEDGE_WIDTH * scale;
-    float narrowW = WEDGE_WIDTH * scale * 0.2f;
+    float effectiveScale = std::max(scale, EPSILON);
+    float wideW = WEDGE_WIDTH * effectiveScale;
+    float narrowW = WEDGE_WIDTH * effectiveScale * 0.2f;
 
     ChemPoint base1 = from + bg.perp * wideW;
     ChemPoint base2 = from - bg.perp * wideW;
@@ -255,7 +256,7 @@ void BondRenderer::drawWedgeSolidUp(Graphics2D& g2, const ChemPoint& from, const
     ChemPoint tip2 = to - bg.perp * narrowW;
 
     ChemPoint delta = to - from;
-    int steps = std::max(2, static_cast<int>(bg.len / (0.02f * scale)));
+    int steps = std::max(2, static_cast<int>(bg.len / (0.02f * effectiveScale)));
     for (int i = 0; i <= steps; i++) {
         float t = static_cast<float>(i) / steps;
         float w = wideW + (narrowW - wideW) * t;
@@ -270,8 +271,9 @@ void BondRenderer::drawWedgeSolidDown(Graphics2D& g2, const ChemPoint& from, con
     BondGeometry bg(from, to);
     if (bg.len < EPSILON) return;
 
-    float wideW = WEDGE_WIDTH * scale;
-    float narrowW = WEDGE_WIDTH * scale * 0.2f;
+    float effectiveScale = std::max(scale, EPSILON);
+    float wideW = WEDGE_WIDTH * effectiveScale;
+    float narrowW = WEDGE_WIDTH * effectiveScale * 0.2f;
 
     ChemPoint base1 = from + bg.perp * narrowW;
     ChemPoint base2 = from - bg.perp * narrowW;
@@ -279,7 +281,7 @@ void BondRenderer::drawWedgeSolidDown(Graphics2D& g2, const ChemPoint& from, con
     ChemPoint tip2 = to - bg.perp * wideW;
 
     ChemPoint delta = to - from;
-    int steps = std::max(2, static_cast<int>(bg.len / (0.02f * scale)));
+    int steps = std::max(2, static_cast<int>(bg.len / (0.02f * effectiveScale)));
     for (int i = 0; i <= steps; i++) {
         float t = static_cast<float>(i) / steps;
         float w = narrowW + (wideW - narrowW) * t;

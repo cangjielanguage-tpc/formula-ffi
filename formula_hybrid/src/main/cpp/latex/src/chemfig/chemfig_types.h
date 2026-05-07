@@ -161,6 +161,10 @@ struct Molecule {
     }
     
     int addBond(int from, int to, BondType type, const BondParams& params = BondParams(), int ringIdx = -1, bool isHook = false) {
+        if (from < 0 || from >= static_cast<int>(atoms.size()) ||
+            to < 0 || to >= static_cast<int>(atoms.size())) {
+            return -1;
+        }
         int id = bonds.size();
         Bond bond;
         bond.fromAtom = from;

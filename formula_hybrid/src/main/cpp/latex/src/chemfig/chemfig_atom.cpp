@@ -31,6 +31,9 @@ sptr<Box> ChemfigAtom::createBox(TeXEnvironment& env) {
     if (dtf != nullptr && !dtf->_isSs) {
         font = Font::_create("serif", type, fontSize);
     }
+    if (font == nullptr) {
+        throw ex_parse("Chemfig: failed to create font");
+    }
     
     float sizeFactor = DefaultTeXFont::getSizeFactor(env.getStyle());
     
