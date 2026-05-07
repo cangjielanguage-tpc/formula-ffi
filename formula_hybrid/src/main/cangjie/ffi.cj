@@ -35,7 +35,7 @@ foreign {
     func initGraphics2D_ffi(x: UInt32, y: UInt32, colorFormat: Int32): CPointer<UInt8>
 }
 
-func find_substring(targetString:String, subSringArr:Array<String>): Int32 {
+func findSubstring(targetString:String, subSringArr:Array<String>): Int32 {
     unsafe {
         var t : CString = LibC.mallocCString(targetString)
 
