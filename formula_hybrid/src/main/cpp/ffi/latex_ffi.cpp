@@ -18,6 +18,7 @@ using namespace tex;
 #define TEX_ERROR_INVALID_MATRIX   2
 #define TEX_ERROR_INVALID_DELIM    3
 #define TEX_ERROR_TEX              4
+#define TEX_ERROR_CHEMFIG          5
 #define TEX_ERROR_UNKNOWN          99
 
 static void copyErrorMessage(char* dest, const std::string& src, int destSize) {
@@ -95,7 +96,9 @@ TeXRender* LaTeX_parse_with_error(char *ltx, int width, float textSize,
             return render;
         } else {
             string msg = parseResult.errorMessage;
-            if (msg.find("invalid matrix") != string::npos || msg.find("column") != string::npos) {
+            if (msg.find("chemfig") != string::npos || msg.find("Chemfig") != string::npos) {
+                *resultCode = TEX_ERROR_CHEMFIG;
+            } else if (msg.find("invalid matrix") != string::npos || msg.find("column") != string::npos) {
                 *resultCode = TEX_ERROR_INVALID_MATRIX;
             } else if (msg.find("delimiter") != string::npos || msg.find("bracket") != string::npos) {
                 *resultCode = TEX_ERROR_INVALID_DELIM;

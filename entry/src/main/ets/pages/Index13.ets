@@ -802,6 +802,8 @@ struct Index13 {
         return "InvalidDelimiterError";
       case TeXResultCode.TeXError:
         return "TeXError";
+      case TeXResultCode.ChemfigError:
+        return "ChemfigError";
       case TeXResultCode.UnknownError:
         return "UnknownError";
       default:

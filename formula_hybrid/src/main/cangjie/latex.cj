@@ -8,6 +8,7 @@ public enum TeXResultCode <: ToString & Equatable<TeXResultCode> {
     | InvalidMatrixError
     | InvalidDelimiterError
     | TeXError
+    | ChemfigError
     | UnknownError
 
     public operator func ==(other: TeXResultCode): Bool {
@@ -21,6 +22,7 @@ public enum TeXResultCode <: ToString & Equatable<TeXResultCode> {
             case TeXResultCode.InvalidMatrixError => "InvalidMatrixError"
             case TeXResultCode.InvalidDelimiterError => "InvalidDelimiterError"
             case TeXResultCode.TeXError => "TeXError"
+            case TeXResultCode.ChemfigError => "ChemfigError"
             case TeXResultCode.UnknownError => "UnknownError"
         }
     }
@@ -32,6 +34,7 @@ public enum TeXResultCode <: ToString & Equatable<TeXResultCode> {
             case TeXResultCode.InvalidMatrixError => 2
             case TeXResultCode.InvalidDelimiterError => 3
             case TeXResultCode.TeXError => 4
+            case TeXResultCode.ChemfigError => 5
             case TeXResultCode.UnknownError => 99
         }
     }
@@ -43,6 +46,7 @@ public enum TeXResultCode <: ToString & Equatable<TeXResultCode> {
             case 2 => TeXResultCode.InvalidMatrixError
             case 3 => TeXResultCode.InvalidDelimiterError
             case 4 => TeXResultCode.TeXError
+            case 5 => TeXResultCode.ChemfigError
             case _ => TeXResultCode.UnknownError
         }
     }

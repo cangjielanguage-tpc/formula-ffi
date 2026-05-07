@@ -27,6 +27,7 @@ export enum TeXResultCode {
   InvalidMatrixError = 2,
   InvalidDelimiterError = 3,
   TeXError = 4,
+  ChemfigError = 5,
   UnknownError = 99
 }
 

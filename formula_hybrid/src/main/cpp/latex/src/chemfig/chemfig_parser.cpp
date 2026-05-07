@@ -113,6 +113,19 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
     if (result) {
         resolveHooks(mol);
         mol.normalizeBondLengths();
+        for (const auto& bond : mol.bonds) {
+            if (bond.fromAtom < 0 || bond.fromAtom >= static_cast<int>(mol.atoms.size()) ||
+                bond.toAtom < 0 || bond.toAtom >= static_cast<int>(mol.atoms.size())) {
+                return false;
+            }
+        }
+        for (const auto& ring : mol.rings) {
+            for (int idx : ring.atomIndices) {
+                if (idx < 0 || idx >= static_cast<int>(mol.atoms.size())) {
+                    return false;
+                }
+            }
+        }
     }
     return result;
 }
@@ -240,11 +253,41 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
             skipWhitespace(p);
             parseBondParams(p, 0);
             skipWhitespace(p);
-            parseAtomGroup(p);
-            mol.rings[currentRingIndex].bondTypes.push_back(sharedBondType);
-            if (mol.addBond(sharedToAtom, sharedFromAtom, sharedBondType, BondParams(), currentRingIndex) < 0) return false;
-            if (sharedBondTypeOut) {
-                *sharedBondTypeOut = sharedBondType;
+            if (peek(p) == L'*') {
+                mol.rings[currentRingIndex].bondTypes.push_back(sharedBondType);
+                if (sharedBondTypeOut) {
+                    *sharedBondTypeOut = sharedBondType;
+                }
+                bool hasSharedBond = false;
+                for (const auto& b : mol.bonds) {
+                    if ((b.fromAtom == sharedFromAtom && b.toAtom == sharedToAtom) ||
+                        (b.fromAtom == sharedToAtom && b.toAtom == sharedFromAtom)) {
+                        hasSharedBond = true;
+                        break;
+                    }
+                }
+                if (!hasSharedBond) {
+                    mol.addBond(sharedToAtom, sharedFromAtom, sharedBondType, BondParams(), currentRingIndex);
+                }
+                BondType nestedSharedBondType = BOND_SINGLE;
+                if (!parseRing(p, mol, atomIndex, sharedToAtom, sharedFromAtom, &nestedSharedBondType)) return false;
+            } else {
+                parseAtomGroup(p);
+                mol.rings[currentRingIndex].bondTypes.push_back(sharedBondType);
+                bool hasSharedBond = false;
+                for (const auto& b : mol.bonds) {
+                    if ((b.fromAtom == sharedFromAtom && b.toAtom == sharedToAtom) ||
+                        (b.fromAtom == sharedToAtom && b.toAtom == sharedFromAtom)) {
+                        hasSharedBond = true;
+                        break;
+                    }
+                }
+                if (!hasSharedBond) {
+                    if (mol.addBond(sharedToAtom, sharedFromAtom, sharedBondType, BondParams(), currentRingIndex) < 0) return false;
+                }
+                if (sharedBondTypeOut) {
+                    *sharedBondTypeOut = sharedBondType;
+                }
             }
             bondCount++;
             continue;
@@ -258,6 +301,7 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
             BondType nestedSharedBondType = BOND_SINGLE;
             if (!parseRing(p, mol, atomIndex, fromIdx, toIdx, &nestedSharedBondType)) return false;
             mol.rings[currentRingIndex].bondTypes.push_back(nestedSharedBondType);
+            bondCount++;
             continue;
         }
 
@@ -312,6 +356,15 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         bondCount++;
     }
 
+    {
+        const wchar_t* checkP = p;
+        while (peek(checkP) != L')' && peek(checkP) != L'\0') {
+            if (peek(checkP) == L'*') {
+                return false;
+            }
+            checkP++;
+        }
+    }
     while (peek(p) != L')' && peek(p) != L'\0') p++;
     match(p, L')');
     atomIndex += ringSize - (isFused ? 2 : (isChained ? 1 : 0));
