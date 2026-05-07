@@ -1,5 +1,6 @@
 #include "res/symbol_def.res.h"
 
+#ifdef CHEMICAL_SYMBOLS
 DEF_SYMBOLS(mhchem)
 
 E(35, 58376, longrightleftharpoons)
@@ -12,3 +13,4 @@ E(35, 58386, mhchemBondTDD)
 E(35, 58387, mhchemBondDTD)
 
 END_DEF_SYMBOLS
+#endif

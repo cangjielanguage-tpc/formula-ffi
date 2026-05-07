@@ -7,6 +7,9 @@ using namespace tex;
 
 color MatrixAtom::LINE_COLOR = trans;
 
+// Global CancelColor variable (default is black)
+color tex::CancelAtom::_cancelColor = black;
+
 map<wstring, wstring> MatrixAtom::_colspeReplacement;
 
 SpaceAtom MatrixAtom::_hsep(UNIT_EM, 1.f, 0.f, 0.f);
@@ -1048,10 +1051,17 @@ sptr<Box> NthRoot::createBox(_out_ TeXEnvironment& env) {
     auto r = _root->createBox(*(env.rootStyle()));
     // shift root up
     float bottomShift = FACTOR * (squareRoot->_height + squareRoot->_depth);
-    r->_shift = squareRoot->_depth - r->_depth - bottomShift;
+    r->_shift = squareRoot->_depth - r->_depth - bottomShift + _uproot + 0.0f;
 
-    // negative kerning
-    sptr<Box> negkern = SpaceAtom(UNIT_MU, -10.f, 0, 0).createBox(env);
+    // move square root down
+    //    squareRoot->_shift = _uproot;
+    if (_root == nullptr) {
+        squareRoot->_shift = 0.0f;  // 普通平方根，不移动
+    } else {
+        squareRoot->_shift = _uproot;  // n 次根号，使用_uproot
+    }
+    // negative kerning with leftroot adjustment
+    sptr<Box> negkern = SpaceAtom(UNIT_MU, -10.f + _leftroot, 0, 0).createBox(env);
 
     // arrange both boxes together with the negative kerning
     sptr<Box> res(new HorizontalBox());
@@ -1314,27 +1324,55 @@ LongDivAtom::LongDivAtom(long divisor, long dividend)
 sptr<Box> CancelAtom::createBox(_out_ TeXEnvironment& env) {
     if(_base == nullptr) throw ex_parse("empty atom");
     auto box = _base->createBox(env);
+    
+    // Ensure minimum size for empty content to make cancel lines visible
+    const float minSize = env.getTeXFont()->getDefaultRuleThickness(env.getStyle()) * 10;
+    if (box->_width < minSize) box->_width = minSize;
+    if (box->_height < minSize) box->_height = minSize;
+    if (box->_depth < minSize) box->_depth = minSize * 0.3f;
+    
     vector<float> lines;
     if (_cancelType == SLASH) {
         lines = {
-            0, 0,
-            box->_width, box->_height + box->_depth};
-    } else if (_cancelType == BACKSLASH) {
-        lines = {
             box->_width, 0,
             0, box->_height + box->_depth};
+    } else if (_cancelType == BACKSLASH) {
+        lines = {
+            0, 0,
+            box->_width, box->_height + box->_depth};
     } else if (_cancelType == CROSS) {
         lines = {
             0, 0,
             box->_width, box->_height + box->_depth,
             box->_width, 0,
             0, box->_height + box->_depth};
+    } else if (_cancelType == CANCELTO) {
+        // For cancelto, we need to draw a line and place the target value at the end
+        if (_target == nullptr) {
+            // If no target, just draw a slash
+            lines = {
+                box->_width, 0,
+                0, box->_height + box->_depth};
+            const float rt = env.getTeXFont()->getDefaultRuleThickness(env.getStyle());
+            auto overlap = sptr<Box>(new LineBox(lines, rt, _cancelColor));
+            overlap->_width = box->_width;
+            overlap->_height = box->_height;
+            overlap->_depth = box->_depth;
+            return sptr<Box>(new OverlappedBox(box, overlap));
+        }
+
+        // Create target box
+        auto targetBox = _target->createBox(env);
+        const float rt = env.getTeXFont()->getDefaultRuleThickness(env.getStyle());
+        
+        // Use CancelToBox to render base, line and target together with cancel color
+        return sptr<Box>(new CancelToBox(box, targetBox, rt, _cancelColor));
     } else {
         return box;
     }
 
     const float rt = env.getTeXFont()->getDefaultRuleThickness(env.getStyle());
-    auto overlap = sptr<Box>(new LineBox(lines, rt));
+    auto overlap = sptr<Box>(new LineBox(lines, rt, _cancelColor));
     overlap->_width = box->_width;
     overlap->_height = box->_height;
     overlap->_depth = box->_depth;

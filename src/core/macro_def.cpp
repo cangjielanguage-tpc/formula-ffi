@@ -25,6 +25,7 @@ inline static PredefMacroInfo* m(int nbargs, MacroDelegate del) {
 map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(2, 2, macro_newcommand, "newcommand"),
     mac(2, 2, macro_renewcommand, "renewcommand"),
+    mac(1, macro_cancelcolor, "CancelColor"),
     mac(2, 1, macro_rule, "rule"),
     mac(1, 1, macro_includegraphics, "includegraphics"),
     mac(2, 1, macro_cfrac, "cfrac"),
@@ -50,13 +51,23 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(1, macro_matrixATATenv, "matrix@@env"),
     mac(2, macro_arrayATATenv, "array@@env"),
     mac(2, macro_alignATATenv, "align@@env"),
+    mac(2, macro_alignATATenv, "alignX@@env"),
     mac(2, macro_alignedATATenv, "aligned@@env"),
+    mac(2, macro_alignedATATenv, "alignedX@@env"),
+//    mac(1, macro_equationATATenv, "equation@env"),
     mac(2, macro_flalignATATenv, "flalign@@env"),
+    mac(2, macro_flalignATATenv, "flalignX@@env"),
     mac(2, macro_alignatATATenv, "alignat@@env"),
     mac(2, macro_alignedatATATenv, "alignedat@@env"),
     mac(2, macro_multlineATATenv, "multline@@env"),
+    mac(2, macro_multlineATATenv, "multlineX@@env"),
     mac(2, macro_gatherATATenv, "gather@@env"),
+    mac(2, macro_gatherATATenv, "gatherX@@env"),
     mac(2, macro_gatheredATATenv, "gathered@@env"),
+    mac(1, macro_tag, "tag"),
+    mac(0, macro_notag, "notag"),
+    mac(0, macro_notag, "nonumber"),
+    mac(1, macro_CDATATenv, "CD@env"),
     mac(1, macro_hvspace, "hspace"),
     mac(1, macro_hvspace, "vspace"),
     mac(1, macro_clrlap, "llap"),
@@ -182,6 +193,7 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(1, macro_Set, "Set"),
     mac(2, macro_underset, "underset"),
     mac(1, macro_boldsymbol, "boldsymbol"),
+    mac(1, macro_boldsymbol, "pmb"),
     mac(0, macro_LaTeX, "LaTeX"),
     mac(0, macro_GeoGebra, "GeoGebra"),
     mac(1, macro_big, "big"),
@@ -219,6 +231,7 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(2, macro_bgcolor, "bgcolor"),
     mac(2, macro_colorbox, "colorbox"),
     mac(3, macro_fcolorbox, "fcolorbox"),
+    mac(1, 1, macro_bbox, "bbox"),
     mac(1, macro_cedilla, "c"),
     mac(0, macro_IJ, "IJ"),
     mac(0, macro_IJ, "ij"),
@@ -319,7 +332,9 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(2, macro_longdiv, "longdiv"),
     mac(1, macro_cancel, "cancel"),
     mac(1, macro_bcancel, "bcancel"),
-    mac(1, macro_xcancel, "xcancel")
+    mac(1, macro_xcancel, "xcancel"),
+    mac(2, macro_cancelto, "cancelto"),
+    mac(1, macro_unicode, "unicode")
 #ifdef GRAPHICS_DEBUG
         ,
     mac(0, macro_debug, "debug"),
@@ -361,15 +376,23 @@ void NewCommandMacro::_init_() {
     e(0, L"vmatrix", L"\\left|\\begin{matrix}", L"\\end{matrix}\\right|");
     e(0, L"Vmatrix", L"\\left\\|\\begin{matrix}", L"\\end{matrix}\\right\\|");
     e(0, L"eqnarray", L"\\begin{array}{rcl}", L"\\end{array}");
+    e(0, L"eqnarrayX", L"\\begin{array}{rcl}", L"\\end{array}");
+    e(0, L"equation", L"\\begin{array}{rcl}", L"\\end{array}");
+    e(0, L"equationX", L"\\begin{array}{rcl}", L"\\end{array}");
     e(0, L"align", L"\\align@@env{", L"}");
+    e(0, L"alignX", L"\\alignX@@env{", L"}");
     e(0, L"flalign", L"\\flalign@@env{", L"}");
+    e(0, L"flalignX", L"\\flalignX@@env{", L"}");
     e(1, L"alignat", L"\\alignat@@env{#1}{", L"}");
     e(0, L"aligned", L"\\aligned@@env{", L"}");
+    e(0, L"alignedX", L"\\alignedX@@env{", L"}");
     e(1, L"alignedat", L"\\alignedat@@env{#1}{", L"}");
     e(0, L"multline", L"\\multline@@env{", L"}");
+    e(0, L"multlineX", L"\\multlineX@@env{", L"}");
     e(0, L"cases", L"\\left\\{\\begin{array}{@{}ll@{\\,}}", L"\\end{array}\\right.");
     e(0, L"split", L"\\begin{array}{r@{\\;}l}", L"\\end{array}");
     e(0, L"gather", L"\\gather@@env{", L"}");
+    e(0, L"gatherX", L"\\gatherX@@env{", L"}");
     e(0, L"gathered", L"\\gathered@@env{", L"}");
     e(0, L"math", L"\\(", L"\\)");
     e(0, L"displaymath", L"\\[", L"\\]");
@@ -377,6 +400,7 @@ void NewCommandMacro::_init_() {
     c(1, L"operatorname", L"\\mathop{\\mathrm{#1}}\\nolimits ");
     c(2, L"DeclareMathOperator", L"\\newcommand{#1}{\\mathop{\\mathrm{#2}}\\nolimits}");
     c(1, L"substack", L"{\\scriptstyle\\begin{array}{c}#1\\end{array}}");
+    e(1, L"subarray", L"{\\scriptstyle\\begin{array}{#1}", L"\\end{array}}");
     c(2, L"dfrac", L"\\genfrac{}{}{}{}{#1}{#2}");
     c(2, L"tfrac", L"\\genfrac{}{}{}{1}{#1}{#2}");
     c(2, L"dbinom", L"\\genfrac{(}{)}{0pt}{}{#1}{#2}");
@@ -404,6 +428,9 @@ void NewCommandMacro::_init_() {
     c(1, L"textsf", L"\\mathsf{\\text{#1}}");
     c(1, L"texttt", L"\\mathtt{\\text{#1}}");
     c(1, L"textrm", L"\\text{#1}");
+    c(1, L"norm", L"\\left\\|#1\\right\\|");
+    c(1, L"abs", L"\\left|#1\\right|");
+    c(0, L"esssup", L"\\mathop{\\mathrm{ess\\,sup}}\\nolimits");
     c(0, L"degree", L"^\\circ");
     c(0, L"with", L"\\mathbin{\\&}");
     c(0, L"parr", L"\\mathbin{\\rotatebox[origin=c]{180}{\\&}}");

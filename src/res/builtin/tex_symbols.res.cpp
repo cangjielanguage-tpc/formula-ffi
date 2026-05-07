@@ -651,6 +651,7 @@ map<string, sptr<SymbolAtom>> SymbolAtom::_symbols = {
     sym(rel, leftharpoondown),
     sym(rel, rightharpoonup),
     sym(rel, rightharpoondown),
+#ifdef CHEMICAL_SYMBOLS
     sym(rel, longrightleftharpoons),
     sym(rel, longRightleftharpoons),
     sym(rel, longLeftrightharpoons),
@@ -659,6 +660,7 @@ map<string, sptr<SymbolAtom>> SymbolAtom::_symbols = {
     sym(rel, mhchemBondTD),
     sym(rel, mhchemBondTDD),
     sym(rel, mhchemBondDTD),
+#endif
     // specials
     sym(ord, textmu),
     sym(ord, texteuro),

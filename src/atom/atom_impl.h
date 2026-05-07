@@ -8,6 +8,8 @@
 #include "core/formula.h"
 #include "fonts/fonts.h"
 #include "graphic/graphic.h"
+#include <cstdio>
+#include <tuple>
 
 using namespace std;
 using namespace tex;
@@ -1129,13 +1131,20 @@ private:
     sptr<Atom> _base;
     // root atom to be put in the upper left corner above the root sign
     sptr<Atom> _root;
+    // horizontal shift for the root
+    float _leftroot;
+    // vertical shift for the root
+    float _uproot;
 
 public:
     NthRoot() = delete;
 
-    NthRoot(const sptr<Atom>& base, const sptr<Atom>& root) {
+    //NthRoot(const sptr<Atom>& base, const sptr<Atom>& root) {
+    NthRoot(const sptr<Atom>& base, const sptr<Atom>& root, float leftroot = 0, float uproot = 0) {
         _base = base == nullptr ? sptr<Atom>(new EmptyAtom()) : base;
         _root = root == nullptr ? sptr<Atom>(new EmptyAtom()) : root;
+        _leftroot = leftroot;
+        _uproot = uproot;
     }
 
     sptr<Box> createBox(_out_ TeXEnvironment& env) override;
@@ -1621,23 +1630,285 @@ public:
 class CancelAtom : public Atom {
 private:
     sptr<Atom> _base;
+    sptr<Atom> _target;  // For cancelto: the target value
     int _cancelType;
 
 public:
+    // Global CancelColor variable (default is black)
+    static color _cancelColor;
+    
     enum CancelType {
         SLASH,
         BACKSLASH,
-        CROSS
+        CROSS,
+        CANCELTO  // For \cancelto{value}{expr}
     };
 
     CancelAtom() = delete;
 
+    // For cancel, bcancel, xcancel
     CancelAtom(const sptr<Atom>& base, int cancelType)
-        : _base(base), _cancelType(cancelType) {}
+        : _base(base), _target(nullptr), _cancelType(cancelType) {}
+
+    // For cancelto
+    CancelAtom(const sptr<Atom>& base, const sptr<Atom>& target, int cancelType)
+        : _base(base), _target(target), _cancelType(cancelType) {}
 
     sptr<Box> createBox(_out_ TeXEnvironment& env) override;
 
     __decl_clone(CancelAtom)
+};
+
+/**
+ * An atom representing a Unicode character
+ * \unicode{decimal} or \unicode{xhex}
+ * 
+ * 安全特性：
+ * - 检查 wcstoul 溢出（errno）
+ * - 验证 Unicode 码点有效性
+ * - 支持代理对（高 Unicode 字符）
+ */
+class UnicodeAtom : public Atom {
+private:
+    wstring _unicodeStr;  // 存储 Unicode 字符串（支持代理对）
+    bool _isValid;        // 标记码点是否有效
+
+    // Unicode 码点有效范围检查
+    static bool isValidCodePoint(uint32_t cp) {
+        // 检查基本有效范围
+        if (cp > 0x10FFFF) return false;
+        
+        // 排除代理对范围（0xD800-0xDFFF）
+        if (cp >= 0xD800 && cp <= 0xDFFF) return false;
+        
+        // 排除非字符（Unicode 标准定义的永久保留码点）
+        if ((cp >= 0xFDD0 && cp <= 0xFDEF) ||
+            (cp & 0xFFFF) == 0xFFFE ||
+            (cp & 0xFFFF) == 0xFFFF) {
+            return false;
+        }
+        
+        return true;
+    }
+
+    // 将码点转换为 UTF-16 字符串（支持代理对）
+    static wstring codePointToString(uint32_t cp) {
+        if (cp <= 0xFFFF) {
+            // BMP 字符，直接用 wchar_t 表示
+            return wstring(1, static_cast<wchar_t>(cp));
+        } else {
+            // 辅助平面字符，需要使用代理对
+            // Windows 上 wchar_t 是 16 位，需要两个 wchar_t
+            cp -= 0x10000;
+            wchar_t high = static_cast<wchar_t>(0xD800 | ((cp >> 10) & 0x3FF));
+            wchar_t low = static_cast<wchar_t>(0xDC00 | (cp & 0x3FF));
+            wstring result;
+            result += high;
+            result += low;
+            return result;
+        }
+    }
+
+    static pair<wstring, bool> parseUnicode(const wstring& code) {
+        if (code.empty()) {
+            return make_pair(wstring(L"?"), false);
+        }
+
+        errno = 0;
+        unsigned long result = 0;
+        
+        // Check if it's a hex value (starts with x or X)
+        if (code[0] == L'x' || code[0] == L'X') {
+            // Hexadecimal - 检查空字符串
+            if (code.length() < 2) {
+                return make_pair(wstring(L"?"), false);
+            }
+            result = wcstoul(code.c_str() + 1, nullptr, 16);
+        } else {
+            // Decimal
+            result = wcstoul(code.c_str(), nullptr, 10);
+        }
+        
+        // 检查错误：溢出或无效输入
+        if (errno == ERANGE || errno == EINVAL) {
+            return make_pair(wstring(L"?"), false);
+        }
+        
+        // 验证码点有效性
+        if (!isValidCodePoint(result)) {
+            return make_pair(wstring(L"?"), false);
+        }
+        
+        // 转换为字符串（支持代理对）
+        return make_pair(codePointToString(result), true);
+    }
+
+public:
+    UnicodeAtom() = delete;
+
+    UnicodeAtom(const wstring& code) {
+        tie(_unicodeStr, _isValid) = parseUnicode(code);
+    }
+
+    UnicodeAtom(wchar_t c) : _unicodeStr(1, c), _isValid(true) {}
+
+    sptr<Box> createBox(_out_ TeXEnvironment& env) override {
+        // 如果码点无效，显示占位符
+        if (!_isValid) {
+            TextRenderingAtom atom(wstring(L"\uFFFD"), 0);  // U+FFFD 替换字符
+            return atom.createBox(env);
+        }
+        
+        // Create a TextRenderingAtom to render the Unicode character
+        // This will use the system font to render the character
+        TextRenderingAtom atom(_unicodeStr, 0);
+        return atom.createBox(env);
+    }
+
+    __decl_clone(UnicodeAtom)
+};
+
+/**
+ * An atom representing a background box with optional padding
+ * \bbox[options]{math} where options can be:
+ * - color only: \bbox[red]{x+y}
+ * - padding only: \bbox[2pt]{x+y}
+ * - color and padding: \bbox[red,5pt]{x+y}
+ * 
+ * 安全特性：
+ * - 严格的数字解析（检查 errno）
+ * - 浮点数范围限制
+ * - 边界情况处理（空字符串、多个逗号）
+ */
+class BboxAtom : public Atom {
+private:
+    sptr<Atom> _base;
+    color _bg;
+    float _padding;  // padding in points
+
+    // 安全地解析数字字符串，检查 errno 和范围
+    static bool safeParseFloat(const wstring& str, _out_ float& result) {
+        if (str.empty()) return false;
+        
+        // 使用 wcstod 并检查 errno
+        wchar_t* endptr = nullptr;
+        errno = 0;
+        double val = wcstod(str.c_str(), &endptr);
+        
+        // 检查错误：无效输入、溢出、下溢
+        if (errno == ERANGE || errno == EINVAL) return false;
+        if (endptr == str.c_str()) return false;  // 没有解析任何字符
+        
+        // 检查范围限制（避免 INF/NaN）
+        if (!isfinite(val) || val < 0 || val > 10000.0) return false;
+        
+        result = static_cast<float>(val);
+        return true;
+    }
+
+    // 修剪字符串两端空白
+    static wstring trim(const wstring& str) {
+        size_t start = str.find_first_not_of(L" \t\r\n");
+        if (start == wstring::npos) return L"";
+        size_t end = str.find_last_not_of(L" \t\r\n");
+        return str.substr(start, end - start + 1);
+    }
+
+public:
+    BboxAtom() = delete;
+
+    /**
+     * Construct BboxAtom with options string and base atom.
+     *
+     * @param options The options string (e.g., "red", "2pt", "red,5pt")
+     * @param base The base atom to wrap with background
+     */
+    BboxAtom(const wstring& options, const sptr<Atom>& base) {
+        if (base == nullptr)
+            _base = sptr<Atom>(new RowAtom());
+        else {
+            _base = base;
+            _type = base->_type;
+        }
+
+        // Parse options to get color and padding
+        _bg = TRANS;
+        _padding = 0.f;
+
+        wstring opts = options;
+        
+        // 处理多个逗号的边界情况：只取第一个逗号
+        size_t commaPos = opts.find(L',');
+        
+        if (commaPos == wstring::npos) {
+            // Single option: either color or padding
+            wstring opt = trim(opts);
+            if (opt.empty()) return;  // 空选项，使用默认值
+
+            size_t len = opt.length();
+            if (len >= 2 && opt[len - 2] == L'p' && opt[len - 1] == L't') {
+                // It's padding (e.g., "2pt")
+                wstring numStr = opt.substr(0, len - 2);
+                // 安全解析数字
+                safeParseFloat(numStr, _padding);
+            } else {
+                // It's a color (e.g., "red")
+                _bg = ColorAtom::getColor(wide2utf8(opt.c_str()));
+            }
+        } else {
+            // Two options: color,padding (e.g., "red,5pt")
+            wstring colorPart = trim(opts.substr(0, commaPos));
+            
+            // 处理多个逗号：只取第一个逗号和第二个逗号之间的内容
+            size_t secondComma = opts.find(L',', commaPos + 1);
+            wstring paddingPart;
+            if (secondComma != wstring::npos) {
+                // 有第二个逗号，只取中间部分
+                paddingPart = trim(opts.substr(commaPos + 1, secondComma - commaPos - 1));
+            } else {
+                // 没有第二个逗号，取到末尾
+                paddingPart = trim(opts.substr(commaPos + 1));
+            }
+
+            // 解析颜色（如果非空）
+            if (!colorPart.empty()) {
+                _bg = ColorAtom::getColor(wide2utf8(colorPart.c_str()));
+            }
+
+            // 解析内边距（如果非空）
+            if (!paddingPart.empty()) {
+                size_t len = paddingPart.length();
+                if (len >= 2 && paddingPart[len - 2] == L'p' && paddingPart[len - 1] == L't') {
+                    wstring numStr = paddingPart.substr(0, len - 2);
+                    // 安全解析数字
+                    safeParseFloat(numStr, _padding);
+                }
+            }
+        }
+    }
+
+    virtual sptr<Box> createBox(_out_ TeXEnvironment& env) override {
+        if (_base == nullptr) throw ex_parse("BboxAtom: empty atom");
+
+        auto bbase = _base->createBox(env);
+        float drt = env.getTeXFont()->getDefaultRuleThickness(env.getStyle());
+        float space = FBoxAtom::INTERSPACE * SpaceAtom::getFactor(UNIT_EM, env);
+
+        // Add user-specified padding（_padding 已经过范围检查）
+        float paddingAddition = _padding * SpaceAtom::getFactor(UNIT_POINT, env);
+        space += paddingAddition;
+
+        if (istrans(_bg)) {
+             // No background color, just add padding	 
+             return sptr<Box>(new FramedBox(bbase, drt, space));
+        }
+
+        env._isColored = true;
+        // Same as colorbox: use _bg for both line and background
+        return sptr<Box>(new FramedBox(bbase, drt, space, _bg, _bg));
+    }
+
+    __decl_clone(BboxAtom)
 };
 
 }  // namespace tex

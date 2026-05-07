@@ -1,6 +1,7 @@
 #include "core/parser.h"
 #include "atom/atom.h"
 #include "atom/atom_basic.h"
+#include "atom/atom_impl.h"
 #include "common.h"
 #include "core/formula.h"
 #include "core/macro.h"
@@ -85,6 +86,7 @@ void TeXParser::init(
     _formula = formula;
     _ignoreWhiteSpace = true;
     _isPartial = ispartial;
+    
     if (!parsestring.empty()) {
         _parseString = parsestring;
         _len = parsestring.length();
@@ -462,7 +464,9 @@ void TeXParser::getOptsArgs(int nbArgs, int opts, _out_ vector<wstring>& args) {
         }
 
         // we get the next arguments
-        for (int i = 2; i <= nbArgs; i++) {
+        // When opts == 1 (optional args after command name), the number of required args is nbArgs - 1
+        int requiredArgs = (opts == 1) ? nbArgs - 1 : nbArgs;
+        for (int i = 2; i <= requiredArgs; i++) {
             skipWhiteSpace();
             try {
                 args[i] = getGroup(L_GROUP, R_GROUP);
@@ -710,10 +714,68 @@ bool TeXParser::replaceScript() {
 }
 
 void TeXParser::preprocess(wstring& cmd, vector<wstring>& args, int& pos) throw(ex_parse) {
+    // Handle special case: \renewcommand{\CancelColor}{...}
+    if (cmd == L"renewcommand") {
+        // Try to parse and handle CancelColor directly
+        int savedPos = pos;
+        vector<wstring> savedArgs;
+        try {
+            MacroInfo* const mac = MacroInfo::_commands[cmd];
+            getOptsArgs(mac->_nbArgs, mac->_posOpts, savedArgs);
+            
+            // Check if this is CancelColor (args[1] should be the command name)
+            if (savedArgs.size() > 1) {
+                wstring targetCmd = savedArgs[1];
+                // Remove leading backslash if present
+                if (!targetCmd.empty() && targetCmd[0] == L'\\') {
+                    targetCmd = targetCmd.substr(1);
+                }
+                
+                if (targetCmd == L"CancelColor") {
+                    // Handle CancelColor directly
+                    wstring colorArg = savedArgs[2];
+                    wstring colorName;
+                    
+                    // Check if it's \color{...} format or direct color name
+                    if (colorArg.find(L"\\color") != wstring::npos) {
+                        // Extract color name from "\color{colorname}"
+                        size_t start = colorArg.find(L'{');
+                        size_t end = colorArg.find(L'}', start);
+                        if (start != wstring::npos && end != wstring::npos && end > start) {
+                            colorName = colorArg.substr(start + 1, end - start - 1);
+                        }
+                    } else {
+                        // Direct color name (e.g., "blue")
+                        colorName = colorArg;
+                    }
+                    
+                    if (!colorName.empty()) {
+                        // Get color from ColorAtom
+                        color c = ColorAtom::getColor(wide2utf8(colorName.c_str()));
+                        // Set CancelColor
+                        CancelAtom::_cancelColor = c;
+                    }
+                    
+                    // Remove the command from parse string
+                    _parseString.erase(pos, _pos - pos);
+                    _len = _parseString.length();
+                    _pos = pos;
+                    return;
+                }
+            }
+        } catch (...) {
+            // If parsing fails, fall through to normal processing
+            _pos = savedPos;
+        }
+    }
+    
     if (cmd == L"newcommand" || cmd == L"renewcommand") {
         preprocessNewCmd(cmd, args, pos);
     } else if (cmd == L"newenvironment" || cmd == L"renewenvironment") {
         preprocessNewCmd(cmd, args, pos);
+    } else if (cmd == L"def") {
+        // Handle \def in firstpass - it needs special handling
+        preprocessDef(cmd, args, pos);
     } else if (NewCommandMacro::isMacro(cmd)) {
         inflateNewCmd(cmd, args, pos);
     } else if (cmd == L"begin") {
@@ -732,6 +794,107 @@ void TeXParser::preprocessNewCmd(wstring& cmd, vector<wstring>& args, int& pos) 
     getOptsArgs(mac->_nbArgs, mac->_posOpts, args);
     mac->invoke(*this, args);
     _parseString.erase(pos, _pos - pos);
+    _len = _parseString.length();
+    _pos = pos;
+}
+
+void TeXParser::preprocessDef(wstring& cmd, vector<wstring>& args, int& pos) throw(ex_parse) {
+    // \def needs special handling in firstpass
+    // We need to parse and execute it, then remove it from the string
+    // so it doesn't get executed again in parse()
+    
+    int curPos = pos + 4; // skip "\def"
+    
+    // Skip whitespace
+    while (curPos < _parseString.length()) {
+        wchar_t c = _parseString[curPos];
+        if (c != L' ' && c != L'\t' && c != L'\n' && c != L'\r') break;
+        curPos++;
+    }
+
+    // Get command name (must start with \)
+    wstring name;
+    if (curPos >= _parseString.length() || _parseString[curPos] != L'\\') {
+        throw ex_parse("\\def: command name must start with \\");
+    }
+    curPos++; // skip backslash
+    
+    // Extract command name
+    int cmdStart = curPos;
+    while (curPos < _parseString.length()) {
+        wchar_t c = _parseString[curPos];
+        if (c == L' ' || c == L'\t' || c == L'\n' || c == L'\r' ||
+            (c >= L'0' && c <= L'9') || c == L'#' || c == L'{' || c == L'}' ||
+            c == L'[' || c == L']' || c == L'^' || c == L'_') {
+            break;
+        }
+        curPos++;
+    }
+    name = _parseString.substr(cmdStart, curPos - cmdStart);
+
+    // Get parameter text and count parameters
+    int nbargs = 0;
+    while (curPos < _parseString.length()) {
+        while (curPos < _parseString.length()) {
+            wchar_t c = _parseString[curPos];
+            if (c != L' ' && c != L'\t' && c != L'\n' && c != L'\r') break;
+            curPos++;
+        }
+
+        wchar_t c = _parseString[curPos];
+        if (c == L'#') {
+            curPos++;
+            if (curPos >= _parseString.length()) {
+                throw ex_parse("\\def: incomplete parameter");
+            }
+            wchar_t num = _parseString[curPos];
+            if (num >= L'1' && num <= L'9') {
+                int argNum = num - L'0';
+                if (argNum > nbargs) nbargs = argNum;
+                curPos++;
+            } else {
+                throw ex_parse("\\def: invalid parameter number");
+            }
+        } else if (c == L'{') {
+            break;
+        } else if (c == L'[') {
+            curPos++;
+            int bracketCount = 1;
+            while (curPos < _parseString.length() && bracketCount > 0) {
+                if (_parseString[curPos] == L'[') bracketCount++;
+                else if (_parseString[curPos] == L']') bracketCount--;
+                curPos++;
+            }
+        } else {
+            throw ex_parse("\\def: unexpected character in parameter text");
+        }
+    }
+
+    // Get replacement text
+    while (curPos < _parseString.length()) {
+        wchar_t c = _parseString[curPos];
+        if (c != L' ' && c != L'\t' && c != L'\n' && c != L'\r') break;
+        curPos++;
+    }
+
+    // Find the closing brace
+    int braceStart = curPos;
+    int braceCount = 1;
+    curPos++; // skip opening brace
+    while (curPos < _parseString.length() && braceCount > 0) {
+        wchar_t c = _parseString[curPos];
+        if (c == L'{') braceCount++;
+        else if (c == L'}') braceCount--;
+        curPos++;
+    }
+    
+    wstring code = _parseString.substr(braceStart + 1, curPos - braceStart - 2);
+
+    // Register the macro
+    NewCommandMacro::addDefCommand(name, code, nbargs);
+
+    // Remove the entire \def command from the string
+    _parseString.erase(pos, curPos - pos);
     _len = _parseString.length();
     _pos = pos;
 }
@@ -788,6 +951,63 @@ void TeXParser::firstpass() throw(ex_parse) {
         case ESCAPE: {
             spos = _pos;
             wstring cmd = getCommand();
+            
+            // Special handling for \renewcommand{\CancelColor}{...}
+            if (cmd == L"renewcommand") {
+                try {
+                    int savedPos = _pos;
+                    vector<wstring> savedArgs;
+                    MacroInfo* const mac = MacroInfo::_commands[cmd];
+                    getOptsArgs(mac->_nbArgs, mac->_posOpts, savedArgs);
+                    
+                    if (savedArgs.size() > 1) {
+                        wstring targetCmd = savedArgs[1];
+                        // Remove leading backslash if present
+                        if (!targetCmd.empty() && targetCmd[0] == L'\\') {
+                            targetCmd = targetCmd.substr(1);
+                        }
+                        
+                        if (targetCmd == L"CancelColor") {
+                            // Handle CancelColor directly
+                            wstring colorArg = savedArgs[2];
+                            wstring colorName;
+                            
+                            // Check if it's \color{...} format or direct color name
+                            if (colorArg.find(L"\\color") != wstring::npos) {
+                                // Extract color name from "\color{colorname}"
+                                size_t start = colorArg.find(L'{');
+                                size_t end = colorArg.find(L'}', start);
+                                if (start != wstring::npos && end != wstring::npos && end > start) {
+                                    colorName = colorArg.substr(start + 1, end - start - 1);
+                                }
+                            } else {
+                                // Direct color name (e.g., "blue")
+                                colorName = colorArg;
+                            }
+                            
+                            if (!colorName.empty()) {
+                                // Get color from ColorAtom
+                                color c = ColorAtom::getColor(wide2utf8(colorName.c_str()));
+                                // Set CancelColor
+                                CancelAtom::_cancelColor = c;
+                            }
+                            
+                            // Remove the command from parse string
+                            _parseString.erase(spos, _pos - spos);
+                            _len = _parseString.length();
+                            _pos = spos;
+                            args.clear();
+                            continue;
+                        }
+                    }
+                    
+                    // Not CancelColor, restore position and use normal processing
+                    _pos = savedPos;
+                } catch (...) {
+                    // If parsing fails, fall through to normal processing
+                }
+            }
+            
             try {
                 preprocess(cmd, args, spos);
             } catch (ex_parse& e) {
@@ -958,9 +1178,24 @@ void TeXParser::parse() throw(ex_parse) {
         } break;
         }
     }
+    
+    // Reset CancelColor to default black after parsing is complete
+//    CancelAtom::_cancelColor = black;
 }
 
 sptr<Atom> TeXParser::convertCharacter(wchar_t c, bool oneChar) throw(ex_parse) {
+    if ((c >= CJK_UNIFIED_IDEOGRAPHS_START && c <= CJK_UNIFIED_IDEOGRAPHS_END) ||
+        (c >= CJK_UNIFIED_IDEOGRAPHS_EXT_A_START && c <= CJK_UNIFIED_IDEOGRAPHS_EXT_A_END) ||
+        (c >= CJK_COMPATIBILITY_IDEOGRAPHS_START && c <= CJK_COMPATIBILITY_IDEOGRAPHS_END)) {
+        FontInfos *fontInfos = TeXFormula::getExternalFont(UnicodeBlock::of(c));
+        if (fontInfos != nullptr) {
+            return sptr<Atom>(new TextRenderingAtom(towstring(c), fontInfos));
+        } else {
+#ifdef HAVE_LOG
+            __log << "[Warning] CJK font not found for character: " << wide2utf8(&c) << "\n";
+#endif
+        }
+    }
     if (_ignoreWhiteSpace) {
         // the unicode Greek Letters in math mode are not drawn with the Greek font
         if (c >= 945 && c <= 969) {
