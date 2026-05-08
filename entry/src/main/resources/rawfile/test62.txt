@@ -1,0 +1,1 @@
+f(s,t) = \begin{cases} T \:\: if \:\:s == t\\ F \:\: if \:\:\:not\:\: anagram \\ \bigvee_{i=0}^{n-1} f(s_x,t_x) \wedge f(s_y, t_y)\:\: no\:\:swap \\ \bigvee_{i=0}^{n-1} f(s_x,t_y') \wedge f(s_y,t_x') \: swapped\end{cases}

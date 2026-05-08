@@ -1,0 +1,1 @@
+a_i = a_i'b_ix_i + a_ib_i'x_i'

@@ -145,6 +145,11 @@ Graphics2D_ohos::Graphics2D_ohos(OH_Drawing_Bitmap *bitmap, uint32_t background)
     _typoStyle = OH_Drawing_CreateTypographyStyle();
     OH_Drawing_SetTypographyTextDirection(_typoStyle, TEXT_DIRECTION_LTR);
     OH_Drawing_SetTypographyTextAlign(_typoStyle, TEXT_ALIGN_LEFT);
+    
+    // 创建可共享的 FontCollection，支持多个 TypographyCreate 共享使用
+    _sharedFontCollection = OH_Drawing_CreateSharedFontCollection();
+    _currentFontFile = "";
+    _currentFontFamily = "";
 }
 
 Graphics2D_ohos::~Graphics2D_ohos() {
@@ -152,6 +157,7 @@ Graphics2D_ohos::~Graphics2D_ohos() {
     OH_Drawing_BrushDestroy(_brush);
     OH_Drawing_DestroyTextStyle(_txtStyle);
     OH_Drawing_DestroyTypographyStyle(_typoStyle);
+    OH_Drawing_DestroyFontCollection(_sharedFontCollection);
     OH_Drawing_CanvasDestroy(_canvas);
 }
 
@@ -211,9 +217,37 @@ const Font* Graphics2D_ohos::getFont() const {
     return _font;
 }
 
-// 修改
 void Graphics2D_ohos::setFont(const Font* font) {
-    _font = static_cast<const Font_ohos*>(font);
+    if (font == nullptr) {
+        _font = nullptr;
+        return;
+    }
+    
+    const Font_ohos* newFont = static_cast<const Font_ohos*>(font);
+    
+    if (_font == newFont) {
+        return;
+    }
+    
+    string newFile = newFont->getFile();
+    string newFamily = newFont->getFamily();
+    
+    if (_currentFontFile == newFile && _currentFontFamily == newFamily) {
+        _font = newFont;
+        return;
+    }
+    
+    if (newFile.empty() || newFile[0] == '\0') {
+        _font = newFont;
+        return;
+    }
+    
+    int result = OH_Drawing_RegisterFont(_sharedFontCollection, newFamily.c_str(), newFile.c_str());
+    if (result == 0) {
+        _currentFontFile = newFile;
+        _currentFontFamily = newFamily;
+    }
+    _font = newFont;
 }
 
 void Graphics2D_ohos::translate(float dx, float dy) {
@@ -294,20 +328,16 @@ void Graphics2D_ohos::drawText(const wstring& t, float x, float y) {
     char *family = (char *)malloc(len + 1);
     tmp.copy(family, len, 0);
     family[len] = '\0';
-    const char *fontFamilies[] = {family};
+    const char *fontFamilies[] = {family, "serif", "Noto Sans Math"};
     float s = _font->getSize();
     OH_Drawing_SetTextStyleFontSize(_txtStyle, s);
     OH_Drawing_SetTextStyleBaseLine(_txtStyle, TEXT_BASELINE_ALPHABETIC);
     OH_Drawing_SetTextStyleFontHeight(_txtStyle, 0.1);
     setTextStyle(_font->getStyle());
-    OH_Drawing_FontCollection *fontCollection = OH_Drawing_CreateFontCollection();
-    if (file[0] != '\0') {
-        OH_Drawing_RegisterFont(fontCollection, fontFamilies[0], file);
-    }
-    OH_Drawing_SetTextStyleFontFamilies(_txtStyle, 1, fontFamilies);
+    OH_Drawing_SetTextStyleFontFamilies(_txtStyle, 3, fontFamilies);
     OH_Drawing_SetTextStyleLocale(_txtStyle, "en");
 
-    OH_Drawing_TypographyCreate *handler = OH_Drawing_CreateTypographyHandler(_typoStyle, fontCollection);
+    OH_Drawing_TypographyCreate *handler = OH_Drawing_CreateTypographyHandler(_typoStyle, _sharedFontCollection);
     OH_Drawing_TypographyHandlerPushTextStyle(handler, _txtStyle);
     OH_Drawing_TypographyHandlerAddText(handler, str);
     OH_Drawing_TypographyHandlerPopTextStyle(handler);
@@ -319,7 +349,6 @@ void Graphics2D_ohos::drawText(const wstring& t, float x, float y) {
 
     OH_Drawing_DestroyTypography(typography);
     OH_Drawing_DestroyTypographyHandler(handler);
-    OH_Drawing_DestroyFontCollection(fontCollection);
 
     free(str);
     free(file);

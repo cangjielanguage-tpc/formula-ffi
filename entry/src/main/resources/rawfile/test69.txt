@@ -1,0 +1,1 @@
+n_{\ce{CO2}}\Delta h_{\ce{CO2}}+n_{\ce{H2O}}\Delta h_{\ce{H2O}}+n_{\ce{N2}}\Delta h_{\ce{N2}}=802,200

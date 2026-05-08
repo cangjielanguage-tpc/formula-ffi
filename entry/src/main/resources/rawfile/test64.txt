@@ -1,0 +1,1 @@
+b_i = a_i'b_i'x_i + a_i'b_ix_i' = a_i'(b_i \oplus x_i)

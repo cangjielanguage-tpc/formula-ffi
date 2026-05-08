@@ -16,3 +16,12 @@
 **/module_**_entry.cj
 **/IDL_Dependencies_List~
 **/build-script-cache
+.hvigor
+.idea
+oh_modules
+oh-package-lock.json5
+log.txt
+/stdx_bin
+formula/libs
+formula/src/main/cpp/latex
+*.lock

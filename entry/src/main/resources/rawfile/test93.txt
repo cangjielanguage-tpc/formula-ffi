@@ -1,0 +1,1 @@
+\cfrac{x}{1 + \cfrac{\xcancel{y}}{\xcancel{y}}} = \cfrac{x}{2}
