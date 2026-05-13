@@ -10,11 +10,15 @@
 #include "core/parser.h"
 #include "fonts/alphabet.h"
 #include "graphic/graphic.h"
-
 using namespace std;
 using namespace tex;
 
 namespace tex {
+
+template<typename T, typename... Args>
+inline sptr<T> sptrOf(Args&& ... args) {
+  return std::make_shared<T>(std::forward<Args>(args)...);
+}
 
 #ifndef macro
 #define macro(name) sptr<Atom> macro_##name(TeXParser& tp, vector<wstring>& args)
@@ -219,6 +223,55 @@ inline macro(xcancel) {
     return _marco_cancel(CancelAtom::CROSS, tp, args);
 }
 
+inline macro(cancelto) {
+    // 获取当前的字体样式，让目标值与基础表达式使用相同的字体
+    const string& currentTextStyle = tp._formula->_textStyle;
+    
+    // 首先检查输入字符串是否为空（去除空白后）
+    wstring targetStr = args[1];
+    wstring baseStr = args[2];
+    
+    // 去除空白检查
+    auto isBlank = [](const wstring& s) -> bool {
+        for (wchar_t c : s) {
+            if (!iswspace(c)) return false;
+        }
+        return true;
+    };
+    
+    if (isBlank(baseStr)) {
+        throw ex_parse("Cancel content must not be empty!");
+    }
+    if (isBlank(targetStr)) {
+        throw ex_parse("Cancel target must not be empty!");
+    }
+    
+    auto target = TeXFormula(tp, targetStr, currentTextStyle)._root;
+    auto base = TeXFormula(tp, baseStr, false)._root;
+    
+    // 检查基础内容是否为空（包括 nullptr 和空原子）
+    if (base == nullptr) {
+        throw ex_parse("Cancel content must not be empty!");
+    }
+    // 检查是否为空的 RowAtom
+    RowAtom* baseRow = dynamic_cast<RowAtom*>(base.get());
+    if (baseRow != nullptr && baseRow->size() == 0) {
+        throw ex_parse("Cancel content must not be empty!");
+    }
+    
+    // 检查目标值是否为空（包括 nullptr 和空原子）
+    if (target == nullptr) {
+        throw ex_parse("Cancel target must not be empty!");
+    }
+    // 检查是否为空的 RowAtom
+    RowAtom* targetRow = dynamic_cast<RowAtom*>(target.get());
+    if (targetRow != nullptr && targetRow->size() == 0) {
+        throw ex_parse("Cancel target must not be empty!");
+    }
+    
+    return sptr<Atom>(new CancelAtom(base, target, CancelAtom::CANCELTO));
+}
+
 inline macro(binom) {
     TeXFormula num(tp, args[1], false);
     TeXFormula den(tp, args[2], false);
@@ -300,8 +353,49 @@ inline macro(nbsp) {
 inline macro(sqrt) {
     if (args[2].empty())
         return sptr<Atom>(new NthRoot(TeXFormula(tp, args[1], false)._root, nullptr));
+    
+    // Process optional leftroot and uproot commands
+    float leftroot = 0;
+    float uproot = 0;
+    wstring rootArg = args[2];
+    
+    // Check for leftroot command
+    size_t leftrootPos = rootArg.find(L"\\leftroot{");
+    if (leftrootPos != wstring::npos) {
+        size_t endPos = rootArg.find(L"}", leftrootPos);
+        if (endPos != wstring::npos) {
+            wstring value = rootArg.substr(leftrootPos + 9, endPos - leftrootPos - 9);
+            try {
+                leftroot = stof(wide2utf8(value.c_str()));
+            } catch (...) {
+                leftroot = 0;
+            }
+            // Remove leftroot command from root argument
+            rootArg = rootArg.substr(0, leftrootPos) + rootArg.substr(endPos + 1);
+        }
+    }
+    
+    // Check for uproot command
+    size_t uprootPos = rootArg.find(L"\\uproot{");
+    if (uprootPos != wstring::npos) {
+        size_t endPos = rootArg.find(L"}", uprootPos);
+        if (endPos != wstring::npos) {
+            wstring value = rootArg.substr(uprootPos + 8, endPos - uprootPos - 8);
+            try {
+                uproot = stof(wide2utf8(value.c_str()));
+            } catch (...) {
+                uproot = 0;
+            }
+            // Remove uproot command from root argument
+            rootArg = rootArg.substr(0, uprootPos) + rootArg.substr(endPos + 1);
+        }
+    }
+    
     return sptr<Atom>(new NthRoot(
-        TeXFormula(tp, args[1], false)._root, TeXFormula(tp, args[2], false)._root));
+        TeXFormula(tp, args[1], false)._root, 
+        TeXFormula(tp, rootArg, false)._root, 
+        leftroot, 
+        uproot));
 }
 
 inline macro(overrightarrow) {
@@ -685,6 +779,43 @@ inline macro(shoveleft) {
     return a;
 }
 
+inline macro(tag) {
+    //\tag{content}-用于方程编号，显示在右下角
+    // 创建带括号的标签:(content)
+    wstring taggedContent = L"\\left(" + args[1] + L"\\right)";
+    sptr<Atom> taggedFormula = TeXFormula(tp, taggedContent, false)._root;
+    if (taggedFormula == nullptr) {
+        return sptr<Atom>(new SpaceAtom());
+    }
+
+    // 创建一个包含间距和 tag 的行原子
+    auto row = sptrOf<RowAtom>();
+    // 添加适当的间距（2em 空格）
+    row->add(sptrOf<SpaceAtom>(UNIT_EM, 10.0, 0, 0));
+    // 添加 tag 原子
+    row->add(taggedFormula);
+    // 设置右对齐属性，确保所有 tag 在右侧对齐
+    row->_alignment = ALIGN_RIGHT;
+    
+    // 通用处理：返回带右对齐属性的行原子
+    // 这样可以在所有模式下使用，包括 gather 环境
+    return row;
+}
+
+inline macro(notag) {
+    wstring taggedContent = L"";
+    sptr<Atom> taggedFormula = TeXFormula(tp, taggedContent, false)._root;
+    if (taggedFormula == nullptr) {
+        return sptr<Atom>(new SpaceAtom());
+    } 
+    
+    auto row = sptrOf<RowAtom>();
+    row->add(sptrOf<SpaceAtom>(UNIT_EM, 11.5, 0, 0));
+    row->add(taggedFormula);
+    row->_alignment = ALIGN_CENTER;
+    return row;
+}
+
 inline macro(makeatletter) {
     tp.makeAtLetter();
     return nullptr;
@@ -981,6 +1112,52 @@ inline macro(fcolorbox) {
     string y = wide2utf8(args[1].c_str());
     color b = ColorAtom::getColor(y);
     return sptr<Atom>(new FBoxAtom(TeXFormula(tp, args[3])._root, f, b));
+}
+
+inline macro(bbox) {
+    // \bbox[options]{math} - options can be color, padding, or both
+    // Examples: \bbox[red]{x+y}, \bbox[2pt]{x+y}, \bbox[red,5pt]{x+y}
+    // args[0] = command name "bbox"
+    // args[1] = math (required, in curly braces)
+    // args[2] = options (optional, in square brackets)
+    
+    wstring mathArg = args[1];
+    wstring options = args[2];
+    
+    // Check if the math argument is wrapped in $ signs
+    size_t len = mathArg.length();
+    wstring innerMath;
+    bool hasDollar = false;
+    
+    if (len >= 2 && mathArg[0] == L'$' && mathArg[len - 1] == L'$') {
+        // Check if it's $$ (display math)
+        if (len >= 4 && mathArg[1] == L'$' && mathArg[len - 2] == L'$') {
+            innerMath = mathArg.substr(2, len - 4);
+            hasDollar = true;
+        } else {
+            // Single $
+            innerMath = mathArg.substr(1, len - 2);
+            hasDollar = true;
+        }
+    } else {
+        innerMath = mathArg;
+    }
+    
+    // Parse the inner math content
+    sptr<Atom> innerAtom = TeXFormula(tp, innerMath)._root;
+    
+    // If there were $ signs, wrap with $ characters
+    if (hasDollar) {
+        // Create a row: $ + innerMath + $
+        RowAtom* row = new RowAtom();
+        // Use SymbolAtom to get the correct dollar sign symbol
+        row->add(SymbolAtom::get("textdollar"));  // Leading $
+        row->add(innerAtom);
+        row->add(SymbolAtom::get("textdollar"));  // Trailing $
+        return sptr<Atom>(new BboxAtom(options, sptr<Atom>(row)));
+    } else {
+        return sptr<Atom>(new BboxAtom(options, innerAtom));
+    }
 }
 
 inline macro(cong) {
@@ -1540,6 +1717,8 @@ macro(intertext);
 
 macro(newcommand);
 
+macro(cancelcolor);
+
 macro(renewcommand);
 
 macro(raisebox);
@@ -1553,6 +1732,326 @@ macro(romannumeral);
 macro(muskips);
 
 macro(xml);
+
+inline macro(unicode) {
+    return sptr<Atom>(new UnicodeAtom(args[1]));
+}
+
+inline macro(CDATATenv) {
+    wstring content = args[1];
+    vector<vector<wstring>> rows;
+    vector<wstring> currentRow;
+    wstring currentCell;
+    size_t pos = 0;
+    
+    while (pos < content.length()) {
+        if (content[pos] == L'\\' && pos + 1 < content.length() && content[pos + 1] == L'\\') {
+            if (!currentCell.empty()) {
+                currentRow.push_back(currentCell);
+                currentCell.clear();
+            }
+            if (!currentRow.empty()) {
+                rows.push_back(currentRow);
+                currentRow.clear();
+            }
+            pos += 2;
+        } else if (content[pos] == L'&') {
+            if (!currentCell.empty()) {
+                currentRow.push_back(currentCell);
+                currentCell.clear();
+            }
+            pos++;
+        } else {
+            currentCell += content[pos];
+            pos++;
+        }
+    }
+    
+    if (!currentCell.empty()) {
+        currentRow.push_back(currentCell);
+    }
+    if (!currentRow.empty()) {
+        rows.push_back(currentRow);
+    }
+    
+    wstring processed;
+    for (size_t r = 0; r < rows.size(); r++) {
+        for (size_t c = 0; c < rows[r].size(); c++) {
+            wstring cell = rows[r][c];
+            size_t cellPos = 0;
+            wstring processedCell;
+            
+            while (cellPos < cell.length()) {
+                if (cell[cellPos] == L'@' && cellPos + 1 < cell.length()) {
+                    wchar_t arrowType = cell[cellPos + 1];
+                    
+                    if (arrowType == L'>') {
+                        cellPos += 2;
+                        wstring upperLabel;
+                        wstring lowerLabel;
+                        bool hasLower = false;
+                        
+                        while (cellPos < cell.length()) {
+                            if (cell[cellPos] == L'>') {
+                                cellPos++;
+                                if (cellPos < cell.length() && cell[cellPos] == L'>') {
+                                    cellPos++;
+                                    break;
+                                } else {
+                                    hasLower = true;
+                                    while (cellPos < cell.length() && cell[cellPos] != L'>') {
+                                        lowerLabel += cell[cellPos];
+                                        cellPos++;
+                                    }
+                                    if (cellPos < cell.length() && cell[cellPos] == L'>') {
+                                        cellPos++;
+                                        if (cellPos < cell.length() && cell[cellPos] == L'>') {
+                                            cellPos++;
+                                        }
+                                    }
+                                    break;
+                                }
+                            } else {
+                                upperLabel += cell[cellPos];
+                                cellPos++;
+                            }
+                        }
+                        
+                        // Check if upperLabel is a LaTeX command (starts with \)
+                        if (!upperLabel.empty() && upperLabel[0] == L'\\') {
+                            // Use the command directly as the arrow type
+                            processedCell += upperLabel;
+                        } else if (!upperLabel.empty() && !lowerLabel.empty()) {
+                            processedCell += L"\\xrightarrow[" + lowerLabel + L"]{" + upperLabel + L"}";
+                        } else if (!upperLabel.empty()) {
+                            processedCell += L"\\xrightarrow{" + upperLabel + L"}";
+                        } else {
+                            processedCell += L"\\longrightarrow";
+                        }
+                    } else if (arrowType == L'<') {
+                        cellPos += 2;
+                        wstring upperLabel;
+                        wstring lowerLabel;
+                        bool hasLower = false;
+                        
+                        while (cellPos < cell.length()) {
+                            if (cell[cellPos] == L'<') {
+                                cellPos++;
+                                if (cellPos < cell.length() && cell[cellPos] == L'<') {
+                                    cellPos++;
+                                    break;
+                                } else {
+                                    hasLower = true;
+                                    while (cellPos < cell.length() && cell[cellPos] != L'<') {
+                                        lowerLabel += cell[cellPos];
+                                        cellPos++;
+                                    }
+                                    if (cellPos < cell.length() && cell[cellPos] == L'<') {
+                                        cellPos++;
+                                        if (cellPos < cell.length() && cell[cellPos] == L'<') {
+                                            cellPos++;
+                                        }
+                                    }
+                                    break;
+                                }
+                            } else {
+                                upperLabel += cell[cellPos];
+                                cellPos++;
+                            }
+                        }
+                        
+                        if (!upperLabel.empty() && !lowerLabel.empty()) {
+                            processedCell += L"\\xleftarrow[" + lowerLabel + L"]{" + upperLabel + L"}";
+                        } else if (!upperLabel.empty()) {
+                            processedCell += L"\\xleftarrow{" + upperLabel + L"}";
+                        } else {
+                            processedCell += L"\\longleftarrow";
+                        }
+                    } else if (arrowType == L'V') {
+                        cellPos += 2;
+                        wstring leftLabel;
+                        wstring rightLabel;
+                        bool hasRight = false;
+                        
+                        while (cellPos < cell.length()) {
+                            if (cell[cellPos] == L'V') {
+                                cellPos++;
+                                if (cellPos < cell.length() && (cell[cellPos] == L'V')) {
+                                    cellPos++;
+                                    break;
+                                } else {
+                                    hasRight = true;
+                                    while (cellPos < cell.length() && (cell[cellPos] != L'V')) {
+                                        rightLabel += cell[cellPos];
+                                        cellPos++;
+                                    }
+                                    if (cellPos < cell.length() && (cell[cellPos] == L'V')) {
+                                        cellPos++;
+                                        if (cellPos < cell.length() && (cell[cellPos] == L'V')) {
+                                            cellPos++;
+                                        }
+                                    }
+                                    break;
+                                }
+                            } else {
+                                leftLabel += cell[cellPos];
+                                cellPos++;
+                            }
+                        }
+                        
+                        if (!leftLabel.empty() && !rightLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad";
+                            } else {
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad";
+                            } 
+                        } else if (!leftLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}\\quad\\quad";
+                            } else  {
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\downarrow{}\\quad\\quad";
+                            } 
+                        } else if (!rightLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad";
+                            } else {
+                                processedCell += L"\\bigg\\downarrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad";
+                            } 
+                        } else {
+                            if (c == 0) {
+                                processedCell += L"\\bigg\\downarrow{}\\quad\\quad\\quad";
+                            } else {
+                                processedCell += L"\\bigg\\downarrow{}\\quad\\quad\\quad";
+                            } 
+                        } 
+                    } else if (arrowType == L'A') {
+                        cellPos += 2;
+                        wstring leftLabel;
+                        wstring rightLabel;
+                        bool hasRight = false;
+                        
+                        while (cellPos < cell.length()) {
+                            if (cell[cellPos] == L'A') {
+                                cellPos++;
+                                if (cellPos < cell.length() && (cell[cellPos] == L'A')) {
+                                    cellPos++;
+                                    break;
+                                } else {
+                                    hasRight = true;
+                                    while (cellPos < cell.length() && (cell[cellPos] != L'A')) {
+                                        rightLabel += cell[cellPos];
+                                        cellPos++;
+                                    }
+                                    if (cellPos < cell.length() && (cell[cellPos] == L'A')) {
+                                        cellPos++;
+                                        if (cellPos < cell.length() && (cell[cellPos] == L'A')) {
+                                            cellPos++;
+                                        }
+                                    }
+                                    break;
+                                }
+                            } else {
+                                leftLabel += cell[cellPos];
+                                cellPos++;
+                            }
+                        }
+                        
+                        if (!leftLabel.empty() && !rightLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad";
+                            } else {
+                                processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad";
+                            } 
+                        } else if (!leftLabel.empty()) {
+                            if (c == 0) {
+                                  processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}\\quad\\quad\\quad";
+                            } else {
+                                  processedCell += L"{\\scriptstyle " + leftLabel + L"}\\bigg\\uparrow{}\\quad\\quad\\quad";
+                            } 
+                        } else if (!rightLabel.empty()) {
+                            if (c == 0) {
+                                processedCell += L"\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad";
+                            } else {
+                                processedCell += L"\\bigg\\uparrow{}{\\scriptstyle " + rightLabel + L"}\\quad\\quad\\quad";
+                            } 
+                        } else {
+                            if (c == 0) {
+                                processedCell += L"\\bigg\\uparrow{}\\quad\\quad\\quad";
+                            } else {
+                                processedCell += L"\\bigg\\uparrow{}\\quad\\quad\\quad";
+                            }
+                        }
+                    } else if (arrowType == L'=') {
+                        cellPos += 2;
+                        processedCell += L"\\equal";
+                    } else if (arrowType == L'|') {
+                        cellPos += 2;
+                        if (c == 0) {
+                            processedCell += L"\\bigg\\Vert{}\\quad\\quad\\quad";
+                        } else  {
+                            processedCell += L"\\bigg\\Vert{}\\quad\\quad\\quad";
+                        } 
+                    } else if (arrowType == L'\\') {
+//                         Handle @\command> syntax (e.g., @\dashrightarrow>)
+                        cellPos += 2;
+                        wstring arrowName;
+
+                        // Read the arrow command name until we find '>'
+                        while (cellPos < cell.length() && cell[cellPos] != L'>') {
+                            arrowName += cell[cellPos];
+                            cellPos++;
+                        }
+
+                        // Skip the closing '>'
+                        if (cellPos < cell.length() && cell[cellPos] == L'>') {
+                            cellPos++;
+                        }
+
+                        // For \dashrightarrow, convert to @ - -> > format
+                        if (arrowName == L"dashrightarrow") {
+                            processedCell += L"\\@-\\rightarrow>";
+                        } else {
+                            // Convert to LaTeX command
+                            processedCell += L"\\" + arrowName;
+                        }
+                    } else if (arrowType == L'.') {
+                        cellPos += 2;
+                        if (c == 0) {
+                            processedCell += L"\\phantom{\\bigg\\downarrow{}}\\quad\\quad";
+                        } else {
+                            processedCell += L"\\phantom{\\bigg\\downarrow{}}\\quad\\quad";
+                        } 
+                    } else {
+                        processedCell += cell[cellPos];
+                        cellPos++;
+                    }
+                } else {
+                    processedCell += cell[cellPos];
+                    cellPos++;
+                }
+            }
+            
+            processed += processedCell;
+            if (c < rows[r].size() - 1) {
+                if (c == 0) {
+                    processed += L"\\quad\\quad\\quad";
+                }
+                processed += L" & ";
+            }
+        }
+        if (r < rows.size() - 1) {
+            processed += L" \\\\ ";
+        }
+    }
+    
+    sptr<ArrayOfAtoms> arr(new ArrayOfAtoms());
+    TeXParser parser(tp.getIsPartial(), processed, arr.get(), false);
+    parser.parse();
+    arr->checkDimensions();
+    
+    return sptr<Atom>(new MatrixAtom(
+        tp.getIsPartial(), arr, L"llll", true));
+}
 
 /**************************************** not implemented *****************************************/
 
