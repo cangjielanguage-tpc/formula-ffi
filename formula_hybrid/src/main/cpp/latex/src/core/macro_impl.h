@@ -4,6 +4,8 @@
 #include "atom/atom_basic.h"
 #include "atom/atom_impl.h"
 #include "chemfig/chemfig_atom.h"
+#include "chemfig/scheme_atom.h"
+#include "chemfig/scheme_config.h"
 #include "common.h"
 #include "core/core.h"
 #include "core/formula.h"
@@ -2159,6 +2161,27 @@ inline macro(chemfig) {
     } catch (const std::exception& e) {
         throw ex_parse(std::string("Chemfig error: ") + e.what());
     }
+}
+
+inline macro(scheme) {
+    try {
+        return sptr<Atom>(new SchemeAtom(args[1]));
+    } catch (const ex_parse&) {
+        throw;
+    } catch (const std::exception& e) {
+        throw ex_parse(std::string("Scheme error: ") + e.what());
+    }
+}
+
+inline macro(setchemfig) {
+    const std::wstring& kv = args[1];
+    size_t eqPos = kv.find(L'=');
+    if (eqPos != std::wstring::npos) {
+        std::wstring key = kv.substr(0, eqPos);
+        std::wstring value = kv.substr(eqPos + 1);
+        SchemeConfig::instance().set(key, value);
+    }
+    return sptr<Atom>(new SpaceAtom(0));
 }
 
 }  // namespace tex

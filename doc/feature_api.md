@@ -32,6 +32,7 @@ enum TeXResultCode {
   InvalidMatrixError = 2,   // 无效矩阵错误
   InvalidDelimiterError = 3, // 无效分隔符错误
   TeXError = 4,             // TeX错误
+  ChemfigError = 5,         // 化学结构式错误
   UnknownError = 99         // 未知错误
 }
 
@@ -72,6 +73,7 @@ latexStringToImageWithError(latexMathTextString: string, latexMathTextSize: numb
 | 2 | InvalidMatrixError | 无效矩阵错误 | 矩阵列数不一致、矩阵格式错误等 |
 | 3 | InvalidDelimiterError | 无效分隔符错误 | left/right不匹配、分隔符使用错误等 |
 | 4 | TeXError | TeX错误 | 未定义的命令、不支持的LaTeX特性等 |
+| 5 | ChemfigError | 化学结构式错误 | chemfig语法错误、嵌套环解析失败、分子数据不一致等 |
 | 99 | UnknownError | 未知错误 | 其他未分类的错误 |
 
 ### 使用示例
@@ -139,6 +141,9 @@ async function handleFormulaWithResultCode(formula: string) {
       break;
     case TeXResultCode.TeXError:
       console.log("TeX错误，可能使用了不支持的命令");
+      break;
+    case TeXResultCode.ChemfigError:
+      console.log("化学结构式错误，请检查chemfig语法");
       break;
     case TeXResultCode.UnknownError:
       console.log("未知错误:", result.errorMessage);

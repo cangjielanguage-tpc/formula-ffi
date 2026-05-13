@@ -1,15 +1,12 @@
 #include "bond_renderer.h"
+#include "chemfig_constants.h"
 #include <cmath>
 #include <algorithm>
 
 namespace tex {
 
 namespace {
-    constexpr float DOUBLE_BOND_OFFSET = 0.1f;
-    constexpr float TRIPLE_BOND_OFFSET = 0.4f;
-    constexpr float WEDGE_WIDTH = 0.18f;
-    constexpr float DEFAULT_BOND_WIDTH_PT = 0.8f;
-    constexpr float EPSILON = 0.001f;
+    using namespace chemfig;
 
     struct TikzStyle {
         float lineWidth;
@@ -18,12 +15,8 @@ namespace {
         bool hasColor;
         bool isDashed;
 
-        TikzStyle() : lineWidth(0), hasLineWidth(false), lineColor(black), hasColor(false), isDashed(false) {}
+        TikzStyle() : lineWidth(0), hasLineWidth(false), lineColor(0xFF000000), hasColor(false), isDashed(false) {}
     };
-
-    bool isWordBoundary(const std::wstring& s, size_t pos, size_t len) {
-        return pos + len >= s.length() || s[pos + len] == L',' || s[pos + len] == L' ';
-    }
 
     TikzStyle parseTikzStyle(const std::wstring& style) {
         TikzStyle result;
@@ -44,10 +37,8 @@ namespace {
                     numStr += style[pos++];
                 }
                 if (!numStr.empty()) {
-                    try {
-                        result.lineWidth = std::stof(std::string(numStr.begin(), numStr.end())) / DEFAULT_BOND_WIDTH_PT;
-                        result.hasLineWidth = true;
-                    } catch (...) {}
+                    result.lineWidth = safeStof(numStr) / DEFAULT_BOND_WIDTH_PT;
+                    result.hasLineWidth = true;
                 }
                 while (pos < style.length() && style[pos] != L',') pos++;
             } else if (style.compare(pos, 6, L"dashed") == 0 && isWordBoundary(style, pos, 6)) {
@@ -121,7 +112,7 @@ void BondRenderer::drawDashedLine(Graphics2D& g2, float x1, float y1, float x2, 
     }
 }
 
-void BondRenderer::drawSingle(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale) {
+void BondRenderer::drawSingle(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float) {
     g2.drawLine(from.x, from.y, to.x, to.y);
 }
 
@@ -135,11 +126,11 @@ void BondRenderer::drawDouble(Graphics2D& g2, const ChemPoint& from, const ChemP
     if (inRing) {
         ChemPoint mid = (from + to) * 0.5f;
         ChemPoint toCenter = ringCenter - mid;
-        if (bg.perp.x * toCenter.x + bg.perp.y * toCenter.y < 0) bg.perp = bg.perp * (-1);
+        if (bg.perp.dot(toCenter) < 0) bg.perp = bg.perp * (-1);
 
         g2.drawLine(from.x, from.y, to.x, to.y);
 
-        float perpDotCenter = bg.perp.x * toCenter.x + bg.perp.y * toCenter.y;
+        float perpDotCenter = bg.perp.dot(toCenter);
         bool isTriangle = (perpDotCenter < 0);
         float shortenRatio = isTriangle ? 0.618f : 0.75f;
         float actualShorten = bg.len * (1.0f - shortenRatio) * 0.5f;
@@ -172,14 +163,6 @@ void BondRenderer::drawTriple(Graphics2D& g2, const ChemPoint& from, const ChemP
     ChemPoint f2 = from + off2, t2 = to + off2;
     g2.drawLine(f1.x, f1.y, t1.x, t1.y);
     g2.drawLine(f2.x, f2.y, t2.x, t2.y);
-}
-
-void BondRenderer::drawWedgeHollow(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale, bool up) {
-    if (up) {
-        drawWedgeHollowUp(g2, from, to, scale);
-    } else {
-        drawWedgeHollowDown(g2, from, to, scale);
-    }
 }
 
 void BondRenderer::drawWedgeHollowUp(Graphics2D& g2, const ChemPoint& from, const ChemPoint& to, float scale) {
@@ -227,7 +210,7 @@ void BondRenderer::drawWedgeDotted(Graphics2D& g2, const ChemPoint& from, const 
     for (int i = 0; i <= NUM_DASHES; i++) {
         float t = static_cast<float>(i) / NUM_DASHES;
         ChemPoint p = from + delta * t;
-        float w = WEDGE_WIDTH * scale * (up ? (1 - t) : t );
+        float w = WEDGE_WIDTH * scale * (up ? (1 - t) : t);
         ChemPoint p1 = p + bg.perp * w;
         ChemPoint p2 = p - bg.perp * w;
         g2.drawLine(p1.x, p1.y, p2.x, p2.y);
@@ -250,11 +233,6 @@ void BondRenderer::drawWedgeSolidUp(Graphics2D& g2, const ChemPoint& from, const
     float wideW = WEDGE_WIDTH * effectiveScale;
     float narrowW = WEDGE_WIDTH * effectiveScale * 0.2f;
 
-    ChemPoint base1 = from + bg.perp * wideW;
-    ChemPoint base2 = from - bg.perp * wideW;
-    ChemPoint tip1 = to + bg.perp * narrowW;
-    ChemPoint tip2 = to - bg.perp * narrowW;
-
     ChemPoint delta = to - from;
     int steps = std::max(2, static_cast<int>(bg.len / (0.02f * effectiveScale)));
     for (int i = 0; i <= steps; i++) {
@@ -274,11 +252,6 @@ void BondRenderer::drawWedgeSolidDown(Graphics2D& g2, const ChemPoint& from, con
     float effectiveScale = std::max(scale, EPSILON);
     float wideW = WEDGE_WIDTH * effectiveScale;
     float narrowW = WEDGE_WIDTH * effectiveScale * 0.2f;
-
-    ChemPoint base1 = from + bg.perp * narrowW;
-    ChemPoint base2 = from - bg.perp * narrowW;
-    ChemPoint tip1 = to + bg.perp * wideW;
-    ChemPoint tip2 = to - bg.perp * wideW;
 
     ChemPoint delta = to - from;
     int steps = std::max(2, static_cast<int>(bg.len / (0.02f * effectiveScale)));

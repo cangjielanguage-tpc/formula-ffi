@@ -1,4 +1,5 @@
 #include "chemfig_box.h"
+#include "chemfig_constants.h"
 #include "fonts/fonts.h"
 #include <cmath>
 #include <algorithm>
@@ -6,14 +7,7 @@
 namespace tex {
 
 namespace {
-    constexpr float PADDING = 0.5f;
-    constexpr float BOND_SCALE = 1.0f;
-    constexpr float TEXT_BOND_GAP = 0.12f;
-    constexpr float BOND_LINE_WIDTH = 0.055f;
-    constexpr float SUBSCRIPT_SCALE = 0.7f;
-    constexpr float SUPERSCRIPT_RISE = 0.35f;
-    constexpr float EPSILON = 0.0001f;
-    constexpr float CHEMFIG_PI = 3.14159265358979f;
+    using namespace chemfig;
 
     float computeShortening(float dirX, float dirY, float halfW, float halfH) {
         float tx = (std::abs(dirX) > EPSILON) ? halfW / std::abs(dirX) : 1e6f;
@@ -70,19 +64,18 @@ namespace {
     float computeSegmentsTotalWidth(const std::vector<TextSegment>& segments) {
         float total = 0;
         for (size_t i = 0; i < segments.size(); i++) {
-            const auto& seg = segments[i];
             bool isScriptPair = false;
             if (i + 1 < segments.size()) {
                 TextSegmentType nextType = segments[i + 1].type;
-                if ((seg.type == SEG_SUPERSCRIPT && nextType == SEG_SUBSCRIPT) ||
-                    (seg.type == SEG_SUBSCRIPT && nextType == SEG_SUPERSCRIPT)) {
+                if ((segments[i].type == SEG_SUPERSCRIPT && nextType == SEG_SUBSCRIPT) ||
+                    (segments[i].type == SEG_SUBSCRIPT && nextType == SEG_SUPERSCRIPT)) {
                     isScriptPair = true;
-                    total += std::max(seg.width, segments[i + 1].width);
+                    total += std::max(segments[i].width, segments[i + 1].width);
                     i++;
                 }
             }
             if (!isScriptPair) {
-                total += seg.width;
+                total += segments[i].width;
             }
         }
         return total;
@@ -135,10 +128,18 @@ namespace {
         float textH = bounds.h * textScale;
         return {textW / 2, textH / 2, -bounds.y * textScale, textH};
     }
+
+    int findAnchorIndex(const std::vector<Anchor>& anchors, int atomIndex) {
+        int idx = 0;
+        while (idx < static_cast<int>(anchors.size()) && atomIndex > anchors[idx].atomIndex) {
+            idx++;
+        }
+        return idx;
+    }
 }
 
 ChemfigBox::ChemfigBox(const Molecule& mol, color c, const sptr<Font>& font, float sizeFactor)
-    : _molecule(mol), _color(c), _font(font), _sizeFactor(sizeFactor) {
+    : _molecule(mol), _color(c), _font(font), _sizeFactor(sizeFactor), _layoutsBuilt(false) {
     calculateLayout();
 }
 
@@ -150,6 +151,8 @@ void ChemfigBox::calculateLayout() {
         _foreground = _color;
         _textBoundsMinX = 0;
         _textBoundsMinY = 0;
+        _textBoundsMaxX = 0;
+        _textBoundsMaxY = 0;
         return;
     }
 
@@ -186,12 +189,12 @@ void ChemfigBox::calculateLayout() {
     _foreground = _color;
     _textBoundsMinX = minX;
     _textBoundsMinY = minY;
+    _textBoundsMaxX = maxX;
+    _textBoundsMaxY = maxY;
 }
 
-void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
-    _atomLayouts.clear();
-    _atomTextBounds.clear();
-    float textScale = 0.1f * _sizeFactor;
+float ChemfigBox::computeAnchorYOffset(int atomIndex) const {
+    if (_molecule.rings.size() > 0) return 0.0f;
 
     bool hasAngleControl = false;
     for (const auto& b : _molecule.bonds) {
@@ -200,6 +203,17 @@ void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
             break;
         }
     }
+    if (hasAngleControl) return 0.0f;
+    if (_molecule.anchors.empty()) return 0.0f;
+
+    int anchorIdx = findAnchorIndex(_molecule.anchors, atomIndex);
+    return (_textBoundsMinY * 0.5f) * anchorIdx;
+}
+
+void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
+    _atomLayouts.clear();
+    _atomTextBounds.clear();
+    float textScale = 0.1f * _sizeFactor;
 
     for (int i = 0; i < static_cast<int>(_molecule.atoms.size()); i++) {
         const auto& atom = _molecule.atoms[i];
@@ -208,21 +222,7 @@ void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
         AtomLayout layout;
         layout.text = atom.text;
 
-        auto anchorsYOffset = 0.0f;
-
-        if (!_molecule.rings.size() && !hasAngleControl) {
-            if(_molecule.anchors.size() > 0) {
-                if (i > _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
-                    anchorsYOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
-                } else {
-                    int anchorIndex = 0;
-                    while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && i > _molecule.anchors[anchorIndex].atomIndex) {
-                        anchorIndex++;
-                    }
-                    anchorsYOffset = (_textBoundsMinY * 0.5) * anchorIndex;
-                }
-            }
-        }
+        float anchorsYOffset = computeAnchorYOffset(i);
 
         layout.x = atom.position.x * scale + offsetX;
         layout.y = atom.position.y * scale + offsetY - anchorsYOffset;
@@ -255,20 +255,20 @@ void ChemfigBox::buildAtomLayouts(float offsetX, float offsetY, float scale) {
         _atomTextBounds[i] = {tm.halfW, tm.halfH};
         _atomLayouts.push_back(layout);
     }
+    _layoutsBuilt = true;
 }
 
 void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
     if (_molecule.atoms.empty()) return;
 
-    ChemPoint ringCenter = _molecule.center();
     float scale = BOND_SCALE;
     float offsetX = x - _textBoundsMinX * scale + PADDING * scale;
-    float offsetY = y - _textBoundsMinY * scale - (_molecule.maxY - _textBoundsMinY) * scale / 2;
+    float offsetY = y - _textBoundsMinY * scale - (_textBoundsMaxY - _textBoundsMinY) * scale / 2;
 
     int bondCount = 0;
     for (const auto& bond : _molecule.bonds) {
-        if (bond.fromAtom < 0 || bond.fromAtom >= static_cast<int>(_molecule.atoms.size())) continue;
-        if (bond.toAtom < 0 || bond.toAtom >= static_cast<int>(_molecule.atoms.size())) continue;
+        if (!_molecule.isValidAtomIndex(bond.fromAtom)) continue;
+        if (!_molecule.isValidAtomIndex(bond.toAtom)) continue;
 
         const AtomNode& from = _molecule.atoms[bond.fromAtom];
         const AtomNode& to = _molecule.atoms[bond.toAtom];
@@ -277,66 +277,23 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
         float toX = to.position.x * scale + offsetX;
         float fromY = 0.0f;
         float toY = 0.0f;
-        auto anchorYOffset = 0.0f;
-        auto anchorYFromOffset = 0.0f;
-        auto anchorYToOffset = 0.0f;
+
+        float anchorYOffset = 0.0f;
+        float anchorYFromOffset = 0.0f;
+        float anchorYToOffset = 0.0f;
 
         bool hasAngleControl = bond.params.hasAngle;
 
-        if (!_molecule.rings.size() && !hasAngleControl) {
-            if (_molecule.anchors.size() > 0 && !bond.isHook) {
-                if (bondCount >= _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
-                    anchorYOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
-                } else {
-                    int anchorIndex = 0;
-                    while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && bondCount >= _molecule.anchors[anchorIndex].atomIndex) {
-                        anchorIndex++;
-                    }
-                    anchorYOffset = (_textBoundsMinY * 0.5) * anchorIndex;
-                }
-            } else if (_molecule.anchors.size() > 0 && bond.isHook) {
-                if (bond.fromAtom > _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
-                    anchorYFromOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
-                    anchorYToOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
-                } else if (bond.toAtom > _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
-                    anchorYToOffset = (_textBoundsMinY * 0.5) * _molecule.anchors.size();
-                    if (bond.fromAtom < _molecule.anchors[0].atomIndex) {
-                        anchorYFromOffset = 0.0f;
-                    } else if (bond.fromAtom > _molecule.anchors[0].atomIndex) {
-                        int anchorIndex = 0;
-                        while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && bond.fromAtom > _molecule.anchors[anchorIndex].atomIndex) {
-                            anchorIndex++;
-                        }
-                        anchorYFromOffset = (_textBoundsMinY * 0.5) * anchorIndex;
-                    }
-                }  else if (bond.toAtom < _molecule.anchors[0].atomIndex) {
-                    anchorYFromOffset = 0.0f;
-                    anchorYToOffset = 0.0f;
-                } else if (bond.toAtom < _molecule.anchors[_molecule.anchors.size() - 1].atomIndex) {
-                    if (bond.fromAtom < _molecule.anchors[0].atomIndex) {
-                        anchorYFromOffset = 0.0f;
-                        int anchorIndex = 0;
-                        while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && bond.toAtom > _molecule.anchors[anchorIndex].atomIndex) {
-                            anchorIndex++;
-                        }
-                        anchorYToOffset = (_textBoundsMinY * 0.5) * anchorIndex;
-                    } else if (bond.fromAtom > _molecule.anchors[0].atomIndex) {
-                        int anchorIndex = 0;
-                        while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && bond.fromAtom > _molecule.anchors[anchorIndex].atomIndex) {
-                            anchorIndex++;
-                        }
-                        anchorYFromOffset = (_textBoundsMinY * 0.5) * anchorIndex;
-                        while (anchorIndex < static_cast<int>(_molecule.anchors.size()) && bond.toAtom > _molecule.anchors[anchorIndex].atomIndex) {
-                            anchorIndex++;
-                        }
-                        anchorYToOffset = (_textBoundsMinY * 0.5) * anchorIndex;
-                    }
-                }
+        if (_molecule.rings.empty() && !hasAngleControl && !_molecule.anchors.empty()) {
+            if (!bond.isHook) {
+                anchorYOffset = computeAnchorYOffset(bondCount);
+            } else {
+                anchorYFromOffset = computeAnchorYOffset(bond.fromAtom);
+                anchorYToOffset = computeAnchorYOffset(bond.toAtom);
             }
         }
 
-
-        fromY = from.position.y * scale + offsetY - anchorYOffset - anchorYFromOffset;    
+        fromY = from.position.y * scale + offsetY - anchorYOffset - anchorYFromOffset;
         toY = to.position.y * scale + offsetY - anchorYOffset - anchorYToOffset;
 
         float dx = toX - fromX;
@@ -371,7 +328,7 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
             }
         }
 
-        ChemPoint bondRingCenter = ringCenter;
+        ChemPoint bondRingCenter = _molecule.center();
         bool bondInRing = false;
         if (bond.ringIndex >= 0 && bond.ringIndex < static_cast<int>(_molecule.rings.size())) {
             bondRingCenter = _molecule.rings[bond.ringIndex].center;
@@ -440,12 +397,14 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
     }
 
     for (const auto& ring : _molecule.rings) {
-        if (ring.hasInnerCircle && ring.sides > 0) {
+        if (ring.hasInnerCircle && ring.sides > 0 && ring.radius > EPSILON) {
             float cx = ring.center.x * scale + offsetX;
             float cy = ring.center.y * scale + offsetY;
-            float apothem = ring.radius * scale * std::cos(CHEMFIG_PI / ring.sides);
+            float apothem = ring.radius * scale * std::cos(CHEM_PI / ring.sides);
             float r = apothem * 0.75f;
-            g2.drawEllipse(cx - r, cy + r, r * 2, r * 2, r, r, BOND_LINE_WIDTH * scale, 0.0f);
+            if (r > EPSILON) {
+                g2.drawEllipse(cx - r, cy + r, r * 2, r * 2, r, r, BOND_LINE_WIDTH * scale, 0.0f);
+            }
         }
     }
 }
@@ -461,10 +420,11 @@ void ChemfigBox::draw(Graphics2D& g2, float x, float y) {
 
     float scale = BOND_SCALE;
     float offsetX = x - _textBoundsMinX * scale + PADDING * scale;
-    float offsetY = y - _textBoundsMinY * scale - (_molecule.maxY - _textBoundsMinY) * scale / 2;
+    float offsetY = y - _textBoundsMinY * scale - (_textBoundsMaxY - _textBoundsMinY) * scale / 2;
 
-
-    buildAtomLayouts(offsetX, offsetY, scale);
+    if (!_layoutsBuilt) {
+        buildAtomLayouts(offsetX, offsetY, scale);
+    }
 
     drawMolecule(g2, x, y);
 

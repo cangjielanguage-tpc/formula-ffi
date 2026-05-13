@@ -48,18 +48,22 @@ private:
     float _sizeFactor;
     float _textBoundsMinX;
     float _textBoundsMinY;
+    float _textBoundsMaxX;
+    float _textBoundsMaxY;
     std::vector<AtomLayout> _atomLayouts;
     std::unordered_map<int, AtomTextBounds> _atomTextBounds;
-    
+    bool _layoutsBuilt;
+
     void calculateLayout();
     void buildAtomLayouts(float offsetX, float offsetY, float scale);
+    float computeAnchorYOffset(int atomIndex) const;
     void drawMolecule(Graphics2D& g2, float x, float y);
 
 public:
     ChemfigBox(const Molecule& mol, color c, const sptr<Font>& font, float sizeFactor);
-    
+
     void draw(Graphics2D& g2, float x, float y) override;
-    
+
     int getLastFontId() override;
 };
 

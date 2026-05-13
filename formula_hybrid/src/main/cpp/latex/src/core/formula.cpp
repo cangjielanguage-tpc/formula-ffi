@@ -6,6 +6,7 @@
 #include "fonts/fonts.h"
 #include "graphic/graphic.h"
 #include "res/parser/formula_parser.h"
+#include "chemfig/scheme_parser.h"
 
 using namespace std;
 using namespace tex;
@@ -135,8 +136,9 @@ TeXFormula::TeXFormula(const TeXFormula* f) {
 }
 
 void TeXFormula::setLaTeX(const wstring& latex) throw(ex_parse) {
-    _parser.reset(latex);
-    if (!latex.empty()) _parser.parse();
+    wstring processed = SchemeParser::preprocessSchemeSyntax(latex);
+    _parser.reset(processed);
+    if (!processed.empty()) _parser.parse();
 }
 
 TeXFormula* TeXFormula::add(const sptr<Atom>& el) {

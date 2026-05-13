@@ -1,25 +1,16 @@
-#include "chemfig_parser.h"
+﻿#include "chemfig_parser.h"
+#include "chemfig_constants.h"
 #include "common.h"
 #include <cmath>
+#include <cstdlib>
 #include <cwctype>
 
 namespace tex {
 
 namespace {
-    constexpr float CHEMFIG_PI = 3.14159265358979f;
-    constexpr float DEFAULT_BOND_LENGTH = 3.0f; // 与TeX Live chemfig的3em一致
-    constexpr float ANGLE_INCREMENT = 45.0f * CHEMFIG_PI / 180.0f;
-    constexpr float EPSILON = 0.0001f;
-    
-    // 根据环大小计算环半径，与TeX Live chemfig一致
-    inline float calculateRingRadius(int ringSize) {
-        // 六元环的半径约为键长的1.15倍，其他环按比例调整
-        float baseRadius = DEFAULT_BOND_LENGTH * 1.15f;
-        if (ringSize == 3) return baseRadius * 0.577f; // 三角形
-        if (ringSize == 4) return baseRadius * 0.707f; // 正方形
-        if (ringSize == 5) return baseRadius * 0.85f;  // 五元环
-        return baseRadius; // 六元环及以上
-    }
+    using namespace chemfig;
+
+    constexpr float ANGLE_INCREMENT = ANGLE_INCREMENT_DEG * CHEM_PI / 180.0f;
 }
 
 wchar_t ChemfigParser::peek(const wchar_t* p) {
@@ -31,7 +22,7 @@ wchar_t ChemfigParser::peekNext(const wchar_t* p) {
 }
 
 void ChemfigParser::skipWhitespace(const wchar_t*& p) {
-    while (p && iswspace(*p)) p++;
+    while (p && *p != L'\0' && iswspace(*p)) p++;
 }
 
 bool ChemfigParser::match(const wchar_t*& p, wchar_t expected) {
@@ -58,11 +49,11 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
             int savedAtomIndex = atomIndex;
             result = parseRing(p, mol, atomIndex);
             if (!result || mol.rings.size() <= ringCountBefore) return false;
-            Ring& firstRing = mol.rings[ringCountBefore - 1];
-            Ring& secondRing = mol.rings.back();
+            size_t firstRingIdx = ringCountBefore - 1;
+            size_t secondRingIdx = mol.rings.size() - 1;
             int rightmostAtom = -1;
             float maxX = -1e30f;
-            for (int idx : firstRing.atomIndices) {
+            for (int idx : mol.rings[firstRingIdx].atomIndices) {
                 if (idx >= 0 && idx < static_cast<int>(mol.atoms.size())) {
                     if (mol.atoms[idx].position.x > maxX) {
                         maxX = mol.atoms[idx].position.x;
@@ -87,8 +78,8 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
                     mol.atoms[i].position.x += offset.x;
                     mol.atoms[i].position.y += offset.y;
                 }
-                secondRing.center.x += offset.x;
-                secondRing.center.y += offset.y;
+                mol.rings[secondRingIdx].center.x += offset.x;
+                mol.rings[secondRingIdx].center.y += offset.y;
                 if (mol.addBond(rightmostAtom, leftmostNewAtom, BOND_SINGLE, BondParams()) < 0) return false;
             }
         } else {
@@ -96,7 +87,7 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
             if (!mol.atoms.empty()) lastAtomId = static_cast<int>(mol.atoms.size()) - 1;
             float lastAngle = 0.0f;
             if (!mol.rings.empty()) {
-                auto& lastRing = mol.rings.back();
+                const Ring& lastRing = mol.rings.back();
                 if (!lastRing.atomIndices.empty()) {
                     lastAtomId = lastRing.atomIndices.back();
                     if (lastAtomId >= 0 && lastAtomId < static_cast<int>(mol.atoms.size())) {
@@ -180,7 +171,7 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         float edgeLen = edgeDir.length();
         if (edgeLen < EPSILON) return false;
 
-        float angleStep = 2.0f * CHEMFIG_PI / ringSize;
+        float angleStep = CHEM_TWO_PI / ringSize;
         float halfStep = angleStep / 2.0f;
         float subRadius = edgeLen / (2.0f * std::sin(halfStep));
         ChemPoint outNormal = ChemPoint(-edgeDir.y, edgeDir.x).normalized();
@@ -204,14 +195,12 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
             return false;
         }
         ChemPoint firstPos = mol.atoms[sharedFromAtom].position;
-        float angleStep = 2.0f * CHEMFIG_PI / ringSize;
+        float angleStep = CHEM_TWO_PI / ringSize;
         float startAngle;
         if (ringSize == 3) {
-            // 三角形环：在现有基础上顺时针旋转180度，起始角度为 π
-            startAngle = CHEMFIG_PI;
+            startAngle = CHEM_PI;
         } else {
-            // 其他环：使用原有公式
-            startAngle = -(CHEMFIG_PI - CHEMFIG_PI / ringSize);
+            startAngle = -(CHEM_PI - CHEM_PI / ringSize);
         }
 
         ChemPoint centerOffset(ring.radius * std::cos(startAngle),
@@ -227,8 +216,8 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
             ring.atomIndices.push_back(mol.addAtom(pos));
         }
     } else {
-        float angleStep = 2.0f * CHEMFIG_PI / ringSize;
-        float startAngle = -(CHEMFIG_PI - CHEMFIG_PI / ringSize);
+        float angleStep = CHEM_TWO_PI / ringSize;
+        float startAngle = -(CHEM_PI - CHEM_PI / ringSize);
 
         float cx = 0, cy = 0;
         for (int i = 0; i < ringSize; i++) {
@@ -296,6 +285,7 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         skipWhitespace(p);
 
         if (peek(p) == L'*') {
+            if (i >= static_cast<int>(mol.rings[currentRingIndex].atomIndices.size())) return false;
             int fromIdx = mol.rings[currentRingIndex].atomIndices[i];
             int toIdx = mol.rings[currentRingIndex].atomIndices[(i + 1) % ringSize];
             BondType nestedSharedBondType = BOND_SINGLE;
@@ -307,15 +297,16 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
 
         if (peek(p) == L'(') {
             p++;
+            if (i >= static_cast<int>(mol.rings[currentRingIndex].atomIndices.size())) return false;
             int branchAtomIdx = mol.rings[currentRingIndex].atomIndices[i];
             if (branchAtomIdx < 0 || branchAtomIdx >= static_cast<int>(mol.atoms.size())) return false;
             ChemPoint branchPos = mol.atoms[branchAtomIdx].position;
             float branchAngle;
             if (ringSize == 3) {
-                float angleStep = 2.0f * CHEMFIG_PI / ringSize;
-                float startAngle = CHEMFIG_PI;
+                float angleStep = CHEM_TWO_PI / ringSize;
+                float startAngle = CHEM_PI;
                 float atomAngle = startAngle + i * angleStep;
-                branchAngle = atomAngle + CHEMFIG_PI / 2;
+                branchAngle = atomAngle + CHEM_PI / 2;
             } else {
                 branchAngle = std::atan2(-(branchPos.y - mol.rings[currentRingIndex].center.y), branchPos.x - mol.rings[currentRingIndex].center.x);
             }
@@ -329,6 +320,7 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         skipWhitespace(p);
         std::wstring label = parseAtomGroup(p);
 
+        if (i >= static_cast<int>(mol.rings[currentRingIndex].atomIndices.size())) return false;
         mol.rings[currentRingIndex].bondTypes.push_back(bt);
         if (mol.addBond(mol.rings[currentRingIndex].atomIndices[i], mol.rings[currentRingIndex].atomIndices[(i + 1) % ringSize], bt, params, currentRingIndex) < 0) return false;
 
@@ -375,9 +367,8 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
 static float resolveBondAngle(const BondParams& params, float lastAngle) {
     if (!params.hasAngle) return lastAngle;
     float newAngle = params.isRelativeAngle ? lastAngle + params.angle : params.angle;
-    // 归一化角度到 [0, 2π) 范围，避免累积误差
-    while (newAngle >= 2.0f * CHEMFIG_PI) newAngle -= 2.0f * CHEMFIG_PI;
-    while (newAngle < 0) newAngle += 2.0f * CHEMFIG_PI;
+    while (newAngle >= chemfig::CHEM_TWO_PI) newAngle -= chemfig::CHEM_TWO_PI;
+    while (newAngle < 0) newAngle += chemfig::CHEM_TWO_PI;
     return newAngle;
 }
 
@@ -387,23 +378,12 @@ static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& lab
     if (fromAtomId < 0 || fromAtomId >= static_cast<int>(mol.atoms.size())) {
         return -1;
     }
-    
+
     mol.updateMaxAtomWidth(mol.atoms[fromAtomId].text);
     mol.updateMaxAtomWidth(label);
-    
-    float bondLength = DEFAULT_BOND_LENGTH * params.lengthCoeff;
-    
-    // 与TeX Live chemfig一致的键长调整逻辑
-    float fromAtomWidth = Molecule::calculateAtomWidth(mol.atoms[fromAtomId].text);
-    float toAtomWidth = Molecule::calculateAtomWidth(label);
-    
-    // 基于原子宽度的键长调整，更接近TeX Live chemfig的行为
-    float widthAdjustment = (fromAtomWidth + toAtomWidth - 2.0f) * 0.15f;
-    bondLength += widthAdjustment;
-    
-    // 确保最小键长
-    bondLength = std::max(bondLength, DEFAULT_BOND_LENGTH * 0.8f);
-    
+
+    float bondLength = chemfig::DEFAULT_BOND_LENGTH * params.lengthCoeff;
+
     ChemPoint lastPos = mol.atoms[fromAtomId].position;
     ChemPoint newPos(lastPos.x + bondLength * std::cos(bondAngle),
                      lastPos.y - bondLength * std::sin(bondAngle));
@@ -471,7 +451,7 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
         if (ch == L'*') {
             if (!parseRing(p, mol, atomIndex, lastAtomId, -1)) return false;
             if (!mol.rings.empty()) {
-                auto& lastRing = mol.rings.back();
+                const Ring& lastRing = mol.rings.back();
                 if (!lastRing.atomIndices.empty()) {
                     lastAtomId = lastRing.atomIndices.back();
                 }
@@ -535,26 +515,22 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
     while (peek(p) != L'\0' && peek(p) != L')') {
         skipWhitespace(p);
         wchar_t ch = peek(p);
-        if (ch == L')') break;
+        if (ch == L'\0' || ch == L')') break;
 
         if (ch == L'(') {
             p++;
-            int tempLastAtomId = savedLastAtomId;
-            float tempLastAngle = savedLastAngle;
             size_t prevAtomCount = mol.atoms.size();
             if (!parseBranch(p, mol, atomIndex, savedLastAtomId, savedLastAngle)) return false;
             if (mol.atoms.size() > prevAtomCount) {
                 lastBranchAtomId = static_cast<int>(mol.atoms.size()) - 1;
             }
-            savedLastAtomId = tempLastAtomId;
-            savedLastAngle = tempLastAngle;
             continue;
         }
 
         if (ch == L'*') {
             if (!parseRing(p, mol, atomIndex, savedLastAtomId, -1)) return false;
             if (!mol.rings.empty()) {
-                auto& lastRing = mol.rings.back();
+                const Ring& lastRing = mol.rings.back();
                 if (!lastRing.atomIndices.empty()) {
                     savedLastAtomId = lastRing.atomIndices.back();
                 }
@@ -675,32 +651,31 @@ BondParams ChemfigParser::parseBondParams(const wchar_t*& p, float currentAngle)
             params.hasAngle = true;
             if (af.length() > 1 && af[1] == L':') {
                 params.isRelativeAngle = true;
-                try { params.angle = std::stof(af.substr(2)) * CHEMFIG_PI / 180.0f; } catch (...) {}
+                params.angle = safeStof(af.substr(2)) * CHEM_PI / 180.0f;
             } else {
                 params.isRelativeAngle = false;
-                try {
-                    std::wstring numStr = af.substr(1);
-                    if (numStr.empty()) { params.hasAngle = false; }
-                    else {
-                        float sign = (numStr[0] == L'-') ? -1.0f : 1.0f;
-                        if (numStr[0] == L'-') numStr = numStr.substr(1);
-                        if (!numStr.empty()) params.angle = sign * std::stof(numStr) * CHEMFIG_PI / 180.0f;
-                        else params.hasAngle = false;
-                    }
-                } catch (...) { params.hasAngle = false; }
+                std::wstring numStr = af.substr(1);
+                if (numStr.empty()) { params.hasAngle = false; }
+                else {
+                    float sign = (numStr[0] == L'-') ? -1.0f : 1.0f;
+                    if (numStr[0] == L'-') numStr = numStr.substr(1);
+                    if (!numStr.empty()) params.angle = sign * safeStof(numStr) * CHEM_PI / 180.0f;
+                    else params.hasAngle = false;
+                }
             }
         } else {
-            try {
-                params.hasAngle = true;
-                params.isRelativeAngle = false;
-                params.angle = std::stof(af) * ANGLE_INCREMENT;
-            } catch (...) {}
+            params.hasAngle = true;
+            params.isRelativeAngle = false;
+            params.angle = safeStof(af) * ANGLE_INCREMENT;
         }
     }
 
-    if (!fields[1].empty()) { try { params.lengthCoeff = std::stof(fields[1]); } catch (...) {} }
-    if (!fields[2].empty()) { try { params.fromAtomNum = std::stoi(fields[2]); } catch (...) {} }
-    if (!fields[3].empty()) { try { params.toAtomNum = std::stoi(fields[3]); } catch (...) {} }
+    if (!fields[1].empty()) {
+        params.lengthCoeff = safeStof(fields[1]);
+        if (params.lengthCoeff <= 0.0f) params.lengthCoeff = 1.0f;
+    }
+    if (!fields[2].empty()) { params.fromAtomNum = safeStoi(fields[2]); }
+    if (!fields[3].empty()) { params.toAtomNum = safeStoi(fields[3]); }
     if (!fields[4].empty()) { params.tikzStyle = fields[4]; }
 
     return params;
@@ -723,18 +698,42 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
                 }
                 break;
             }
+            if (ch == L'_' || ch == L'^') {
+                label += ch;
+                p++;
+                if (peek(p) == L'{') {
+                    p++;
+                    int depth = 1;
+                    while (peek(p) != L'\0' && depth > 0) {
+                        if (peek(p) == L'{') depth++;
+                        else if (peek(p) == L'}') {
+                            depth--;
+                            if (depth == 0) break;
+                        }
+                        label += *p;
+                        p++;
+                    }
+                    if (peek(p) == L'}') p++;
+                } else if (peek(p) != L'\0') {
+                    label += *p;
+                    p++;
+                }
+                label += L'|';
+                continue;
+            }
             label += ch;
             p++;
         } else {
             if (ch == L'(') {
                 const wchar_t* scan = p + 1;
+                if (!scan) { p++; continue; }
                 int depth = 1;
-                while (*scan != L'\0' && depth > 0) {
+                while (scan && *scan != L'\0' && depth > 0) {
                     if (*scan == L'(') depth++;
                     else if (*scan == L')') depth--;
                     if (depth > 0) scan++;
                 }
-                if (*scan == L')' && (*(scan + 1) == L'_' || *(scan + 1) == L'^') && *(scan + 2) == L'{') {
+                if (scan && *scan == L')' && *(scan + 1) != L'\0' && (*(scan + 1) == L'_' || *(scan + 1) == L'^') && *(scan + 2) == L'{') {
                     label += L'(';
                     p++;
                     depth = 1;
@@ -748,8 +747,8 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
                         label += c;
                         p++;
                         if ((c == L'_' || c == L'^') && peek(p) != L'{') {
-                            while (peek(p) != L'\0' && 
-                                   ((peek(p) >= L'0' && peek(p) <= L'9') || 
+                            while (peek(p) != L'\0' &&
+                                   ((peek(p) >= L'0' && peek(p) <= L'9') ||
                                     (peek(p) >= L'a' && peek(p) <= L'z') ||
                                     (peek(p) >= L'A' && peek(p) <= L'Z'))) {
                                 label += *p;
@@ -789,6 +788,7 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
                 if (peek(p) == L'}') {
                     p++;
                 }
+                label += L'|';
                 continue;
             }
             if (ch == L'_' && peekNext(p) == L'{') {
@@ -802,10 +802,21 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
                 if (peek(p) == L'}') {
                     p++;
                 }
+                label += L'|';
+                continue;
+            }
+            if ((ch == L'_' || ch == L'^') && peekNext(p) != L'{') {
+                label += ch;
+                p++;
+                if (peek(p) != L'\0' && peek(p) != L'_' && peek(p) != L'^') {
+                    label += *p;
+                    p++;
+                }
+                label += L'|';
                 continue;
             }
             if ((ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z') ||
-                (ch >= L'0' && ch <= L'9') || ch == L'_' || ch == L'^' || ch == L'+' || ch == L' ' || ch == L'|' || ch == L'#') {
+                (ch >= L'0' && ch <= L'9') || ch == L'+' || ch == L' ' || ch == L'|' || ch == L'#') {
                 label += ch;
                 p++;
             } else {
@@ -839,7 +850,8 @@ float ChemfigParser::parseNumber(const wchar_t*& p) {
     }
 
     if (numStr.empty()) return 0;
-    try { return negative ? -std::stof(numStr) : std::stof(numStr); } catch (...) { return 0; }
+    float val = safeStof(numStr);
+    return negative ? -val : val;
 }
 
 float ChemfigParser::parseAngleSpec(const wchar_t*& p, float currentAngle) {
@@ -850,7 +862,7 @@ float ChemfigParser::parseAngleSpec(const wchar_t*& p, float currentAngle) {
     float angle = parseNumber(p);
     if (negative) angle = -angle;
 
-    angle = angle * CHEMFIG_PI / 180.0f;
+    angle = angle * CHEM_PI / 180.0f;
     return isRelative ? currentAngle + angle : angle;
 }
 

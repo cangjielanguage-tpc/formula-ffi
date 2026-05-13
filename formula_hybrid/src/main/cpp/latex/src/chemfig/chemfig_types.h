@@ -1,6 +1,7 @@
 #ifndef CHEMFIG_TYPES_H_INCLUDED
 #define CHEMFIG_TYPES_H_INCLUDED
 
+#include "chemfig_constants.h"
 #include "common.h"
 #include <vector>
 #include <string>
@@ -24,10 +25,10 @@ enum BondType {
 struct ChemPoint {
     float x;
     float y;
-    
+
     ChemPoint() : x(0), y(0) {}
     ChemPoint(float px, float py) : x(px), y(py) {}
-    
+
     ChemPoint operator+(const ChemPoint& other) const {
         return ChemPoint(x + other.x, y + other.y);
     }
@@ -37,16 +38,23 @@ struct ChemPoint {
     ChemPoint operator*(float s) const {
         return ChemPoint(x * s, y * s);
     }
+    ChemPoint operator/(float s) const {
+        if (std::abs(s) < chemfig::EPSILON) return ChemPoint(0, 0);
+        return ChemPoint(x / s, y / s);
+    }
     float length() const {
         return std::sqrt(x * x + y * y);
     }
     ChemPoint normalized() const {
         float len = length();
-        if (len < 0.0001f) return ChemPoint(0, 0);
+        if (len < chemfig::EPSILON) return ChemPoint(0, 0);
         return ChemPoint(x / len, y / len);
     }
     ChemPoint perpendicular() const {
         return ChemPoint(-y, x);
+    }
+    float dot(const ChemPoint& other) const {
+        return x * other.x + y * other.y;
     }
 };
 
@@ -126,7 +134,7 @@ struct Molecule {
     std::vector<Ring> rings;
     std::vector<Hook> hooks;
     std::vector<Anchor> anchors;
-    
+
     float minX, maxX, minY, maxY;
     float maxAtomWidth;
 
@@ -149,23 +157,23 @@ struct Molecule {
 
     float width() const { return maxX - minX; }
     float height() const { return maxY - minY; }
-    
+
     ChemPoint center() const {
         return ChemPoint((minX + maxX) / 2, (minY + maxY) / 2);
     }
-    
+
     int addAtom(const ChemPoint& pos, const std::wstring& text = L"", int number = -1) {
-        int id = atoms.size();
+        int id = static_cast<int>(atoms.size());
         atoms.push_back(AtomNode(pos, text, number));
         return id;
     }
-    
+
     int addBond(int from, int to, BondType type, const BondParams& params = BondParams(), int ringIdx = -1, bool isHook = false) {
         if (from < 0 || from >= static_cast<int>(atoms.size()) ||
             to < 0 || to >= static_cast<int>(atoms.size())) {
             return -1;
         }
-        int id = bonds.size();
+        int id = static_cast<int>(bonds.size());
         Bond bond;
         bond.fromAtom = from;
         bond.toAtom = to;
@@ -179,11 +187,11 @@ struct Molecule {
 
     static float calculateAtomWidth(const std::wstring& atomLabel) {
         if (atomLabel.empty()) return 1.0f;
-        
+
         float width = 0.0f;
         bool inSubscript = false;
         bool inSuperscript = false;
-        
+
         for (wchar_t ch : atomLabel) {
             if (ch == L'_') {
                 inSubscript = true;
@@ -194,48 +202,31 @@ struct Molecule {
             } else if (ch == L'{' || ch == L'}') {
                 continue;
             }
-            
-            // 更精确的字符宽度计算，接近TeX Live chemfig的行为
+
             if (inSubscript || inSuperscript) {
-                // 下标/上标字符宽度约为正常字符的0.7倍
-                width += 0.7f;
+                width += chemfig::SUBSCRIPT_SCALE;
             } else {
-                // 正常字符宽度，考虑不同字符的实际宽度差异
-                if (ch >= L'A' && ch <= L'Z') width += 1.0f;  // 大写字母
-                else if (ch >= L'a' && ch <= L'z') width += 0.8f; // 小写字母
-                else if (ch >= L'0' && ch <= L'9') width += 0.6f; // 数字
-                else width += 0.8f; // 其他字符
+                if (ch >= L'A' && ch <= L'Z') width += 1.0f;
+                else if (ch >= L'a' && ch <= L'z') width += 0.8f;
+                else if (ch >= L'0' && ch <= L'9') width += 0.6f;
+                else width += 0.8f;
             }
         }
-        
-        // 最小原子宽度为1.0，与TeX Live chemfig一致
+
         return std::max(1.0f, width);
     }
 
     void updateMaxAtomWidth(const std::wstring& atomLabel) {
-        float width = calculateAtomWidth(atomLabel);
-        if (width > maxAtomWidth) {
-            maxAtomWidth = width;
-        }
+        float w = calculateAtomWidth(atomLabel);
+        if (w > maxAtomWidth) maxAtomWidth = w;
     }
 
     void normalizeBondLengths() {
-        // 与TeX Live chemfig一致的键长统一逻辑
-        // 即使maxAtomWidth <= 1.0f，也要确保所有键长一致
-        float scaleFactor = 1.0f;
-        
-        // 更精确的缩放因子计算，接近TeX Live chemfig的行为
-        if (maxAtomWidth > 1.0f) {
-            // 使用更平滑的缩放曲线，避免过度放大
-            scaleFactor = 1.0f + (maxAtomWidth - 1.0f) * 0.25f;
-        }
-        
-        // 统一所有键的lengthCoeff
-        for (auto& bond : bonds) {
-            bond.params.lengthCoeff = scaleFactor;
-        }
-        
         calculateBounds();
+    }
+
+    bool isValidAtomIndex(int idx) const {
+        return idx >= 0 && idx < static_cast<int>(atoms.size());
     }
 };
 
