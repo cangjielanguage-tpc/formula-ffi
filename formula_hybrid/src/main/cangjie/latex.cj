@@ -77,7 +77,7 @@ public class LaTeX {
             var processedLtx = ltx
             var subSringArr : Array<String> = ["aligned", "align", "flalign", "gather", "eqnarray", "multline", "equation"]
             var inputTag: String = ""
-            var findRet = find_substring(ltx, subSringArr)
+            var findRet = findSubstring(ltx, subSringArr)
             Hilog.info(0x12, "formula","---- findRet: ${findRet}")
             if(findRet == 1) {
                 var inputStr: CString = LibC.mallocCString(ltx)

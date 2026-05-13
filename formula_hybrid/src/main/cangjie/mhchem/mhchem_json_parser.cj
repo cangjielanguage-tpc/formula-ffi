@@ -19,7 +19,7 @@ class MhchemJsonParser {
      *
      * 主要流程：
      * 1. 清空已有规则缓存
-     * 2. 读取 mhchemData 内容
+     * 2. 读取 MHCHEM_DATA 内容
      * 3. 解析多层规则结构（规则 → 状态 → 转换）
      * 4. 构建并保存状态转换映射表
      */
@@ -27,7 +27,7 @@ class MhchemJsonParser {
         if (!transitionsMap.isEmpty()) {
             return
         }
-        var root = JsonValue.fromStr(mhchemData).asObject()
+        var root = JsonValue.fromStr(MHCHEM_DATA).asObject()
 
         // 第一层：规则 key
         var fields: HashMap<String, JsonValue> = root.getFields()

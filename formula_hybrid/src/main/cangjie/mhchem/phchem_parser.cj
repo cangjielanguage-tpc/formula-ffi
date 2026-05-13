@@ -53,7 +53,7 @@ class MhchemParser {
             }
 
             for (i in 0..t.size) {
-                var matchs: Option<Match> = match_(t[i].pattern, input)
+                var matchs: Option<Match> = matchRegex(t[i].pattern, input)
                 if (let Some(matches) <- matchs) {
                     var task = t[i].task
                     for (iA in 0..task.action_.size) {
@@ -161,10 +161,10 @@ class MhchemParser {
                     }
 
                 case '- after o/d' =>
-                    var c1 = match_('orbital', buffer.o.getOrDefault({=> ""}))
-                    var c2 = match_('one lowercase greek letter $', buffer.o.getOrDefault({=> ""}))
-                    var c3 = match_('one lowercase latin letter $', buffer.o.getOrDefault({=> ""}))
-                    var c4 = match_('$one lowercase latin letter$ $', buffer.o.getOrDefault({=> ""}))
+                    var c1 = matchRegex('orbital', buffer.o.getOrDefault({=> ""}))
+                    var c2 = matchRegex('one lowercase greek letter $', buffer.o.getOrDefault({=> ""}))
+                    var c3 = matchRegex('one lowercase latin letter $', buffer.o.getOrDefault({=> ""}))
+                    var c4 = matchRegex('$one lowercase latin letter$ $', buffer.o.getOrDefault({=> ""}))
 
                     var c1remainder = ""
                     if (let Some(v) <- c1) {
@@ -190,7 +190,7 @@ class MhchemParser {
                                 isAfterD = optionBool
                             }
                         }
-                        c1 = match_('digits', buffer.d.getOrDefault({=> ""}))
+                        c1 = matchRegex('digits', buffer.d.getOrDefault({=> ""}))
                         if (isAfterD && c1.isSome()) {
                             concatArray(ret.getItems(), mhchemParserActions("d=", buffer, mList: ArrayList<String>([m])))
                             concatArray(ret.getItems(), machineActions("ce", "output", buffer: buffer))
@@ -273,7 +273,7 @@ class MhchemParser {
                                 buffer.p = Option<String>.None
                             } else {
                                 if (buffer.o.isSome() && buffer.dType == 'kv' &&
-                                    match_('d-oxidation$', buffer.d.getOrDefault({=> ""})).isSome()) {
+                                    matchRegex('d-oxidation$', buffer.d.getOrDefault({=> ""})).isSome()) {
                                     buffer.dType = 'oxidation'
                                 } else if (buffer.o.isSome() && buffer.dType == 'kv' && buffer.q.isNone()) {
                                     buffer.dType = Option<String>.None
@@ -506,7 +506,7 @@ class MhchemParser {
 
                 case 'output' =>
                     var ret = PVList()
-                    var md = match_('{(...)}', buffer.d.getOrDefault({=> ""}))
+                    var md = matchRegex('{(...)}', buffer.d.getOrDefault({=> ""}))
                     var mdremainder = ""
                     if (let Some(v) <- md) {
                         mdremainder = v.remainder
@@ -518,7 +518,7 @@ class MhchemParser {
                             }
                         }
                     }
-                    var mq = match_('{(...)}', buffer.q.getOrDefault({=> ""}))
+                    var mq = matchRegex('{(...)}', buffer.q.getOrDefault({=> ""}))
                     var mqremainder = ""
                     if (let Some(v) <- mq) {
                         mqremainder = v.remainder
@@ -567,7 +567,7 @@ class MhchemParser {
                 case 'output' =>
                     var ret = PVList()
                     if (buffer.rm != "") {
-                        var mrm = match_('{(...)}', buffer.rm)
+                        var mrm = matchRegex('{(...)}', buffer.rm)
                         var mrmremainder = ""
                         if (let Some(v) <- mrm) {
                             mrmremainder = v.remainder
@@ -760,10 +760,10 @@ class MhchemParser {
      * @param input 待匹配的字符串
      * @return 匹配结果和剩余字符串，如果未匹配则返回 None
      */
-    private func match_(pattern: String, input: String): Option<Match> {
+    private func matchRegex(pattern: String, input: String): Option<Match> {
         var value = ""
         if (pattern == "") {
-            println("[MhchemParser-match_] mhchem bug P. Please report")
+            println("[MhchemParser-matchRegex] mhchem bug P. Please report")
             return Option<Match>.None
         }
         match (pattern) {
@@ -1163,7 +1163,7 @@ class MhchemParser {
         var remainder: String = ""
         var input = source
 
-        var matchResult = _match(input, begExcl, false)
+        var matchResult = matchPattern(input, begExcl, false)
         if (matchResult.isNone()) {
             return Option<Match>.None
         }
@@ -1171,7 +1171,7 @@ class MhchemParser {
         if (let Some(v) <- matchResult) {
             input = input[v.size..input.size]
         }
-        matchResult = _match(input, begIncl, isBegInclRegExp)
+        matchResult = matchPattern(input, begIncl, isBegInclRegExp)
 
         if (matchResult.isNone()) {
             return Option<Match>.None
@@ -1190,7 +1190,7 @@ class MhchemParser {
             matchLength = v.size
         }
 
-        var value = _findObserveGroups(input, matchLength, end, isRegExp)
+        var value = findObserveGroupsInternal(input, matchLength, end, isRegExp)
 
         if (let Some(e) <- value) {
             var endMatch: Int64 = 0
@@ -1252,7 +1252,7 @@ class MhchemParser {
      * @param isRegExp 是否使用正则匹配
      * @return 匹配结果字符串，如果未匹配则返回 None
      */
-    private func _match(input: String, pattern: String, isRegExp: Bool): Option<String> {
+    private func matchPattern(input: String, pattern: String, isRegExp: Bool): Option<String> {
         if (isRegExp) {
             // 正则类型
             var regex = Regex(pattern)
@@ -1284,7 +1284,7 @@ class MhchemParser {
      * @param isRegExp endChars 是否为正则
      * @return 匹配的起止位置 MatchPosition，如果未找到或嵌套不匹配返回 None
      */
-    private func _findObserveGroups(
+    private func findObserveGroupsInternal(
         input: String,
         index: Int64,
         endChars: String,
@@ -1297,7 +1297,7 @@ class MhchemParser {
         while (i < runes.size) {
             let a = String([runes[i]])
             let rest = String(runes[i..runes.size])
-            let m = _match(rest, endChars, isRegExp)
+            let m = matchPattern(rest, endChars, isRegExp)
 
             if (m.isSome() && braces == 0 && let Some(v) <- m) {
                 return MatchPosition(i, i + v.size)
@@ -1305,7 +1305,7 @@ class MhchemParser {
                 braces++
             } else if (a == "}") {
                 if (braces == 0) {
-                    println("[MhchemParser-_findObserveGroups] Extra close brace or missing open brace")
+                    println("[MhchemParser-findObserveGroupsInternal] Extra close brace or missing open brace")
                     return Option<MatchPosition>.None
                 } else {
                     braces--

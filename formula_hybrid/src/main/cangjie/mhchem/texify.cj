@@ -9,7 +9,7 @@ class Texify {
      * 将 ParserValue 列表整体转换为 LaTeX 字符串。
      *
      * 遍历输入列表，如果是 PVString，直接取值；
-     * 如果是 PVObject，则调用 _go2() 转换。
+     * 如果是 PVObject，则调用 go2() 转换。
      * 对于非内部调用的化学式，如果未遇到 1st-level escape，则在结果外层加上 {}。
      *
      * @param input 输入 ParserValue 列表
@@ -29,7 +29,7 @@ class Texify {
             if (inputi is PVString && let Some(v) <- (inputi as PVString)) {
                 res += v.getValue()
             } else if (inputi is PVObject && let Some(v) <- (inputi as PVObject)) {
-                res += _go2(v)
+                res += go2(v)
                 if (v.getType() == "1st-level escape") {
                     cee = true
                 }
@@ -49,7 +49,7 @@ class Texify {
      * @param input 输入 ParserValue 列表
      * @return 转换后的 LaTeX 字符串
      */
-    private func _goInner(input: ArrayList<ParserValue>): String {
+    private func goInner(input: ArrayList<ParserValue>): String {
         if (input.size == 0) {
             return ""
         }
@@ -66,7 +66,7 @@ class Texify {
      * @param buffer 输入的 PVObject
      * @return 转换后的 LaTeX 字符串
      */
-    private func _go2(buffer: ParserValue): String {
+    private func go2(buffer: ParserValue): String {
         var res: String = ""
 
         if (buffer is PVObject && let Some(buf) <- (buffer as PVObject)) {
@@ -80,12 +80,12 @@ class Texify {
             match (buf.getType()) {
                 case "chemfive" =>
                     res = ""
-                    var a: String = _goInner(buf.getList("a").getItems())
-                    var b: String = _goInner(buf.getList("b").getItems())
-                    var p: String = _goInner(buf.getList("p").getItems())
-                    var o: String = _goInner(buf.getList("o").getItems())
-                    var q: String = _goInner(buf.getList("q").getItems())
-                    var d: String = _goInner(buf.getList("d").getItems())
+                    var a: String = goInner(buf.getList("a").getItems())
+                    var b: String = goInner(buf.getList("b").getItems())
+                    var p: String = goInner(buf.getList("p").getItems())
+                    var o: String = goInner(buf.getList("o").getItems())
+                    var q: String = goInner(buf.getList("q").getItems())
+                    var d: String = goInner(buf.getList("d").getItems())
 
                     if (a != "") {
                         if (Regex("^[+-]").matches(a)) {
@@ -165,15 +165,15 @@ class Texify {
                     }
 
                 case "state of aggregation" =>
-                // 对标res = "\\mskip2mu " + _goInner(p1Arr)
-                res = "\\hspace{2mu}" + _goInner(p1Arr)
+                // 对标res = "\\mskip2mu " + goInner(p1Arr)
+                res = "\\hspace{2mu}" + goInner(p1Arr)
                 case "state of aggregation subscript" =>
-                // 对标res = "\\mskip1mu " + _goInner(p1Arr)
-                res = "\\hspace{1mu}" + _goInner(p1Arr)
+                // 对标res = "\\mskip1mu " + goInner(p1Arr)
+                res = "\\hspace{1mu}" + goInner(p1Arr)
                 case "bond" =>
                 res = getBond(kind_)
                 if (res == "") {
-                    println("[Texify-_go2] mhchem Error. Unknown bond type (${kind_})")
+                    println("[Texify-go2] mhchem Error. Unknown bond type (${kind_})")
 		    return res
                 }
                 case "frac" =>
@@ -181,21 +181,21 @@ class Texify {
                       // 对标res = "\\mathchoice{\\textstyle" + c + "}{" + c + "}{" + c + "}{" + c + "}"
                       res = "{\\textstyle" + c + "}"
                 case "pu-frac" =>
-                    var d = "\\frac{" + _goInner(p1Arr) + "}{" + _goInner(p2Arr) + "}"
+                    var d = "\\frac{" + goInner(p1Arr) + "}{" + goInner(p2Arr) + "}"
                       // 对标res = "\\mathchoice{\\textstyle" + d + "}{" + d + "}{" + d + "}{" + d + "}"
                       res = "{\\textstyle" + d + "}"
                 case "tex-math" => res = replaceCeOnly(p1)
-                case "frac-ce" => res = "\\frac{" + _goInner(p1Arr) + "}{" + _goInner(p2Arr) + "}"
-                case "overset" => res = "\\overset{" + _goInner(p1Arr) + "}{" + _goInner(p2Arr) + "}"
-                case "underset" => res = "\\underset{" + _goInner(p1Arr) + "}{" + _goInner(p2Arr) + "}"
-                case "underbrace" => res = "\\underbrace{" + _goInner(p1Arr) + "}{" + _goInner(p2Arr) + "}"
-                case "color" => res = "{\\color{" + buf.getString("color1") + "}{" + _goInner(
+                case "frac-ce" => res = "\\frac{" + goInner(p1Arr) + "}{" + goInner(p2Arr) + "}"
+                case "overset" => res = "\\overset{" + goInner(p1Arr) + "}{" + goInner(p2Arr) + "}"
+                case "underset" => res = "\\underset{" + goInner(p1Arr) + "}{" + goInner(p2Arr) + "}"
+                case "underbrace" => res = "\\underbrace{" + goInner(p1Arr) + "}{" + goInner(p2Arr) + "}"
+                case "color" => res = "{\\color{" + buf.getString("color1") + "}{" + goInner(
                     buf.getList("color2").getItems()) + "}}"
                 case "color0" => res = "\\color{" + buf.getString("color") + "}"
                 case "arrow" =>
                     // 处理箭头和上下标
-                    var rd: String = _goInner(buf.getList("rd").getItems())
-                    var rq: String = _goInner(buf.getList("rq").getItems())
+                    var rd: String = goInner(buf.getList("rd").getItems())
+                    var rq: String = goInner(buf.getList("rq").getItems())
                     var arrow = getArrow(r)
                     if (rd != "" || rq != "") {
                         if (r == "<=>" || r == "<=>>" || r == "<<=>" || r == "<-->") {
@@ -257,7 +257,7 @@ class Texify {
                 case "ellipsis" => res = "\\ldots "
                 case "/" => res = "/"
                 case " / " => res = "\\,/\\,"
-                case _ => println("[Texify-_go2] mhchem bug T. Please report.") // Missing texify rule or unknown MhchemParser output
+                case _ => println("[Texify-go2] mhchem bug T. Please report.") // Missing texify rule or unknown MhchemParser output
             }
         }
 

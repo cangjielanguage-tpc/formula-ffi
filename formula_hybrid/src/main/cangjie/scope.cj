@@ -1,5 +1,5 @@
 package formula
-internal import ohos.ark_interop.*
+internal import ohos.ark_interop.JSContext
 
 @FastNative
 foreign func napi_open_handle_scope(env: CPointer<Unit>, scope: CPointer<CPointer<Unit>>): Int32

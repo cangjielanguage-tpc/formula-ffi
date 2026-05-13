@@ -9,7 +9,7 @@ import ohos.ark_interop.JSValue
 import ohos.ark_interop.JSContext
 import std.sync.Mutex
 
-let latexReentrantMutex: Mutex = Mutex()
+let LATEX_REENTRANT_MUTEX: Mutex = Mutex()
 
 func latexStringToImage(runtime: JSContext, callInfo: JSCallInfo): JSValue {
     let value0 = callInfo[0].toString(runtime)
@@ -20,7 +20,7 @@ func latexStringToImage(runtime: JSContext, callInfo: JSCallInfo): JSValue {
     let value5 = callInfo[5].toString(runtime)
     let promise = runtime.promiseCapability()
     spawn {
-        synchronized(latexReentrantMutex) {
+        synchronized(LATEX_REENTRANT_MUTEX) {
             let result = latexStringToImage(value0, value1, UInt32(value2), UInt32(value3), Int64(value4), value5)
             runtime.postJSTask {
                 newScope(runtime) {
@@ -50,7 +50,7 @@ func latexStringToImageWithError(runtime: JSContext, callInfo: JSCallInfo): JSVa
     let promise = runtime.promiseCapability()
     spawn {
         let data = LatexResultData()
-        synchronized(latexReentrantMutex) {
+        synchronized(LATEX_REENTRANT_MUTEX) {
             let result = latexStringToImageWithError(value0, value1, UInt32(value2), UInt32(value3), Int64(value4), value5)
             data.imageBytes = result.imageBytes
             data.formula = result.formula
