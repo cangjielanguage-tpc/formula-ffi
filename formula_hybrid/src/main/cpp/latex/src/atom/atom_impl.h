@@ -1911,6 +1911,25 @@ public:
     __decl_clone(BboxAtom)
 };
 
+class RectAtom : public Atom {
+private:
+    float _w, _h;
+
+public:
+    RectAtom() = delete;
+
+    RectAtom(float w, float h) : _w(w), _h(h) {}
+
+    sptr<Box> createBox(_out_ TeXEnvironment& env) override {
+        float w = _w * SpaceAtom::getFactor(UNIT_EM, env);
+        float h = _h * SpaceAtom::getFactor(UNIT_EM, env);
+        
+        return sptr<Box>(new RectBox(w, h / 2, h / 2));
+    }
+
+    __decl_clone(RectAtom)
+};
+
 }  // namespace tex
 
 #endif  // ATOM_IMPL_H_INCLUDED

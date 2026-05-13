@@ -108,21 +108,6 @@ struct Index15 {
   private pageSize: number = 10
   @State currentPage: number = 0
   @State items: ChemfigItem[] = [
-    { description: '[1] 基础原子和键 - 单原子A', formula: '\\chemfig{A}' },
-    { description: '[1] 基础原子和键 - 单原子C', formula: '\\chemfig{C}' },
-    { description: '[1] 基础原子和键 - 单原子N', formula: '\\chemfig{N}' },
-    { description: '[1] 基础原子和键 - 单原子O', formula: '\\chemfig{O}' },
-    { description: '[1] 基础原子和键 - 原子团CH3', formula: '\\chemfig{CH_3}' },
-    { description: '[1] 基础原子和键 - 原子团OH', formula: '\\chemfig{OH}' },
-    { description: '[1] 基础原子和键 - 原子团NH2', formula: '\\chemfig{NH_2}' },
-    { description: '[1] 基础原子和键 - 原子团COOH', formula: '\\chemfig{COOH}' },
-    { description: '[1] 基础原子和键 - 单键A-B', formula: '\\chemfig{A-B}' },
-    { description: '[1] 基础原子和键 - 单键C-C', formula: '\\chemfig{C-C}' },
-    { description: '[1] 基础原子和键 - 单键C-O', formula: '\\chemfig{C-O}' },
-    { description: '[1] 基础原子和键 - 单键C-N', formula: '\\chemfig{C-N}' },
-    { description: '[1] 基础原子和键 - 链A-B-C-D', formula: '\\chemfig{A-B-C-D}' },
-    { description: '[1] 基础原子和键 - 丙烷', formula: '\\chemfig{CH_3-CH_2-CH_3}' },
-
     { description: '[2] 双键和三键 - 双键A=B', formula: '\\chemfig{A=B}' },
     { description: '[2] 双键和三键 - 双键C=C', formula: '\\chemfig{C=C}' },
     { description: '[2] 双键和三键 - 双键C=O', formula: '\\chemfig{C=O}' },
@@ -262,6 +247,10 @@ struct Index15 {
     { description: '[19] issuxxx', formula: '\\chemfig{CH_3-(CH_2)_{50}-CH_3}' },
     { description: '[19] issuxxx', formula: '\\chemfig{*6(-=-=-*6(-=-*5(-N-=-=)-=*6(-=-*5(-S-=-=)-=*6(-=-*5(-O-=-=)-=-=))))}' },
 
+    { description: '[20] 氧原子矩形电子', formula: '\\charge{90=\"}{O}' },
+    { description: '[20] 氧原子线电子', formula: '\\charge{90=\|}{O}' },
+    { description: '[20] 氧原子孤对电子', formula: '\\charge{90=\:}{O}' },
+    { description: '[20] 氧原子单电子', formula: '\\charge{90=\.}{O}' },
   ]
 
   private getPageItems(): ChemfigItem[] {

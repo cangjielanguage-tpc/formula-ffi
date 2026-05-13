@@ -11,6 +11,10 @@
 #include "core/parser.h"
 #include "fonts/alphabet.h"
 #include "graphic/graphic.h"
+#include <hilog/log.h>
+#include <cmath>
+#include "../../ffi/ffi.h"
+
 using namespace std;
 using namespace tex;
 
@@ -1664,6 +1668,81 @@ inline macro(rmoustache) {
 
 inline macro(insertBreakMark) {
     return sptr<Atom>(new BreakMarkAtom());
+}
+
+inline macro(charge) {
+    if (args.size() < 2) {
+        throw ex_parse("\\charge requires two arguments!");
+    }
+    
+    const wstring& chargeSpec = args[1];
+    const wstring& atom = args[2];
+    
+    sptr<Atom> atomContent = TeXFormula(tp, atom)._root;
+    RowAtom* result = new RowAtom(atomContent);
+    
+    size_t start = 0;
+    size_t end = chargeSpec.find(L',');
+    
+    while (start < chargeSpec.length()) {
+        wstring pair = chargeSpec.substr(start, end - start);
+        
+        size_t colonPos = pair.find(L'=');
+        if (colonPos == wstring::npos) {
+            throw ex_parse("Invalid \\charge specification: missing colon!");
+        }
+        
+        wstring angleStr = pair.substr(0, colonPos);
+        wstring mark = pair.substr(colonPos + 1);
+        
+        float angleDeg = 0;
+        try {
+            angleDeg = std::stof(angleStr);
+        } catch (...) {
+            throw ex_parse("Invalid angle in \\charge!");
+        }
+        
+        float angleRad = angleDeg * M_PI / 180.0;
+        float radius = 0.55f;
+        float xOffset = - (radius - radius * std::cos(angleRad));
+        float yOffset = radius * std::sin(angleRad);
+
+        sptr<Atom> markContent = nullptr;
+        
+        if (mark == L"\"") {
+            markContent = sptr<Atom>(new RectAtom(0.15f, 0.5f));
+        } else {
+            markContent = TeXFormula(tp, mark)._root;
+        }
+        
+        bool needsRotation = false;
+        if (mark == L"\\." || mark == L"\\:" || mark == L":" || mark == L"|" || mark == L"\"" || 
+            mark.find(L'·') != wstring::npos || mark.find(L'\u00A8') != wstring::npos ||
+            mark.find(L'\u22C5') != wstring::npos || mark.find(L'\u22EF') != wstring::npos) {
+            needsRotation = true;
+        }
+        
+        if (needsRotation) {
+            sptr<Atom> rotatedMark = sptr<Atom>(new RotateAtom(markContent, angleDeg, L"origin=cc"));
+            markContent = rotatedMark;
+        }
+        
+        VRowAtom* vrow = new VRowAtom(markContent);
+        vrow->setRaise(UNIT_EM, -yOffset);
+        
+        RowAtom* hrow = new RowAtom(sptr<Atom>(new SpaceAtom(UNIT_EM, xOffset, 0, 0)));
+        hrow->add(sptr<Atom>(vrow));
+        
+        sptr<Atom> lap = sptr<Atom>(new LapedAtom(sptr<Atom>(hrow), 'r'));
+        result->add(lap);
+        
+        if (end == wstring::npos) break;
+        start = end + 1;
+        while (start < chargeSpec.length() && chargeSpec[start] == L' ') start++;
+        end = chargeSpec.find(L',', start);
+    }
+    
+    return sptr<Atom>(result);
 }
 
 /**************************************** limits macros *******************************************/

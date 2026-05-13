@@ -244,3 +244,8 @@ char* formula_xingTag(char* dStr) {
     strcpy(taggedStr, fstr.c_str());
     return taggedStr;
 }
+
+std::string wstringToString(const std::wstring& wstr) {
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    return converter.to_bytes(wstr);
+}
