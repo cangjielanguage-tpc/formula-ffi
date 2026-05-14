@@ -34,6 +34,13 @@ bool ChemfigParser::match(const wchar_t*& p, wchar_t expected) {
 }
 
 bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
+    mol.atoms.clear();
+    mol.bonds.clear();
+    mol.rings.clear();
+    mol.hooks.clear();
+    mol.anchors.clear();
+    mol.maxAtomWidth = 0.0f;
+
     const wchar_t* p = input.c_str();
     skipWhitespace(p);
     int atomIndex = 0;
@@ -817,6 +824,9 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
             }
             if ((ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z') ||
                 (ch >= L'0' && ch <= L'9') || ch == L'+' || ch == L' ' || ch == L'|' || ch == L'#') {
+                label += ch;
+                p++;
+            } else if (ch == L'\'') {
                 label += ch;
                 p++;
             } else {

@@ -49,23 +49,27 @@ ChemPoint SchemeBox::resolveArrowEndpoint(
 
     auto& cl = _compoundLayouts[compoundIdx];
     bool hasAngle = (std::abs(angle) > EPSILON);
+    bool isExplicitRef = !anchor.compoundRef.empty() || !ref.compoundRef.empty();
 
+    std::wstring effectiveAnchorName;
     if (!anchor.anchorName.empty()) {
-        return cl.anchors.getAnchor(anchor.anchorName);
+        effectiveAnchorName = anchor.anchorName;
+    } else if (!ref.anchorName.empty() && !isExplicitRef) {
+        effectiveAnchorName = ref.anchorName;
     }
 
-    if (!ref.anchorName.empty()) {
-        ChemPoint testAnchor = cl.anchors.getAnchor(ref.anchorName);
-        bool anchorFound = (std::abs(testAnchor.x - cl.anchors.center.x) > ANCHOR_EQUALITY_THRESHOLD ||
-                            std::abs(testAnchor.y - cl.anchors.center.y) > ANCHOR_EQUALITY_THRESHOLD);
-        if (anchorFound) {
-            return testAnchor;
+    if (!effectiveAnchorName.empty()) {
+        ChemPoint pt = cl.anchors.getAnchor(effectiveAnchorName);
+        if (std::abs(pt.x - cl.anchors.center.x) > ANCHOR_EQUALITY_THRESHOLD ||
+            std::abs(pt.y - cl.anchors.center.y) > ANCHOR_EQUALITY_THRESHOLD) {
+            return pt;
         }
-        ChemPoint atomPos = _scheme.getAtomPosition(compoundIdx, ref.anchorName);
-        if (atomPos.x != 0 || atomPos.y != 0) {
-            return ChemPoint(cl.x + atomPos.x * _scale, cl.y + atomPos.y * _scale);
+        if (!isExplicitRef) {
+            ChemPoint atomPos = _scheme.getAtomPosition(compoundIdx, effectiveAnchorName);
+            if (atomPos.x != 0 || atomPos.y != 0) {
+                return ChemPoint(cl.x + atomPos.x * _scale, cl.y + atomPos.y * _scale);
+            }
         }
-        return isFrom ? cl.anchors.east : cl.anchors.west;
     }
 
     if (hasAngle) {
@@ -133,6 +137,7 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         const auto& row = rows[rowIdx];
         float currentX = 0.0f;
         float rowMaxHeight = 0.0f;
+        float rowMaxDepth = 0.0f;
 
         for (int compoundIdx : row) {
             auto& layout = _compoundLayouts[compoundIdx];
@@ -141,6 +146,11 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
             layout.positioned = true;
             currentX += layout.width + _compoundGap;
             if (layout.height > rowMaxHeight) rowMaxHeight = layout.height;
+            if (layout.boxDepth > rowMaxDepth) rowMaxDepth = layout.boxDepth;
+        }
+
+        for (int compoundIdx : row) {
+            _compoundLayouts[compoundIdx].rowMaxDepth = rowMaxDepth;
         }
 
         if (rowIdx < rows.size() - 1) {
@@ -181,10 +191,30 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 toIdx, arrow.params.toRef, arrow.params.toAnchor,
                 arrow.params.angle, false);
 
+            if (!hasAngle && fromIdx >= 0 && toIdx >= 0 &&
+                fromIdx < static_cast<int>(_compoundLayouts.size()) &&
+                toIdx < static_cast<int>(_compoundLayouts.size())) {
+                auto& fL = _compoundLayouts[fromIdx];
+                auto& tL = _compoundLayouts[toIdx];
+                float dx = tL.anchors.center.x - fL.anchors.center.x;
+                float dy = tL.anchors.center.y - fL.anchors.center.y;
+                float dist = std::sqrt(dx * dx + dy * dy);
+                if (dist > EPSILON) {
+                    float actualAngle = std::atan2(-dy, dx) * 180.0f / CHEM_PI;
+                    float fromAngle = actualAngle;
+                    float entryAngle = actualAngle + 180.0f;
+                    fromPos = fL.anchors.getAnchor(std::to_wstring(static_cast<int>(fromAngle)));
+                    toPos = tL.anchors.getAnchor(std::to_wstring(static_cast<int>(entryAngle)));
+                }
+            }
+
             if (toIdx >= 0 && toIdx < static_cast<int>(_compoundLayouts.size())) {
                 auto& tl = _compoundLayouts[toIdx];
-                if (hasAngle && !tl.positioned) {
-                    float arrowLen = _arrowLength * arrow.params.lengthCoeff * _scale;
+                bool shouldReposition = hasAngle;
+                if (shouldReposition) {
+                    float arrowLen = std::max(
+                        _arrowLength * arrow.params.lengthCoeff * _scale,
+                        _compoundGap);
                     float centerX = fromPos.x + std::cos(angleRad) * arrowLen;
                     float centerY = fromPos.y - std::sin(angleRad) * arrowLen;
                     tl.x = centerX - tl.width * 0.5f;
@@ -194,6 +224,37 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                     float entryAngle = arrow.params.angle + 180.0f;
                     toPos = tl.anchors.getAnchor(
                         std::to_wstring(static_cast<int>(entryAngle)));
+
+                    float nextX = tl.x + tl.width;
+                    for (int k = toIdx + 1; k < static_cast<int>(_compoundLayouts.size()); k++) {
+                        auto& nextL = _compoundLayouts[k];
+                        bool isArrowTarget = false;
+                        bool isAngledTarget = false;
+                        for (const auto& e2 : _scheme.elementOrder) {
+                            if (e2.first == ELEM_ARROW) {
+                                int aIdx = e2.second;
+                                if (aIdx >= 0 && aIdx < static_cast<int>(_scheme.arrows.size())) {
+                                    const auto& a = _scheme.arrows[aIdx];
+                                    if (a.toCompound == k) {
+                                        isArrowTarget = true;
+                                        if (std::abs(a.params.angle) > EPSILON) {
+                                            isAngledTarget = true;
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (!isAngledTarget) {
+                            float gap = isArrowTarget ? _compoundGap : 0.0f;
+                            nextL.x = nextX + gap;
+                            nextL.y = tl.y;
+                            calculateCompoundAnchors(nextL);
+                            nextX += nextL.width + gap;
+                        } else {
+                            break;
+                        }
+                    }
                 }
             } else if (hasAngle) {
                 float arrowLen = _arrowLength * arrow.params.lengthCoeff * _scale;
@@ -496,7 +557,7 @@ void SchemeBox::drawCompoundNames(Graphics2D& g2, float ox, float oy) {
         if (!cl.nameBox) continue;
 
         float nx = cl.x + ox + (cl.width - cl.nameBox->_width) * 0.5f;
-        float ny = cl.y + oy + cl.boxDepth + SchemeConfig::instance().nameOffset + cl.nameBox->_height;
+        float ny = cl.y + oy + cl.rowMaxDepth + SchemeConfig::instance().nameOffset + cl.nameBox->_height;
         cl.nameBox->draw(g2, nx, ny);
     }
 }
@@ -507,7 +568,7 @@ void SchemeBox::drawCompoundNumbers(Graphics2D& g2, float ox, float oy) {
         if (!cl.numberBox) continue;
 
         float nx = cl.x + ox + cl.width + COMPOUND_NUMBER_GAP;
-        float ny = cl.y + oy + cl.boxDepth + SchemeConfig::instance().numOffset + cl.numberBox->_height;
+        float ny = cl.y + oy + cl.rowMaxDepth + SchemeConfig::instance().numOffset + cl.numberBox->_height;
         cl.numberBox->draw(g2, nx, ny);
     }
 }

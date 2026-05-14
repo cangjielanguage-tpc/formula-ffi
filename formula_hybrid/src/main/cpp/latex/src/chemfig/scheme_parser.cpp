@@ -144,17 +144,47 @@ std::wstring SchemeParser::preprocessSchemeSyntax(const std::wstring& input) {
                         } else if (peekCmd == L"schemestart") {
                             depth++;
                             result += L"\\schemestart";
+                        } else if (peekCmd == L"chemnameinit") {
+                            while (i < n && iswspace(input[i])) i++;
+                            if (i < n && input[i] == L'{') {
+                                i++;
+                                int bd = 1;
+                                while (i < n && bd > 0) {
+                                    if (input[i] == L'\\' && i + 1 < n) {
+                                        i += 2;
+                                    } else if (input[i] == L'{') {
+                                        bd++;
+                                        i++;
+                                    } else if (input[i] == L'}') {
+                                        bd--;
+                                        if (bd == 0) i++;
+                                        else i++;
+                                    } else {
+                                        i++;
+                                    }
+                                }
+                            }
                         } else {
                             result += input.substr(peekStart, i - peekStart);
                         }
                     } else {
-                        if (input[i] == L'{') depth++;
-                        else if (input[i] == L'}') {
+                        if (input[i] == L'\\' && i + 1 < n) {
+                            result += input[i];
+                            result += input[i + 1];
+                            i += 2;
+                        } else if (input[i] == L'{') {
+                            depth++;
+                            result += input[i];
+                            i++;
+                        } else if (input[i] == L'}') {
                             depth--;
                             if (depth == 0) { i++; break; }
+                            result += input[i];
+                            i++;
+                        } else {
+                            result += input[i];
+                            i++;
                         }
-                        result += input[i];
-                        i++;
                     }
                 }
                 result += L"}";
@@ -169,10 +199,23 @@ std::wstring SchemeParser::preprocessSchemeSyntax(const std::wstring& input) {
                     int bd = 1;
                     std::wstring kvContent;
                     while (i < n && bd > 0) {
-                        if (input[i] == L'{') bd++;
-                        else if (input[i] == L'}') { bd--; if (bd == 0) { i++; break; } }
-                        kvContent += input[i];
-                        i++;
+                        if (input[i] == L'\\' && i + 1 < n) {
+                            kvContent += input[i];
+                            kvContent += input[i + 1];
+                            i += 2;
+                        } else if (input[i] == L'{') {
+                            bd++;
+                            kvContent += input[i];
+                            i++;
+                        } else if (input[i] == L'}') {
+                            bd--;
+                            if (bd == 0) { i++; break; }
+                            kvContent += input[i];
+                            i++;
+                        } else {
+                            kvContent += input[i];
+                            i++;
+                        }
                     }
                     size_t eqPos = kvContent.find(L'=');
                     if (eqPos != std::wstring::npos) {
@@ -195,9 +238,18 @@ std::wstring SchemeParser::preprocessSchemeSyntax(const std::wstring& input) {
                     i++;
                     int bd = 1;
                     while (i < n && bd > 0) {
-                        if (input[i] == L'{') bd++;
-                        else if (input[i] == L'}') { bd--; if (bd == 0) i++; }
-                        else i++;
+                        if (input[i] == L'\\' && i + 1 < n) {
+                            i += 2;
+                        } else if (input[i] == L'{') {
+                            bd++;
+                            i++;
+                        } else if (input[i] == L'}') {
+                            bd--;
+                            if (bd == 0) i++;
+                            else i++;
+                        } else {
+                            i++;
+                        }
                     }
                 }
                 continue;
@@ -236,12 +288,19 @@ std::wstring SchemeParser::parseBraceContent(const wchar_t*& p) {
     p++;
     int depth = 1;
     while (p && *p != L'\0' && depth > 0) {
-        if (*p == L'{') depth++;
-        else if (*p == L'}') {
+        if (*p == L'\\' && *(p + 1) != L'\0') {
+            result += *p++;
+            result += *p++;
+        } else if (*p == L'{') {
+            depth++;
+            result += *p++;
+        } else if (*p == L'}') {
             depth--;
             if (depth == 0) { p++; return result; }
+            result += *p++;
+        } else {
+            result += *p++;
         }
-        result += *p++;
     }
     return result;
 }
@@ -252,12 +311,19 @@ std::wstring SchemeParser::parseBracketContent(const wchar_t*& p) {
     p++;
     int depth = 1;
     while (p && *p != L'\0' && depth > 0) {
-        if (*p == L'[') depth++;
-        else if (*p == L']') {
+        if (*p == L'\\' && *(p + 1) != L'\0') {
+            result += *p++;
+            result += *p++;
+        } else if (*p == L'[') {
+            depth++;
+            result += *p++;
+        } else if (*p == L']') {
             depth--;
             if (depth == 0) { p++; return result; }
+            result += *p++;
+        } else {
+            result += *p++;
         }
-        result += *p++;
     }
     return result;
 }
@@ -451,6 +517,22 @@ void SchemeParser::parseArrowEndpointRef(const wchar_t*& p, ArrowRef& ref, Arrow
         parseArrowAnchor(p, anchor);
         ref.compoundRef = anchor.compoundRef;
         ref.anchorName = anchor.anchorName;
+        return;
+    }
+
+    if (peek(p) == L'.') {
+        p++;
+        std::wstring anc;
+        while (*p != L'\0') {
+            if (*p == L'-' && peekNext(p) == L'-') break;
+            if (*p == L')') break;
+            anc += *p++;
+        }
+        while (!anc.empty() && iswspace(anc.back())) anc.pop_back();
+        if (!anc.empty()) {
+            ref.anchorName = anc;
+            anchor.anchorName = anc;
+        }
         return;
     }
 
@@ -769,16 +851,39 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
 
             auto resolveCompoundIdx = [&](const ArrowRef& ref, const ArrowAnchor& anchor, int defaultIdx) -> int {
                 int idx = -1;
-                if (!ref.compoundRef.empty()) {
-                    idx = scheme.findCompound(ref.compoundRef);
-                } else if (!anchor.compoundRef.empty()) {
-                    idx = scheme.findCompound(anchor.compoundRef);
+                const std::wstring& refName = !ref.compoundRef.empty() ? ref.compoundRef : anchor.compoundRef;
+                if (!refName.empty()) {
+                    idx = scheme.findCompound(refName);
+                    if (idx < 0 && refName.size() > 1 &&
+                        (refName[0] == L'c' || refName[0] == L'C')) {
+                        std::wstring numStr = refName.substr(1);
+                        if (!numStr.empty()) {
+                            bool allDigits = true;
+                            for (wchar_t c : numStr) {
+                                if (!iswdigit(c)) { allDigits = false; break; }
+                            }
+                            if (allDigits) {
+                                int cIdx = std::stoi(numStr) - 1;
+                                if (cIdx >= 0 && cIdx < scheme.compoundCount()) {
+                                    idx = cIdx;
+                                    scheme.compoundRefs[refName] = idx;
+                                }
+                            }
+                        }
+                    }
                 }
                 return (idx >= 0) ? idx : defaultIdx;
             };
 
             arrow.fromCompound = resolveCompoundIdx(arrow.params.fromRef, arrow.params.fromAnchor, fromIdx);
             arrow.toCompound = resolveCompoundIdx(arrow.params.toRef, arrow.params.toAnchor, toIdx);
+
+            if (!arrow.params.fromAnchor.anchorName.empty() && arrow.fromCompound >= 0) {
+                scheme.compoundRefs[arrow.params.fromAnchor.anchorName] = arrow.fromCompound;
+            }
+            if (!arrow.params.toAnchor.anchorName.empty() && arrow.toCompound >= 0) {
+                scheme.compoundRefs[arrow.params.toAnchor.anchorName] = arrow.toCompound;
+            }
         }
 
         if (scheme.elementOrder[i].first == ELEM_COMPOUND) {
@@ -808,6 +913,15 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
 }
 
 bool SchemeParser::parse(const std::wstring& input, ReactionScheme& scheme) {
+    SchemeConfig::instance().reset();
+
+    scheme.compounds.clear();
+    scheme.arrows.clear();
+    scheme.pluses.clear();
+    scheme.merges.clear();
+    scheme.elementOrder.clear();
+    scheme.compoundRefs.clear();
+
     const wchar_t* p = input.c_str();
 
     while (*p != L'\0') {
