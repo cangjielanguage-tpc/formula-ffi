@@ -67,6 +67,8 @@ struct ArrowParams {
     std::wstring labelAbove;
     std::wstring labelBelow;
     std::wstring tikzStyle;
+    std::wstring color;
+    bool dashed;
     ArrowRef fromRef;
     ArrowRef toRef;
     ArrowAnchor fromAnchor;
@@ -77,7 +79,8 @@ struct ArrowParams {
           angle(0.0f),
           lengthCoeff(1.0f),
           curveHeight(0.0f),
-          yShift(0.0f) {}
+          yShift(0.0f),
+          dashed(false) {}
 
     bool isCurved() const {
         return type == ARROW_CURVED_FORWARD ||
@@ -90,7 +93,7 @@ struct ArrowParams {
     }
 
     bool isDashed() const {
-        return type == ARROW_DASHED_FORWARD || type == ARROW_DASHED_EQUILIBRIUM;
+        return dashed || type == ARROW_DASHED_FORWARD || type == ARROW_DASHED_EQUILIBRIUM;
     }
 };
 
@@ -114,6 +117,15 @@ struct ArrowElement {
 
 struct PlusElement {
     int afterCompound;
+    std::wstring sepLeftRaw;
+    std::wstring sepRightRaw;
+    std::wstring vshiftRaw;
+    float sepLeft;
+    float sepRight;
+    float vshift;
+    bool hasCustomSep;
+
+    PlusElement() : afterCompound(-1), sepLeft(0), sepRight(0), vshift(0), hasCustomSep(false) {}
 };
 
 struct MergeSource {
@@ -182,7 +194,20 @@ enum ElementKind {
     ELEM_ARROW,
     ELEM_PLUS,
     ELEM_MERGE,
-    ELEM_LINEBREAK
+    ELEM_LINEBREAK,
+    ELEM_SUBSCHEME
+};
+
+struct SubschemeInfo {
+    int startCompound;
+    int endCompound;
+    std::wstring refName;
+    int firstCompoundIndex;
+    std::vector<int> internalArrows;
+    int startArrow;
+    int endArrow;
+
+    SubschemeInfo() : startCompound(-1), endCompound(-1), firstCompoundIndex(-1), startArrow(-1), endArrow(-1) {}
 };
 
 struct ReactionScheme {
@@ -190,6 +215,7 @@ struct ReactionScheme {
     std::vector<ArrowElement> arrows;
     std::vector<PlusElement> pluses;
     std::vector<MergeElement> merges;
+    std::vector<SubschemeInfo> subschemes;
     std::vector<std::pair<ElementKind, int>> elementOrder;
 
     std::map<std::wstring, int> compoundRefs;

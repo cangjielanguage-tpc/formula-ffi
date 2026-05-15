@@ -3,6 +3,7 @@
 #include "scheme_config.h"
 #include <cmath>
 #include <algorithm>
+#include <map>
 
 namespace tex {
 
@@ -22,6 +23,40 @@ namespace {
 
         bool valid() const { return len > EPSILON; }
     };
+
+    color parseColorName(const std::wstring& name) {
+        static std::map<std::wstring, color> colorMap = {
+            {L"red", red},
+            {L"blue", blue},
+            {L"green", green},
+            {L"yellow", yellow},
+            {L"black", black},
+            {L"white", white},
+            {L"cyan", cyan},
+            {L"magenta", magenta},
+            {L"orange", rgb(255, 165, 0)},
+            {L"purple", rgb(128, 0, 128)},
+            {L"brown", rgb(165, 42, 42)},
+            {L"gray", rgb(128, 128, 128)},
+            {L"grey", rgb(128, 128, 128)},
+            {L"pink", rgb(255, 192, 203)},
+            {L"violet", rgb(238, 130, 238)},
+            {L"olive", rgb(128, 128, 0)},
+            {L"teal", rgb(0, 128, 128)},
+            {L"lime", rgb(0, 255, 0)},
+            {L"darkgray", rgb(64, 64, 64)},
+            {L"lightgray", rgb(192, 192, 192)},
+            {L"darkblue", rgb(0, 0, 139)},
+            {L"darkgreen", rgb(0, 100, 0)},
+            {L"darkred", rgb(139, 0, 0)}
+        };
+        
+        auto it = colorMap.find(name);
+        if (it != colorMap.end()) {
+            return it->second;
+        }
+        return trans;
+    }
 }
 
 ChemPoint ArrowRenderer::computeCurveControlPoint(const ChemPoint& from,
@@ -402,69 +437,86 @@ void ArrowRenderer::drawArrow(Graphics2D& g2, ArrowType type,
                               float scale, const ArrowParams& params,
                               const ArrowStyle& style) {
     const Stroke& oldStroke = g2.getStroke();
+    color oldColor = g2.getColor();
+    
     g2.setStroke(Stroke(style.lineWidth * scale, CAP_BUTT, JOIN_MITER));
+    
+    if (!params.color.empty()) {
+        color arrowColor = parseColorName(params.color);
+        if (arrowColor != trans) {
+            g2.setColor(arrowColor);
+        }
+    }
 
-    switch (type) {
-        case ARROW_FORWARD:
-            drawForward(g2, from, to, scale, style);
-            break;
-        case ARROW_BACKWARD:
-            drawBackward(g2, from, to, scale, style);
-            break;
-        case ARROW_BIDIRECTIONAL:
-            drawBidirectional(g2, from, to, scale, style);
-            break;
-        case ARROW_EQUILIBRIUM:
-            drawEquilibrium(g2, from, to, scale, style);
-            break;
-        case ARROW_LONG_EQUILIB:
-            drawLongEquilibrium(g2, from, to, scale, style);
-            break;
-        case ARROW_ALT_EQUILIB:
-            drawAltEquilibrium(g2, from, to, scale, style);
-            break;
-        case ARROW_HARP_RIGHT:
-            drawHarpRight(g2, from, to, scale, style);
-            break;
-        case ARROW_HARP_LEFT:
-            drawHarpLeft(g2, from, to, scale, style);
-            break;
-        case ARROW_FISHHOOK:
-            drawFishhook(g2, from, to, scale, style);
-            break;
-        case ARROW_INVISIBLE:
-            drawInvisible(g2, from, to, scale, style);
-            break;
-        case ARROW_CURVED_FORWARD:
-        case ARROW_ARC_FORWARD:
-            drawCurvedForward(g2, from, to, scale, style, params.curveHeight);
-            break;
-        case ARROW_CURVED_BACKWARD:
-        case ARROW_ARC_BACKWARD:
-            drawCurvedBackward(g2, from, to, scale, style, params.curveHeight);
-            break;
-        case ARROW_CURVED_BIDIR:
-        case ARROW_ARC_BIDIR:
-            drawCurvedBidirectional(g2, from, to, scale, style, params.curveHeight);
-            break;
-        case ARROW_HARPOON_RIGHT:
-            drawHarpoonRight(g2, from, to, scale, style);
-            break;
-        case ARROW_HARPOON_LEFT:
-            drawHarpoonLeft(g2, from, to, scale, style);
-            break;
-        case ARROW_DASHED_FORWARD:
-            drawDashedForward(g2, from, to, scale, style);
-            break;
-        case ARROW_DASHED_EQUILIBRIUM:
-            drawDashedEquilibrium(g2, from, to, scale, style);
-            break;
-        default:
-            drawForward(g2, from, to, scale, style);
-            break;
+    bool useDashed = params.dashed || type == ARROW_DASHED_FORWARD || type == ARROW_DASHED_EQUILIBRIUM;
+    
+    if (useDashed && type != ARROW_DASHED_FORWARD && type != ARROW_DASHED_EQUILIBRIUM) {
+        drawDashedLine(g2, from, to, style.dashLength * scale, style.dashGap * scale);
+        drawArrowHead(g2, to, from, scale, style);
+    } else {
+        switch (type) {
+            case ARROW_FORWARD:
+                drawForward(g2, from, to, scale, style);
+                break;
+            case ARROW_BACKWARD:
+                drawBackward(g2, from, to, scale, style);
+                break;
+            case ARROW_BIDIRECTIONAL:
+                drawBidirectional(g2, from, to, scale, style);
+                break;
+            case ARROW_EQUILIBRIUM:
+                drawEquilibrium(g2, from, to, scale, style);
+                break;
+            case ARROW_LONG_EQUILIB:
+                drawLongEquilibrium(g2, from, to, scale, style);
+                break;
+            case ARROW_ALT_EQUILIB:
+                drawAltEquilibrium(g2, from, to, scale, style);
+                break;
+            case ARROW_HARP_RIGHT:
+                drawHarpRight(g2, from, to, scale, style);
+                break;
+            case ARROW_HARP_LEFT:
+                drawHarpLeft(g2, from, to, scale, style);
+                break;
+            case ARROW_FISHHOOK:
+                drawFishhook(g2, from, to, scale, style);
+                break;
+            case ARROW_INVISIBLE:
+                drawInvisible(g2, from, to, scale, style);
+                break;
+            case ARROW_CURVED_FORWARD:
+            case ARROW_ARC_FORWARD:
+                drawCurvedForward(g2, from, to, scale, style, params.curveHeight);
+                break;
+            case ARROW_CURVED_BACKWARD:
+            case ARROW_ARC_BACKWARD:
+                drawCurvedBackward(g2, from, to, scale, style, params.curveHeight);
+                break;
+            case ARROW_CURVED_BIDIR:
+            case ARROW_ARC_BIDIR:
+                drawCurvedBidirectional(g2, from, to, scale, style, params.curveHeight);
+                break;
+            case ARROW_HARPOON_RIGHT:
+                drawHarpoonRight(g2, from, to, scale, style);
+                break;
+            case ARROW_HARPOON_LEFT:
+                drawHarpoonLeft(g2, from, to, scale, style);
+                break;
+            case ARROW_DASHED_FORWARD:
+                drawDashedForward(g2, from, to, scale, style);
+                break;
+            case ARROW_DASHED_EQUILIBRIUM:
+                drawDashedEquilibrium(g2, from, to, scale, style);
+                break;
+            default:
+                drawForward(g2, from, to, scale, style);
+                break;
+        }
     }
 
     g2.setStroke(oldStroke);
+    g2.setColor(oldColor);
 }
 
 } // namespace tex

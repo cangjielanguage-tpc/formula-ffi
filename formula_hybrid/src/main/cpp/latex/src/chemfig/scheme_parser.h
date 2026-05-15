@@ -26,7 +26,7 @@ private:
                                       ReactionScheme& scheme);
     static bool parseChemname(const wchar_t*& p, ReactionScheme& scheme);
 
-    static ArrowType parseArrowCode(const wchar_t*& p);
+    static ArrowType parseArrowCode(const wchar_t*& p, std::wstring& labelAbove, std::wstring& labelBelow);
     static ArrowParams parseArrowArgs(const wchar_t*& p);
 
     static std::wstring parseBraceContent(const wchar_t*& p);
@@ -34,6 +34,8 @@ private:
     static std::wstring parseAtRef(const wchar_t*& p);
 
     static void resolveReferences(ReactionScheme& scheme);
+
+    static bool parseContent(const wchar_t* p, ReactionScheme& scheme);
 
     static wchar_t peek(const wchar_t* p);
     static void skipWhitespace(const wchar_t*& p);

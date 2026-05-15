@@ -58,6 +58,20 @@ private:
     };
     std::vector<MergeLayout> _mergeLayouts;
 
+    struct SubschemeLayout {
+        int subschemeIndex;
+        int firstCompound;
+        int lastCompound;
+        float minX, maxX, minY, maxY;
+        float centerX, centerY;
+        float width, height;
+        CompoundAnchorPos anchors;
+        SubschemeLayout() : subschemeIndex(-1), firstCompound(-1), lastCompound(-1),
+                            minX(0), maxX(0), minY(0), maxY(0),
+                            centerX(0), centerY(0), width(0), height(0) {}
+    };
+    std::vector<SubschemeLayout> _subschemeLayouts;
+
     float _compoundGap;
     float _arrowLength;
     float _scale;

@@ -346,7 +346,7 @@ std::wstring SchemeParser::parseAtRef(const wchar_t*& p) {
     return result;
 }
 
-ArrowType SchemeParser::parseArrowCode(const wchar_t*& p) {
+ArrowType SchemeParser::parseArrowCode(const wchar_t*& p, std::wstring& labelAbove, std::wstring& labelBelow) {
     skipWhitespace(p);
 
     if (peek(p) == L'0') { p++; return ARROW_INVISIBLE; }
@@ -361,6 +361,15 @@ ArrowType SchemeParser::parseArrowCode(const wchar_t*& p) {
             p++;
         } else {
             break;
+        }
+    }
+
+    while (peek(p) == L'[') {
+        std::wstring content = parseBracketContent(p);
+        if (labelAbove.empty()) {
+            labelAbove = content;
+        } else if (labelBelow.empty()) {
+            labelBelow = content;
         }
     }
 
@@ -438,16 +447,19 @@ ArrowParams SchemeParser::parseArrowArgs(const wchar_t*& p) {
         std::wstring content = parseBracketContent(p);
 
         auto parts = splitByComma(content);
-        bool allNumeric = true;
-        for (const auto& part : parts) {
-            if (!isNumericString(part)) { allNumeric = false; break; }
-        }
-
-        if (allNumeric && parts.size() >= 2) {
+        
+        bool firstTwoNumericOrEmpty = (parts.size() >= 2 && 
+                                       (parts[0].empty() || isNumericString(parts[0])) && 
+                                       (parts[1].empty() || isNumericString(parts[1])));
+        
+        if (firstTwoNumericOrEmpty && parts.size() >= 2) {
             if (!parts[0].empty()) params.angle = safeStofWithBraces(parts[0]);
             if (parts.size() > 1 && !parts[1].empty()) {
                 params.lengthCoeff = safeStofWithBraces(parts[1]);
                 if (params.lengthCoeff <= 0.0f) params.lengthCoeff = 1.0f;
+            }
+            if (parts.size() > 2 && !parts[2].empty()) {
+                params.tikzStyle = parts[2];
             }
             argIndex = (argIndex <= 1) ? 4 : (argIndex + 2);
         } else if ((argIndex == 0 || argIndex == 1) && isNumericString(content) && !labelAboveSet) {
@@ -488,6 +500,27 @@ ArrowParams SchemeParser::parseArrowArgs(const wchar_t*& p) {
             }
         }
         argIndex++;
+    }
+
+    if (!params.tikzStyle.empty()) {
+        std::wstring style = params.tikzStyle;
+        if (style.find(L"dashed") != std::wstring::npos) {
+            params.dashed = true;
+        }
+        
+        static const wchar_t* colorNames[] = {
+            L"red", L"blue", L"green", L"yellow", L"black", L"white",
+            L"cyan", L"magenta", L"orange", L"purple", L"brown", L"gray",
+            L"pink", L"violet", L"olive", L"teal", L"lime", L"darkgray",
+            L"lightgray", L"darkblue", L"darkgreen", L"darkred"
+        };
+        
+        for (const auto& colorName : colorNames) {
+            if (style.find(colorName) != std::wstring::npos) {
+                params.color = colorName;
+                break;
+            }
+        }
     }
 
     return params;
@@ -620,21 +653,28 @@ bool SchemeParser::parseArrow(const wchar_t*& p, ReactionScheme& scheme) {
     skipWhitespace(p);
 
     ArrowType type = ARROW_FORWARD;
+    std::wstring labelAbove, labelBelow;
     if (peek(p) == L'{') {
         p++;
-        type = parseArrowCode(p);
+        type = parseArrowCode(p, labelAbove, labelBelow);
+        skipWhitespace(p);
+        if (peek(p) == L'}') p++;
     }
 
     ArrowParams params = parseArrowArgs(p);
-
-    skipWhitespace(p);
-    if (peek(p) == L'}') p++;
 
     params.type = type;
     params.fromRef = fromRef;
     params.toRef = toRef;
     params.fromAnchor = fromAnchor;
     params.toAnchor = toAnchor;
+    
+    if (params.labelAbove.empty() && !labelAbove.empty()) {
+        params.labelAbove = labelAbove;
+    }
+    if (params.labelBelow.empty() && !labelBelow.empty()) {
+        params.labelBelow = labelBelow;
+    }
 
     if (params.isCurved() && params.curveHeight == 0.0f) {
         params.curveHeight = SchemeConfig::instance().defaultCurveHeight;
@@ -652,6 +692,24 @@ bool SchemeParser::parseArrow(const wchar_t*& p, ReactionScheme& scheme) {
 bool SchemeParser::parsePlus(const wchar_t*& p, ReactionScheme& scheme) {
     PlusElement elem;
     elem.afterCompound = static_cast<int>(scheme.compounds.size()) - 1;
+
+    if (peek(p) == L'{') {
+        std::wstring content = parseBraceContent(p);
+        auto parts = splitByComma(content);
+        
+        if (parts.size() >= 1 && !parts[0].empty()) {
+            elem.sepLeftRaw = parts[0];
+            elem.hasCustomSep = true;
+        }
+        if (parts.size() >= 2 && !parts[1].empty()) {
+            elem.sepRightRaw = parts[1];
+            elem.hasCustomSep = true;
+        }
+        if (parts.size() >= 3 && !parts[2].empty()) {
+            elem.vshiftRaw = parts[2];
+            elem.hasCustomSep = true;
+        }
+    }
 
     int idx = static_cast<int>(scheme.pluses.size());
     scheme.pluses.push_back(elem);
@@ -840,12 +898,26 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
                 if (scheme.elementOrder[j].first == ELEM_COMPOUND) {
                     fromIdx = scheme.elementOrder[j].second;
                     break;
+                } else if (scheme.elementOrder[j].first == ELEM_SUBSCHEME) {
+                    int subIdx = scheme.elementOrder[j].second;
+                    if (subIdx >= 0 && subIdx < static_cast<int>(scheme.subschemes.size())) {
+                        const auto& subInfo = scheme.subschemes[subIdx];
+                        fromIdx = subInfo.firstCompoundIndex;
+                        break;
+                    }
                 }
             }
             for (size_t j = i + 1; j < scheme.elementOrder.size(); j++) {
                 if (scheme.elementOrder[j].first == ELEM_COMPOUND) {
                     toIdx = scheme.elementOrder[j].second;
                     break;
+                } else if (scheme.elementOrder[j].first == ELEM_SUBSCHEME) {
+                    int subIdx = scheme.elementOrder[j].second;
+                    if (subIdx >= 0 && subIdx < static_cast<int>(scheme.subschemes.size())) {
+                        const auto& subInfo = scheme.subschemes[subIdx];
+                        toIdx = subInfo.firstCompoundIndex;
+                        break;
+                    }
                 }
             }
 
@@ -891,6 +963,52 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
         }
     }
 
+    for (auto& subInfo : scheme.subschemes) {
+        subInfo.internalArrows.clear();
+        if (subInfo.startArrow >= 0 && subInfo.endArrow >= subInfo.startArrow) {
+            for (int ai = subInfo.startArrow; ai <= subInfo.endArrow; ai++) {
+                subInfo.internalArrows.push_back(ai);
+            }
+        }
+    }
+
+    for (auto& subInfo : scheme.subschemes) {
+        int lastCompoundInSub = subInfo.firstCompoundIndex;
+        
+        for (int arrowIdx : subInfo.internalArrows) {
+            if (arrowIdx < 0 || arrowIdx >= static_cast<int>(scheme.arrows.size())) continue;
+            ArrowElement& arrow = scheme.arrows[arrowIdx];
+            
+            int fromIdx = -1;
+            int toIdx = -1;
+            
+            auto resolveCompoundIdx = [&](const ArrowRef& ref, const ArrowAnchor& anchor, int defaultIdx) -> int {
+                int idx = -1;
+                const std::wstring& refName = !ref.compoundRef.empty() ? ref.compoundRef : anchor.compoundRef;
+                if (!refName.empty()) {
+                    idx = scheme.findCompound(refName);
+                }
+                return (idx >= 0) ? idx : defaultIdx;
+            };
+            
+            if (arrow.params.fromRef.compoundRef.empty() && arrow.params.fromAnchor.compoundRef.empty()) {
+                fromIdx = lastCompoundInSub;
+            }
+            
+            if (arrow.params.toRef.compoundRef.empty() && arrow.params.toAnchor.compoundRef.empty()) {
+                toIdx = lastCompoundInSub + 1;
+                if (toIdx > subInfo.endCompound) toIdx = subInfo.endCompound;
+            }
+            
+            arrow.fromCompound = resolveCompoundIdx(arrow.params.fromRef, arrow.params.fromAnchor, fromIdx);
+            arrow.toCompound = resolveCompoundIdx(arrow.params.toRef, arrow.params.toAnchor, toIdx);
+            
+            if (arrow.toCompound >= subInfo.startCompound && arrow.toCompound <= subInfo.endCompound) {
+                lastCompoundInSub = arrow.toCompound;
+            }
+        }
+    }
+
     for (auto& merge : scheme.merges) {
         for (auto& src : merge.sources) {
             if (src.compoundIndex < 0 && !src.compoundRef.empty()) {
@@ -912,18 +1030,7 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
     }
 }
 
-bool SchemeParser::parse(const std::wstring& input, ReactionScheme& scheme) {
-    SchemeConfig::instance().reset();
-
-    scheme.compounds.clear();
-    scheme.arrows.clear();
-    scheme.pluses.clear();
-    scheme.merges.clear();
-    scheme.elementOrder.clear();
-    scheme.compoundRefs.clear();
-
-    const wchar_t* p = input.c_str();
-
+bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
     while (*p != L'\0') {
         skipWhitespace(p);
         if (*p == L'\0') break;
@@ -964,7 +1071,32 @@ bool SchemeParser::parse(const std::wstring& input, ReactionScheme& scheme) {
                 continue;
             } else if (cmd == L"subscheme") {
                 std::wstring content = parseBraceContent(p);
-                SchemeParser::parse(content, scheme);
+                int startIdx = static_cast<int>(scheme.compounds.size());
+                int arrowStartIdx = static_cast<int>(scheme.arrows.size());
+                size_t elemStartIdx = scheme.elementOrder.size();
+                
+                SubschemeInfo subInfo;
+                subInfo.startCompound = startIdx;
+                subInfo.startArrow = arrowStartIdx;
+                const wchar_t* subP = content.c_str();
+                if (!parseContent(subP, scheme)) return false;
+                int endIdx = static_cast<int>(scheme.compounds.size()) - 1;
+                int arrowEndIdx = static_cast<int>(scheme.arrows.size()) - 1;
+                subInfo.endCompound = endIdx;
+                subInfo.endArrow = arrowEndIdx;
+                
+                if (startIdx <= endIdx) {
+                    subInfo.firstCompoundIndex = startIdx;
+                    
+                    int subIdx = static_cast<int>(scheme.subschemes.size());
+                    scheme.subschemes.push_back(subInfo);
+                    
+                    scheme.elementOrder.erase(
+                        scheme.elementOrder.begin() + elemStartIdx,
+                        scheme.elementOrder.end());
+                    
+                    scheme.elementOrder.push_back(std::make_pair(ELEM_SUBSCHEME, subIdx));
+                }
             } else if (cmd == L"compnam") {
                 skipWhitespace(p);
                 std::wstring name = parseBraceContent(p);
@@ -1015,6 +1147,23 @@ bool SchemeParser::parse(const std::wstring& input, ReactionScheme& scheme) {
             }
         }
     }
+
+    return true;
+}
+
+bool SchemeParser::parse(const std::wstring& input, ReactionScheme& scheme) {
+    SchemeConfig::instance().reset();
+
+    scheme.compounds.clear();
+    scheme.arrows.clear();
+    scheme.pluses.clear();
+    scheme.merges.clear();
+    scheme.subschemes.clear();
+    scheme.elementOrder.clear();
+    scheme.compoundRefs.clear();
+
+    const wchar_t* p = input.c_str();
+    if (!parseContent(p, scheme)) return false;
 
     resolveReferences(scheme);
     return !scheme.compounds.empty();
