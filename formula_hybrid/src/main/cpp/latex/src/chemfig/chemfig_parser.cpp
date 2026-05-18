@@ -384,6 +384,124 @@ static float resolveBondAngle(const BondParams& params, float lastAngle) {
     return newAngle;
 }
 
+static std::wstring extractPureAtomText(const std::wstring& label) {
+    std::wstring result;
+    const wchar_t* p = label.c_str();
+    
+    while (*p != L'\0') {
+        if (*p == L'\\') {
+            const wchar_t* temp = p + 1;
+            std::wstring cmd;
+            while (*temp != L'\0' && (*temp >= L'a' && *temp <= L'z')) {
+                cmd += *temp;
+                temp++;
+            }
+            // Check if this is a single-character LaTeX symbol command
+            if (cmd == L"ominus" || cmd == L"oplus" || cmd == L"cdot" || 
+                cmd == L"times" || cmd == L"alpha" || cmd == L"beta" || 
+                cmd == L"gamma" || cmd == L"delta" || cmd == L"epsilon" ||
+                cmd == L"zeta" || cmd == L"eta" || cmd == L"theta" ||
+                cmd == L"iota" || cmd == L"kappa" || cmd == L"lambda" ||
+                cmd == L"mu" || cmd == L"nu" || cmd == L"xi" ||
+                cmd == L"pi" || cmd == L"rho" || cmd == L"sigma" ||
+                cmd == L"tau" || cmd == L"upsilon" || cmd == L"phi" ||
+                cmd == L"chi" || cmd == L"psi" || cmd == L"omega" ||
+                cmd == L"Gamma" || cmd == L"Delta" || cmd == L"Theta" ||
+                cmd == L"Lambda" || cmd == L"Xi" || cmd == L"Pi" ||
+                cmd == L"Sigma" || cmd == L"Upsilon" || cmd == L"Phi" ||
+                cmd == L"Psi" || cmd == L"Omega" || cmd == L"prime") {
+                // Treat as a single character
+                result += L'X';  // Use X as placeholder for single-char symbol
+                p = temp;
+                continue;
+            }
+            if (cmd == L"charge") {
+                p = temp;
+                if (*p == L'{') {
+                    p++;
+                    int depth = 1;
+                    while (*p != L'\0' && depth > 0) {
+                        if (*p == L'{') depth++;
+                        else if (*p == L'}') {
+                            depth--;
+                            if (depth == 0) break;
+                        }
+                        p++;
+                    }
+                    p++;
+                    if (*p == L'{') {
+                        p++;
+                        int depth = 1;
+                        while (*p != L'\0' && depth > 0) {
+                            if (*p == L'{') depth++;
+                            else if (*p == L'}') {
+                                depth--;
+                                if (depth == 0) break;
+                            }
+                            result += *p;
+                            p++;
+                        }
+                        p++;
+                    }
+                    continue;
+                }
+            } else if (cmd == L"chemabove" || cmd == L"chembelow") {
+                p = temp;
+                std::wstring arg1, arg2;
+                // Parse both arguments
+                for (int argIdx = 0; argIdx < 2; argIdx++) {
+                    if (*p == L'{') {
+                        p++;
+                        int depth = 1;
+                        std::wstring& arg = (argIdx == 0) ? arg1 : arg2;
+                        while (*p != L'\0' && depth > 0) {
+                            if (*p == L'{') depth++;
+                            else if (*p == L'}') {
+                                depth--;
+                                if (depth == 0) break;
+                            }
+                            arg += *p;
+                            p++;
+                        }
+                        p++;
+                    }
+                }
+                // Check if first argument is \vphantom
+                bool firstIsVphantom = (arg1.size() > 10 && arg1.substr(0, 10) == L"\\vphantom");
+                if (firstIsVphantom) {
+                    // If first is \vphantom, use the second argument as the atom
+                    result += arg2;
+                } else {
+                    // Otherwise, use the first argument as the atom
+                    result += arg1;
+                }
+                continue;
+            } else if (cmd == L"vphantom") {
+                // Skip \vphantom{...} entirely
+                p = temp;
+                if (*p == L'{') {
+                    p++;
+                    int depth = 1;
+                    while (*p != L'\0' && depth > 0) {
+                        if (*p == L'{') depth++;
+                        else if (*p == L'}') {
+                            depth--;
+                            if (depth == 0) break;
+                        }
+                        p++;
+                    }
+                    p++;
+                }
+                continue;
+            }
+        }
+        result += *p;
+        p++;
+    }
+    
+    return result;
+}
+
 static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& label,
                            BondType bondType, const BondParams& params,
                            float bondAngle, int& atomIndex) {
@@ -391,18 +509,12 @@ static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& lab
         return -1;
     }
 
-    mol.updateMaxAtomWidth(mol.atoms[fromAtomId].text);
-    mol.updateMaxAtomWidth(label);
+    std::wstring pureLabel = extractPureAtomText(label);
+    std::wstring pureFromLabel = extractPureAtomText(mol.atoms[fromAtomId].text);
+    mol.updateMaxAtomWidth(pureFromLabel);
+    mol.updateMaxAtomWidth(pureLabel);
 
     float bondLength = chemfig::DEFAULT_BOND_LENGTH * params.lengthCoeff;
-
-    float fromHalfW = Molecule::calculateAtomWidth(mol.atoms[fromAtomId].text) / 2.0f;
-    float toHalfW = Molecule::calculateAtomWidth(label) / 2.0f;
-    float minVisibleBond = chemfig::DEFAULT_BOND_LENGTH * 0.3f;
-    float requiredDist = fromHalfW + toHalfW + 2.0f * chemfig::TEXT_BOND_GAP + minVisibleBond;
-    if (requiredDist > bondLength) {
-        bondLength = requiredDist;
-    }
 
     ChemPoint lastPos = mol.atoms[fromAtomId].position;
     ChemPoint newPos(lastPos.x + bondLength * std::cos(bondAngle),
@@ -1287,20 +1399,21 @@ void ChemfigParser::parseAndApplyChargeToAtom(Molecule& mol, int atomIndex, std:
                         mol.atoms[atomIndex].charges = charges;
                     }
                     
-                    if (!match(p, L'{')) continue;
-                    int depth = 1;
-                    std::wstring innerLabel;
-                    while (peek(p) != L'\0' && depth > 0) {
-                        if (peek(p) == L'{') depth++;
-                        else if (peek(p) == L'}') {
-                            depth--;
-                            if (depth == 0) break;
+                    if (match(p, L'{')) {
+                        int depth = 1;
+                        std::wstring innerLabel;
+                        while (peek(p) != L'\0' && depth > 0) {
+                            if (peek(p) == L'{') depth++;
+                            else if (peek(p) == L'}') {
+                                depth--;
+                                if (depth == 0) break;
+                            }
+                            innerLabel += *p;
+                            p++;
                         }
-                        innerLabel += *p;
-                        p++;
+                        match(p, L'}');
+                        newLabel += innerLabel;
                     }
-                    match(p, L'}');
-                    newLabel += innerLabel;
                     continue;
                 }
             }

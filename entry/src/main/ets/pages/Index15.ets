@@ -280,11 +280,9 @@ struct Index15 {
     { description: '[20] 氧原子+0°孤对电子', formula: '\\chemfig{\\charge{0=\:}{O}}' },
     { description: '[20] 氧原子+270°孤对电子', formula: '\\chemfig{\\charge{270=\:}{O}}' },
     { description: '[20] 矩形电子+孤对电子混合显示', formula: '\\chemfig{\\charge{90=\:}{O} - C = \\charge{90=\"}{O}}' },
+    { description: '[20] 矩形电子+孤对电子混合显示', formula: '\\chemfig{\\charge{90=\:}{O} = \\charge{90=\\:}{O}}' },
     { description: '[20] 正负电子氧原子', formula: '\\chemfig{\\charge{180=\\oplus}{O} - \\charge{0=\\ominus}{O}}' },
-    { description: '[20] 正负电子的间距和大小调节', formula: '\\chemfig{\\charge{45:3pt=$\\scriptstyle\\ominus$}{O}}' },
-
-    // { description: '[20] 电子移动 - 羰基共振', formula: '\\schemestart \\chemfig{C([3]-)([5]-)=[@{db,.5}]@{atoo}\\charge{0=\\|,-90=\\|}{O}} \\arrow(.mid east--.mid west){<->} \\chemfig{\\charge{90:3pt=$\\scriptstyle\\oplus$}{C}([3]-)([5]-)-\\charge{0=\\|,90=\\|,-90=\\|,45:3pt=$\\scriptstyle\\ominus$}{O}} \\schemestop\\chemmove{\\draw[shorten <=2pt, shorten >=2pt](db) ..controls +(up:5mm) and +(up:5mm)..(atoo);}' },
-    { description: '[20] 电子移动 - 羰基共振[测试版]', formula: '\\schemestart \\chemfig{C([3]-)([5]-)=[@{db,.5}]@{atoo}\\charge{0=\\|,-90=\\|}{O}} \\arrow(.mid east--.mid west){<->} \\chemfig{\\charge{90:3pt=$\\scriptstyle\\oplus$}{C}([3]-)([5]-)-\\charge{0=\\|,90=\\|,-90=\\|,45:3pt=$\\scriptstyle\\ominus$}{O}} \\schemestop ' },
+    { description: '[20] 负电子的间距和大小调节', formula: '\\chemfig{\\charge{45:3pt=$\\scriptstyle\\ominus$}{O}}' },
 
     { description: '[20] 基础反应式 - 简单反应', formula: '\\schemestart \\chemfig{*6(-=-=-=)}\\arrow \\chemfig{X=[1]Y}\\arrow \\chemfig{S>T} \\schemestop' },
     { description: '[20] 基础反应式 - 多步反应', formula: '\\schemestart A\\arrow{->}B\\arrow{->}C\\arrow{->}D\\schemestop' },
@@ -316,6 +314,7 @@ struct Index15 {
     { description: '[20] 锚定 - base锚点对齐', formula: '\\schemestart \\chemfig{A*5(-----)} \\arrow(.base east--.base west) \\chemfig{A*5(---(-)--)} \\schemestop' },
     { description: '[20] 子方案 - 基本子方案', formula: '\\schemestart A\\arrow \\subscheme{B\\arrow[-90,2]C} \\arrow D\\schemestop' },
     { description: '待调试[20] 子方案 - 定界符', formula: '\\schemestart A\\arrow \\chemleft[\\subscheme{B\\arrow[-90,2]C}\\chemright] \\arrow D\\schemestop' },
+
     { description: '待调试[20] 电子移动 - 中介效应', formula: '\\schemestart \\chemfig{@{a1}=_[@{db}::30]-[::-60]\\charge{90=\\|}{X}} \\arrow{<->} \\chemfig{\\chemabove{\\vphantom{X}}{\\ominus}-[::30]=_[::-60]\\chemabove{X}{\\scriptstyle\\oplus}} \\schemestop\\chemmove{\\draw(db).. controls +(100:5mm) and +(145:5mm).. (a1);}' },
     { description: '待调试[20] 电子移动 - 羰基共振', formula: '\\schemestart \\chemfig{C([3]-)([5]-)=[@{db,.5}]@{atoo}\\charge{0=\\|,-90=\\|}{O}} \\arrow(.mid east--.mid west){<->} \\chemfig{\\charge{90:3pt=$\\scriptstyle\\oplus$}{C}([3]-)([5]-)-\\charge{0=\\|,90=\\|,-90=\\|,45:3pt=$\\scriptstyle\\ominus$}{O}} \\schemestop\\chemmove{\\draw[shorten <=2pt, shorten >=2pt](db) ..controls +(up:5mm) and +(up:5mm)..(atoo);}' },
     { description: '[20] 全局配置 - 箭头系数', formula: '\\setchemfig{arrow coeff=2}\\schemestart A\\arrow{->}B\\schemestop\\setchemfig{arrow coeff={}}' },
@@ -344,8 +343,8 @@ struct Index15 {
     { description: '[21] 箭头类型 - 鱼钩<>', formula: '\\schemestart A\\arrow{\\<\\>}B\\schemestop' },
 
     { description: '[待调试][21] 合并箭头 - 向下合并v', formula: '\\schemestart A\\arrow B\\arrow[-90]C \\merge v(c2)(c3)--(D) \\schemestop' },
-    // { description: '[待调试][21] 合并箭头 - 向上合并V', formula: '\\schemestart A\\arrow B\\arrow[90]C \\merge ^(c2)(c3)--(D) \\schemestop' },
-    // { description: '[待调试][21] 合并箭头 - 向右合并h', formula: '\\schemestart A\\arrow[90]B\\arrow[-90]C \\merge >(c2)(c3)--(D) \\schemestop' },
+    { description: '[待调试][21] 合并箭头 - 向上合并V', formula: '\\schemestart A\\arrow B\\arrow[90]C \\merge ^(c2)(c3)--(D) \\schemestop' },
+    { description: '[待调试][21] 合并箭头 - 向右合并h', formula: '\\schemestart A\\arrow[90]B\\arrow[-90]C \\merge >(c2)(c3)--(D) \\schemestop' },
 
     { description: '[21] 电荷 - 自定义标记oplus', formula: '\\chemfig{\\charge{90=$\\oplus$}{N}}' },
     { description: '[21] 电荷 - 自定义标记ominus', formula: '\\chemfig{\\charge{90=$\\ominus$}{O}}' },
