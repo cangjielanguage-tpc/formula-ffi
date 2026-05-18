@@ -334,6 +334,7 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         int targetAtom = mol.rings[currentRingIndex].atomIndices[(i + 1) % ringSize];
         if (!label.empty() && targetAtom >= 0 && targetAtom < static_cast<int>(mol.atoms.size())) {
             mol.atoms[targetAtom].text = label;
+            parseAndApplyChargeToAtom(mol, targetAtom, mol.atoms[targetAtom].text);
         }
 
         skipWhitespace(p);
@@ -421,6 +422,8 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
         }
     }
 
+    parseAndApplyChargeToAtom(mol, lastAtomId, mol.atoms[lastAtomId].text);
+
     skipWhitespace(p);
     if (peek(p) == L'@' && peekNext(p) == L'{') {
         std::wstring anchorName = parseAnchorName(p);
@@ -482,12 +485,15 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
         if (!hasExplicitBond && !label.empty()) {
             if (lastBranchAtomId >= 0 && lastBranchAtomId < static_cast<int>(mol.atoms.size())) {
                 mol.atoms[lastBranchAtomId].text += label;
+                parseAndApplyChargeToAtom(mol, lastBranchAtomId, mol.atoms[lastBranchAtomId].text);
             } else if (lastAtomId >= 0 && lastAtomId < static_cast<int>(mol.atoms.size())) {
                 mol.atoms[lastAtomId].text += label;
+                parseAndApplyChargeToAtom(mol, lastAtomId, mol.atoms[lastAtomId].text);
             }
         } else {
             lastAtomId = addAtomAndBond(mol, lastAtomId, label, bondType, params, bondAngle, atomIndex);
             if (lastAtomId < 0) return false;
+            parseAndApplyChargeToAtom(mol, lastAtomId, mol.atoms[lastAtomId].text);
             lastAngle = bondAngle;
         }
         lastBranchAtomId = -1;
@@ -561,12 +567,15 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
         if (!hasExplicitBond && !label.empty()) {
             if (lastBranchAtomId >= 0 && lastBranchAtomId < static_cast<int>(mol.atoms.size())) {
                 mol.atoms[lastBranchAtomId].text += label;
+                parseAndApplyChargeToAtom(mol, lastBranchAtomId, mol.atoms[lastBranchAtomId].text);
             } else if (savedLastAtomId >= 0 && savedLastAtomId < static_cast<int>(mol.atoms.size())) {
                 mol.atoms[savedLastAtomId].text += label;
+                parseAndApplyChargeToAtom(mol, savedLastAtomId, mol.atoms[savedLastAtomId].text);
             }
         } else {
             savedLastAtomId = addAtomAndBond(mol, savedLastAtomId, label, bondType, params, bondAngle, atomIndex);
             if (savedLastAtomId < 0) return false;
+            parseAndApplyChargeToAtom(mol, savedLastAtomId, mol.atoms[savedLastAtomId].text);
             savedLastAngle = bondAngle;
         }
         lastBranchAtomId = -1;
@@ -826,6 +835,62 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
                 (ch >= L'0' && ch <= L'9') || ch == L'+' || ch == L' ' || ch == L'|' || ch == L'#') {
                 label += ch;
                 p++;
+            } else if (ch == L'\\') {
+                const wchar_t* temp = p + 1;
+                bool isCharge = false;
+                if (peek(temp) == L'c') {
+                    temp++;
+                    isCharge = true;
+                    const wchar_t* chargeStr = L"harge";
+                    while (*chargeStr != L'\0') {
+                        if (peek(temp) != *chargeStr) {
+                            isCharge = false;
+                            break;
+                        }
+                        temp++;
+                        chargeStr++;
+                    }
+                }
+                if (isCharge && peek(temp) == L'{') {
+                    label += L'\\';
+                    p++;
+                    while (peek(p) != L'\0' && peek(p) != L'{') {
+                        label += *p;
+                        p++;
+                    }
+                    label += L'{';
+                    if (peek(p) == L'{') p++;
+                    int depth = 1;
+                    while (peek(p) != L'\0' && depth > 0) {
+                        if (peek(p) == L'{') depth++;
+                        else if (peek(p) == L'}') {
+                            depth--;
+                            if (depth == 0) break;
+                        }
+                        label += *p;
+                        p++;
+                    }
+                    if (peek(p) == L'}') p++;
+                    label += L'}';
+                    label += L'{';
+                    if (peek(p) == L'{') p++;
+                    depth = 1;
+                    while (peek(p) != L'\0' && depth > 0) {
+                        if (peek(p) == L'{') depth++;
+                        else if (peek(p) == L'}') {
+                            depth--;
+                            if (depth == 0) break;
+                        }
+                        label += *p;
+                        p++;
+                    }
+                    if (peek(p) == L'}') p++;
+                    label += L'}';
+                    continue;
+                } else {
+                    label += ch;
+                    p++;
+                }
             } else if (ch == L'\'') {
                 label += ch;
                 p++;
@@ -926,6 +991,119 @@ void ChemfigParser::resolveHooks(Molecule& mol) {
             }
         }
     }
+}
+
+bool ChemfigParser::parseChargeSpec(const wchar_t*& p, std::vector<Charge>& charges) {
+    if (!match(p, L'{')) return false;
+
+    std::wstring chargeSpec;
+    int depth = 1;
+    while (peek(p) != L'\0' && depth > 0) {
+        if (peek(p) == L'{') depth++;
+        else if (peek(p) == L'}') {
+            depth--;
+            if (depth == 0) break;
+        }
+        chargeSpec += *p;
+        p++;
+    }
+    match(p, L'}');
+
+    size_t start = 0;
+    size_t end = chargeSpec.find(L',');
+
+    while (start < chargeSpec.length()) {
+        std::wstring pair = chargeSpec.substr(start, end - start);
+
+        size_t equalsPos = pair.find(L'=');
+        if (equalsPos == std::wstring::npos) {
+            return false;
+        }
+
+        std::wstring angleStr = pair.substr(0, equalsPos);
+        std::wstring mark = pair.substr(equalsPos + 1);
+
+        size_t firstNonSpace = angleStr.find_first_not_of(L" \t");
+        if (firstNonSpace != std::wstring::npos) {
+            angleStr = angleStr.substr(firstNonSpace);
+        } else {
+            angleStr.clear();
+        }
+        float angle = 0;
+        if (!angleStr.empty()) {
+            try {
+                size_t colonPos = angleStr.find(L':');
+                if (colonPos != std::wstring::npos) {
+                    angleStr = angleStr.substr(0, colonPos);
+                }
+                angle = safeStof(angleStr);
+            } catch (...) {
+                return false;
+            }
+        }
+
+        charges.emplace_back(angle, mark);
+
+        if (end == std::wstring::npos) break;
+        start = end + 1;
+        while (start < chargeSpec.length() && chargeSpec[start] == L' ') start++;
+        end = chargeSpec.find(L',', start);
+    }
+
+    return true;
+}
+
+void ChemfigParser::parseAndApplyChargeToAtom(Molecule& mol, int atomIndex, std::wstring& label) {
+    if (atomIndex < 0 || atomIndex >= static_cast<int>(mol.atoms.size())) {
+        return;
+    }
+
+    const wchar_t* p = label.c_str();
+    std::wstring newLabel;
+    
+    while (peek(p) != L'\0') {
+        if (peek(p) == L'\\' && peekNext(p) == L'c') {
+            const wchar_t* temp = p + 1;
+            std::wstring cmd;
+            while (peek(temp) != L'\0' && (peek(temp) >= L'a' && peek(temp) <= L'z')) {
+                cmd += *temp;
+                temp++;
+            }
+            if (cmd == L"charge") {
+                p = temp;
+                std::vector<Charge> charges;
+                if (parseChargeSpec(p, charges)) {
+                    if (!mol.atoms[atomIndex].charges.empty()) {
+                        mol.atoms[atomIndex].charges.insert(
+                            mol.atoms[atomIndex].charges.end(), 
+                            charges.begin(), charges.end());
+                    } else {
+                        mol.atoms[atomIndex].charges = charges;
+                    }
+                    
+                    if (!match(p, L'{')) continue;
+                    int depth = 1;
+                    std::wstring innerLabel;
+                    while (peek(p) != L'\0' && depth > 0) {
+                        if (peek(p) == L'{') depth++;
+                        else if (peek(p) == L'}') {
+                            depth--;
+                            if (depth == 0) break;
+                        }
+                        innerLabel += *p;
+                        p++;
+                    }
+                    match(p, L'}');
+                    newLabel += innerLabel;
+                    continue;
+                }
+            }
+        }
+        newLabel += *p;
+        p++;
+    }
+    
+    mol.atoms[atomIndex].text = newLabel;
 }
 
 } // namespace tex

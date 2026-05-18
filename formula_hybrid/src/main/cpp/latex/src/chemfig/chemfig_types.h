@@ -75,10 +75,19 @@ struct BondParams {
                    hasOffset(false), offsetStart(0), offsetEnd(0) {}
 };
 
+struct Charge {
+    float angle;
+    std::wstring mark;
+
+    Charge() : angle(0) {}
+    Charge(float ang, const std::wstring& m) : angle(ang), mark(m) {}
+};
+
 struct AtomNode {
     ChemPoint position;
     std::wstring text;
     int number;
+    std::vector<Charge> charges;
 
     AtomNode() : number(-1) {}
     AtomNode(const ChemPoint& pos, const std::wstring& txt, int num = -1)

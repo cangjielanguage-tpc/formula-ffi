@@ -407,6 +407,82 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
             }
         }
     }
+
+    float textScale = 0.1f * _sizeFactor;
+    float chargeRadius = 0.55f * scale * textScale * 10;
+    
+    for (int i = 0; i < static_cast<int>(_molecule.atoms.size()); i++) {
+        const auto& atom = _molecule.atoms[i];
+        if (atom.charges.empty()) continue;
+        
+        float atomX = atom.position.x * scale + offsetX;
+        float atomY = atom.position.y * scale + offsetY;
+        
+        for (const auto& charge : atom.charges) {
+            float angleRad = charge.angle * CHEM_PI / 180.0f;
+            float dx = chargeRadius * std::cos(angleRad);
+            float dy = -chargeRadius * std::sin(angleRad);
+            float chargeX = atomX + dx;
+            float chargeY = atomY + dy;
+            
+            if (charge.mark == L"\"") {
+                float rectW = 0.45f * scale * textScale * 10;
+                float rectH = 0.12f * scale * textScale * 10;
+                float ca = std::cos(angleRad);
+                float sa = std::sin(angleRad);
+                float hw = rectW / 2;
+                float hh = rectH / 2;
+                float x1 = chargeX - hh * ca + hw * sa;
+                float y1 = chargeY + hh * sa + hw * ca;
+                float x2 = chargeX + hh * ca + hw * sa;
+                float y2 = chargeY - hh * sa + hw * ca;
+                float x3 = chargeX + hh * ca - hw * sa;
+                float y3 = chargeY - hh * sa - hw * ca;
+                float x4 = chargeX - hh * ca - hw * sa;
+                float y4 = chargeY + hh * sa - hw * ca;
+                g2.drawLine(x1, y1, x2, y2);
+                g2.drawLine(x2, y2, x3, y3);
+                g2.drawLine(x3, y3, x4, y4);
+                g2.drawLine(x4, y4, x1, y1);
+            } else if (charge.mark == L"\\|" || charge.mark == L"|") {
+                float lineLen = 0.5f * scale * textScale * 10;
+                float perpAngle = CHEM_PI / 2 - angleRad;
+                float dx1 = lineLen / 2 * std::cos(perpAngle);
+                float dy1 = lineLen / 2 * std::sin(perpAngle);
+                g2.drawLine(chargeX - dx1, chargeY - dy1, chargeX + dx1, chargeY + dy1);
+            } else if (charge.mark == L"\\:" || charge.mark == L":") {
+                float dotSize = 0.12f * scale * textScale * 10;
+                float dotSpacing = 0.18f * scale * textScale * 10;
+                float perpAngle = CHEM_PI / 2 - angleRad;
+                float ca = std::cos(perpAngle);
+                float sa = std::sin(perpAngle);
+                float offsetX1 = -dotSpacing / 2 * ca;
+                float offsetY1 = -dotSpacing / 2 * sa;
+                g2.fillRoundRect(chargeX + offsetX1 - dotSize / 2, chargeY + offsetY1 - dotSize / 2, dotSize, dotSize, dotSize / 2, dotSize / 2);
+                float offsetX2 = dotSpacing / 2 * ca;
+                float offsetY2 = dotSpacing / 2 * sa;
+                g2.fillRoundRect(chargeX + offsetX2 - dotSize / 2, chargeY + offsetY2 - dotSize / 2, dotSize, dotSize, dotSize / 2, dotSize / 2);
+            } else if (charge.mark == L"\\." || charge.mark == L".") {
+                float dotSize = 0.12f * scale * textScale * 10;
+                g2.fillRoundRect(chargeX - dotSize / 2, chargeY - dotSize / 2, dotSize, dotSize, dotSize / 2, dotSize / 2);
+            } else {
+                auto chargeLayout = TextLayout::create(charge.mark, _font);
+                if (chargeLayout) {
+                    Rect bounds;
+                    chargeLayout->getBounds(bounds);
+                    float chargeW = (bounds.w + bounds.x + 0.6f) * textScale;
+                    float chargeH = bounds.h * textScale;
+                    float chargeOffsetY = -bounds.y * textScale;
+                    
+                    g2.translate(chargeX - chargeW / 2, chargeY - chargeH / 2 + chargeOffsetY);
+                    g2.scale(textScale, textScale);
+                    chargeLayout->draw(g2, 0, 0);
+                    g2.scale(1.f / textScale, 1.f / textScale);
+                    g2.translate(-(chargeX - chargeW / 2), -(chargeY - chargeH / 2 + chargeOffsetY));
+                }
+            }
+        }
+    }
 }
 
 void ChemfigBox::draw(Graphics2D& g2, float x, float y) {

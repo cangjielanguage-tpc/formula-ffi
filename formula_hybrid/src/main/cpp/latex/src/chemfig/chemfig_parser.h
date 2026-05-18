@@ -25,6 +25,8 @@ private:
     static float parseAngleSpec(const wchar_t*& p, float currentAngle);
     static float parseNumber(const wchar_t*& p);
     static void resolveHooks(Molecule& mol);
+    static bool parseChargeSpec(const wchar_t*& p, std::vector<Charge>& charges);
+    static void parseAndApplyChargeToAtom(Molecule& mol, int atomIndex, std::wstring& label);
     
     static wchar_t peek(const wchar_t* p);
     static wchar_t peekNext(const wchar_t* p);
