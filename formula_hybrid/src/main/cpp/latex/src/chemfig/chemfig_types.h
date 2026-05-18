@@ -77,10 +77,12 @@ struct BondParams {
 
 struct Charge {
     float angle;
+    float distance;
     std::wstring mark;
+    bool isScriptStyle;
 
-    Charge() : angle(0) {}
-    Charge(float ang, const std::wstring& m) : angle(ang), mark(m) {}
+    Charge() : angle(0), distance(0), isScriptStyle(false) {}
+    Charge(float ang, float dist, const std::wstring& m, bool script = false) : angle(ang), distance(dist), mark(m), isScriptStyle(script) {}
 };
 
 struct AtomNode {

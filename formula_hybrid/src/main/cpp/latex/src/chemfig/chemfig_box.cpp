@@ -433,8 +433,12 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
         
         for (const auto& charge : atom.charges) {
             float angleRad = charge.angle * CHEM_PI / 180.0f;
-            float dx = chargeRadius * std::cos(angleRad);
-            float dy = -chargeRadius * std::sin(angleRad);
+            float dist = chargeRadius;
+            if (charge.distance > 0) {
+                dist = charge.distance * scale * textScale * 2.5f;
+            }
+            float dx = dist * std::cos(angleRad);
+            float dy = -dist * std::sin(angleRad);
             float chargeX = atomX + dx;
             float chargeY = atomY + dy;
             
@@ -478,19 +482,32 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
             } else if (charge.mark == L"\\." || charge.mark == L".") {
                 float dotSize = 0.12f * scale * textScale * 10;
                 g2.fillRoundRect(chargeX - dotSize / 2, chargeY - dotSize / 2, dotSize, dotSize, dotSize / 2, dotSize / 2);
+            } else if (charge.mark == L"\\oplus") {
+                float radius = 0.20f * scale * textScale * 10;
+                g2.drawEllipse(chargeX - radius, chargeY + radius, radius * 2, radius * 2, radius, radius, BOND_LINE_WIDTH * scale, 0.0f);
+                float lineLen = radius * 0.8f;
+                g2.drawLine(chargeX - lineLen, chargeY, chargeX + lineLen, chargeY);
+                g2.drawLine(chargeX, chargeY - lineLen, chargeX, chargeY + lineLen);
+            } else if (charge.mark == L"\\ominus") {
+                float radius = 0.20f * scale * textScale * 10;
+                g2.drawEllipse(chargeX - radius, chargeY + radius, radius * 2, radius * 2, radius, radius, BOND_LINE_WIDTH * scale, 0.0f);
+                float lineLen = radius * 0.8f;
+                g2.drawLine(chargeX - lineLen, chargeY, chargeX + lineLen, chargeY);
             } else {
                 auto chargeLayout = TextLayout::create(charge.mark, _font);
                 if (chargeLayout) {
                     Rect bounds;
                     chargeLayout->getBounds(bounds);
-                    float chargeW = (bounds.w + bounds.x + 0.6f) * textScale;
-                    float chargeH = bounds.h * textScale;
-                    float chargeOffsetY = -bounds.y * textScale;
+                    float scriptScale = charge.isScriptStyle ? 0.5f : 1.0f;
+                    float scaledTextScale = textScale * scriptScale;
+                    float chargeW = (bounds.w + bounds.x + 0.6f) * scaledTextScale;
+                    float chargeH = bounds.h * scaledTextScale;
+                    float chargeOffsetY = -bounds.y * scaledTextScale;
                     
                     g2.translate(chargeX - chargeW / 2, chargeY - chargeH / 2 + chargeOffsetY);
-                    g2.scale(textScale, textScale);
+                    g2.scale(scaledTextScale, scaledTextScale);
                     chargeLayout->draw(g2, 0, 0);
-                    g2.scale(1.f / textScale, 1.f / textScale);
+                    g2.scale(1.f / scaledTextScale, 1.f / scaledTextScale);
                     g2.translate(-(chargeX - chargeW / 2), -(chargeY - chargeH / 2 + chargeOffsetY));
                 }
             }

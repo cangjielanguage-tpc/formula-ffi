@@ -278,11 +278,13 @@ struct Index15 {
     { description: '[20] 氧原子+90°孤对电子', formula: '\\chemfig{\\charge{90=\:, 0=\:}{O}}' },
     { description: '[20] 氧原子+45°孤对电子', formula: '\\chemfig{\\charge{45=\:}{O}}' },
     { description: '[20] 氧原子+0°孤对电子', formula: '\\chemfig{\\charge{0=\:}{O}}' },
-    { description: '[20] 氧原子+270°孤对电子', formula: '\\chemfig{|\\charge{270=\:}{O}}' },
+    { description: '[20] 氧原子+270°孤对电子', formula: '\\chemfig{\\charge{270=\:}{O}}' },
     { description: '[20] 矩形电子+孤对电子混合显示', formula: '\\chemfig{\\charge{90=\:}{O} - C = \\charge{90=\"}{O}}' },
+    { description: '[20] 正负电子氧原子', formula: '\\chemfig{\\charge{180=\\oplus}{O} - \\charge{0=\\ominus}{O}}' },
+    { description: '[20] 正负电子的间距和大小调节', formula: '\\chemfig{\\charge{45:3pt=$\\scriptstyle\\ominus$}{O}}' },
 
     // { description: '[20] 电子移动 - 羰基共振', formula: '\\schemestart \\chemfig{C([3]-)([5]-)=[@{db,.5}]@{atoo}\\charge{0=\\|,-90=\\|}{O}} \\arrow(.mid east--.mid west){<->} \\chemfig{\\charge{90:3pt=$\\scriptstyle\\oplus$}{C}([3]-)([5]-)-\\charge{0=\\|,90=\\|,-90=\\|,45:3pt=$\\scriptstyle\\ominus$}{O}} \\schemestop\\chemmove{\\draw[shorten <=2pt, shorten >=2pt](db) ..controls +(up:5mm) and +(up:5mm)..(atoo);}' },
-    { description: '[20] 电子移动 - 羰基共振[测试版]', formula: '\\schemestart \\chemfig{C([3]-)([5]-)=[@{db,.5}]@{atoo}\\charge{0=\\|,-90=\\|}{O}} \\schemestop' },
+    { description: '[20] 电子移动 - 羰基共振[测试版]', formula: '\\schemestart \\chemfig{C([3]-)([5]-)=[@{db,.5}]@{atoo}\\charge{0=\\|,-90=\\|}{O}} \\arrow(.mid east--.mid west){<->} \\chemfig{\\charge{90:3pt=$\\scriptstyle\\oplus$}{C}([3]-)([5]-)-\\charge{0=\\|,90=\\|,-90=\\|,45:3pt=$\\scriptstyle\\ominus$}{O}} \\schemestop ' },
 
     { description: '[20] 基础反应式 - 简单反应', formula: '\\schemestart \\chemfig{*6(-=-=-=)}\\arrow \\chemfig{X=[1]Y}\\arrow \\chemfig{S>T} \\schemestop' },
     { description: '[20] 基础反应式 - 多步反应', formula: '\\schemestart A\\arrow{->}B\\arrow{->}C\\arrow{->}D\\schemestop' },

@@ -1032,6 +1032,21 @@ bool ChemfigParser::parseChargeSpec(const wchar_t*& p, std::vector<Charge>& char
         std::wstring angleStr = pair.substr(0, equalsPos);
         std::wstring mark = pair.substr(equalsPos + 1);
 
+        bool isScriptStyle = false;
+        if (mark.size() >= 2 && mark[0] == L'$') {
+            size_t endDollar = mark.find(L'$', 1);
+            if (endDollar != std::wstring::npos) {
+                std::wstring content = mark.substr(1, endDollar - 1);
+                size_t scriptPos = content.find(L"\\scriptstyle");
+                if (scriptPos != std::wstring::npos) {
+                    isScriptStyle = true;
+                    mark = content.substr(scriptPos + 12);
+                } else {
+                    mark = content;
+                }
+            }
+        }
+
         size_t firstNonSpace = angleStr.find_first_not_of(L" \t");
         if (firstNonSpace != std::wstring::npos) {
             angleStr = angleStr.substr(firstNonSpace);
@@ -1039,10 +1054,17 @@ bool ChemfigParser::parseChargeSpec(const wchar_t*& p, std::vector<Charge>& char
             angleStr.clear();
         }
         float angle = 0;
+        float distance = 0;
         if (!angleStr.empty()) {
             try {
                 size_t colonPos = angleStr.find(L':');
                 if (colonPos != std::wstring::npos) {
+                    std::wstring distStr = angleStr.substr(colonPos + 1);
+                    size_t ptPos = distStr.find(L"pt");
+                    if (ptPos != std::wstring::npos) {
+                        distStr = distStr.substr(0, ptPos);
+                    }
+                    distance = safeStof(distStr);
                     angleStr = angleStr.substr(0, colonPos);
                 }
                 angle = safeStof(angleStr);
@@ -1051,7 +1073,7 @@ bool ChemfigParser::parseChargeSpec(const wchar_t*& p, std::vector<Charge>& char
             }
         }
 
-        charges.emplace_back(angle, mark);
+        charges.emplace_back(angle, distance, mark, isScriptStyle);
 
         if (end == std::wstring::npos) break;
         start = end + 1;
