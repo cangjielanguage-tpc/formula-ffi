@@ -69,6 +69,7 @@ struct BondParams {
     bool hasOffset;
     float offsetStart;
     float offsetEnd;
+    std::wstring anchorName;
 
     BondParams() : angle(0), lengthCoeff(1.0f), fromAtomNum(-1), toAtomNum(-1),
                    hasAngle(false), isRelativeAngle(false),

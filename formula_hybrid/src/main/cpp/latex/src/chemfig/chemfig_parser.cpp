@@ -247,6 +247,8 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
             skipWhitespace(p);
             BondType sharedBondType = parseBondType(p);
             skipWhitespace(p);
+            if (peek(p) == L'_' || peek(p) == L'^') p++;
+            skipWhitespace(p);
             parseBondParams(p, 0);
             skipWhitespace(p);
             if (peek(p) == L'*') {
@@ -322,6 +324,8 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
         }
 
         BondType bt = parseBondType(p);
+        skipWhitespace(p);
+        if (peek(p) == L'_' || peek(p) == L'^') p++;
         skipWhitespace(p);
         BondParams params = parseBondParams(p, 0);
         skipWhitespace(p);
@@ -454,7 +458,7 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
     while (peek(p) != L'\0') {
         skipWhitespace(p);
         wchar_t ch = peek(p);
-        if (ch == L'\0' || ch == L')') break;
+        if (ch == L'\0' || ch == L')' || ch == L'}') break;
 
         if (ch == L'(') {
             p++;
@@ -485,6 +489,11 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
         }
 
         skipWhitespace(p);
+        if (hasExplicitBond && (peek(p) == L'_' || peek(p) == L'^')) {
+            p++;
+        }
+
+        skipWhitespace(p);
         BondParams params = parseBondParams(p, lastAngle);
         float bondAngle = resolveBondAngle(params, lastAngle);
         skipWhitespace(p);
@@ -502,6 +511,9 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
             lastAtomId = addAtomAndBond(mol, lastAtomId, label, bondType, params, bondAngle, atomIndex);
             if (lastAtomId < 0) return false;
             parseAndApplyChargeToAtom(mol, lastAtomId, mol.atoms[lastAtomId].text);
+            if (!params.anchorName.empty()) {
+                mol.anchors.push_back(Anchor(params.anchorName, lastAtomId));
+            }
             lastAngle = bondAngle;
         }
         lastBranchAtomId = -1;
@@ -536,7 +548,7 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
     while (peek(p) != L'\0' && peek(p) != L')') {
         skipWhitespace(p);
         wchar_t ch = peek(p);
-        if (ch == L'\0' || ch == L')') break;
+        if (ch == L'\0' || ch == L')' || ch == L'}') break;
 
         if (ch == L'(') {
             p++;
@@ -567,6 +579,11 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
         }
 
         skipWhitespace(p);
+        if (hasExplicitBond && (peek(p) == L'_' || peek(p) == L'^')) {
+            p++;
+        }
+
+        skipWhitespace(p);
         BondParams params = parseBondParams(p, savedLastAngle);
         float bondAngle = resolveBondAngle(params, savedLastAngle);
         skipWhitespace(p);
@@ -584,6 +601,9 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
             savedLastAtomId = addAtomAndBond(mol, savedLastAtomId, label, bondType, params, bondAngle, atomIndex);
             if (savedLastAtomId < 0) return false;
             parseAndApplyChargeToAtom(mol, savedLastAtomId, mol.atoms[savedLastAtomId].text);
+            if (!params.anchorName.empty()) {
+                mol.anchors.push_back(Anchor(params.anchorName, savedLastAtomId));
+            }
             savedLastAngle = bondAngle;
         }
         lastBranchAtomId = -1;
@@ -659,6 +679,18 @@ BondParams ChemfigParser::parseBondParams(const wchar_t*& p, float currentAngle)
 
     while (peek(p) != L']' && peek(p) != L'\0') {
         wchar_t ch = peek(p);
+        if (ch == L'@' && peekNext(p) == L'{') {
+            p++;
+            std::wstring anchorName;
+            if (match(p, L'{')) {
+                while (peek(p) != L'\0' && peek(p) != L'}') {
+                    anchorName += *p++;
+                }
+                match(p, L'}');
+            }
+            params.anchorName = anchorName;
+            continue;
+        }
         if (ch == L',' && fieldIndex < 4) {
             p++;
             fieldIndex++;
@@ -743,6 +775,91 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
                     p++;
                 }
                 label += L'|';
+                continue;
+            }
+            if (ch == L'\\') {
+                const wchar_t* cmdStart = p;
+                p++;
+                std::wstring cmdName;
+                while (peek(p) != L'\0' && peek(p) >= L'a' && peek(p) <= L'z') {
+                    cmdName += *p;
+                    p++;
+                }
+                if (cmdName == L"chemabove" || cmdName == L"chembelow") {
+                    label += L'\\';
+                    label += cmdName;
+                    for (int argIdx = 0; argIdx < 2; argIdx++) {
+                        if (peek(p) == L'{') {
+                            p++;
+                            label += L'{';
+                            int depth = 1;
+                            while (peek(p) != L'\0' && depth > 0) {
+                                if (peek(p) == L'{') depth++;
+                                else if (peek(p) == L'}') {
+                                    depth--;
+                                    if (depth == 0) break;
+                                }
+                                label += *p;
+                                p++;
+                            }
+                            if (peek(p) == L'}') { p++; }
+                            label += L'}';
+                        }
+                    }
+                    continue;
+                } else if (cmdName == L"vphantom" || cmdName == L"hphantom" || cmdName == L"phantom") {
+                    if (peek(p) == L'{') {
+                        p++;
+                        int depth = 1;
+                        while (peek(p) != L'\0' && depth > 0) {
+                            if (peek(p) == L'{') depth++;
+                            else if (peek(p) == L'}') {
+                                depth--;
+                                if (depth == 0) break;
+                            }
+                            p++;
+                        }
+                        if (peek(p) == L'}') p++;
+                    }
+                    continue;
+                } else if (cmdName == L"charge") {
+                    label += L'\\';
+                    label += cmdName;
+                    for (int argIdx = 0; argIdx < 2; argIdx++) {
+                        if (peek(p) == L'{') {
+                            p++;
+                            label += L'{';
+                            int depth = 1;
+                            while (peek(p) != L'\0' && depth > 0) {
+                                if (peek(p) == L'{') depth++;
+                                else if (peek(p) == L'}') {
+                                    depth--;
+                                    if (depth == 0) break;
+                                }
+                                label += *p;
+                                p++;
+                            }
+                            if (peek(p) == L'}') { p++; }
+                            label += L'}';
+                        }
+                    }
+                    continue;
+                } else if (cmdName == L"scriptstyle" || cmdName == L"scriptscriptstyle" ||
+                           cmdName == L"displaystyle" || cmdName == L"textstyle") {
+                    label += L'\\';
+                    label += cmdName;
+                    continue;
+                } else if (cmdName == L"ominus" || cmdName == L"oplus" ||
+                           cmdName == L"cdot" || cmdName == L"circ" ||
+                           cmdName == L"bullet" || cmdName == L"times") {
+                    label += L'\\';
+                    label += cmdName;
+                    continue;
+                } else {
+                    p = cmdStart;
+                    label += ch;
+                    p++;
+                }
                 continue;
             }
             label += ch;
@@ -897,8 +1014,66 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
                     label += L'}';
                     continue;
                 } else {
-                    label += ch;
+                    const wchar_t* cmdStart = p;
                     p++;
+                    std::wstring cmdName;
+                    while (peek(p) != L'\0' && peek(p) >= L'a' && peek(p) <= L'z') {
+                        cmdName += *p;
+                        p++;
+                    }
+                    if (cmdName == L"chemabove" || cmdName == L"chembelow") {
+                        label += L'\\';
+                        label += cmdName;
+                        for (int argIdx = 0; argIdx < 2; argIdx++) {
+                            if (peek(p) == L'{') {
+                                p++;
+                                label += L'{';
+                                int depth = 1;
+                                while (peek(p) != L'\0' && depth > 0) {
+                                    if (peek(p) == L'{') depth++;
+                                    else if (peek(p) == L'}') {
+                                        depth--;
+                                        if (depth == 0) break;
+                                    }
+                                    label += *p;
+                                    p++;
+                                }
+                                if (peek(p) == L'}') { p++; }
+                                label += L'}';
+                            }
+                        }
+                        continue;
+                    } else if (cmdName == L"vphantom" || cmdName == L"hphantom" || cmdName == L"phantom") {
+                        if (peek(p) == L'{') {
+                            p++;
+                            int depth = 1;
+                            while (peek(p) != L'\0' && depth > 0) {
+                                if (peek(p) == L'{') depth++;
+                                else if (peek(p) == L'}') {
+                                    depth--;
+                                    if (depth == 0) break;
+                                }
+                                p++;
+                            }
+                            if (peek(p) == L'}') p++;
+                        }
+                        continue;
+                    } else if (cmdName == L"scriptstyle" || cmdName == L"scriptscriptstyle" ||
+                               cmdName == L"displaystyle" || cmdName == L"textstyle") {
+                        label += L'\\';
+                        label += cmdName;
+                        continue;
+                    } else if (cmdName == L"ominus" || cmdName == L"oplus" ||
+                               cmdName == L"cdot" || cmdName == L"circ" ||
+                               cmdName == L"bullet" || cmdName == L"times") {
+                        label += L'\\';
+                        label += cmdName;
+                        continue;
+                    } else {
+                        p = cmdStart;
+                        label += ch;
+                        p++;
+                    }
                 }
             } else if (ch == L'\'') {
                 label += ch;

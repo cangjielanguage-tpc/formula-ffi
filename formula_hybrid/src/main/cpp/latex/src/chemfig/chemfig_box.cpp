@@ -30,8 +30,90 @@ namespace {
         return seg;
     }
 
-    std::vector<TextSegment> splitTextToSegments(const std::wstring& text,
+    std::wstring resolveLatexCommands(const std::wstring& text) {
+        std::wstring result;
+        size_t i = 0;
+        size_t n = text.size();
+
+        while (i < n) {
+            if (text[i] == L'\\' && i + 1 < n) {
+                size_t cmdStart = i;
+                i++;
+                std::wstring cmdName;
+                while (i < n && text[i] >= L'a' && text[i] <= L'z') {
+                    cmdName += text[i];
+                    i++;
+                }
+
+                if (cmdName == L"ominus") {
+                    result += L'\u2296';
+                } else if (cmdName == L"oplus") {
+                    result += L'\u2295';
+                } else if (cmdName == L"cdot") {
+                    result += L'\u00B7';
+                } else if (cmdName == L"circ") {
+                    result += L'\u2218';
+                } else if (cmdName == L"bullet") {
+                    result += L'\u2219';
+                } else if (cmdName == L"times") {
+                    result += L'\u00D7';
+                } else if (cmdName == L"chemabove" || cmdName == L"chembelow") {
+                    auto parseBraceArg = [&](std::wstring& arg) -> bool {
+                        if (i >= n || text[i] != L'{') return false;
+                        i++;
+                        int depth = 1;
+                        while (i < n && depth > 0) {
+                            if (text[i] == L'{') depth++;
+                            else if (text[i] == L'}') {
+                                depth--;
+                                if (depth == 0) { i++; break; }
+                            }
+                            if (depth > 0) { arg += text[i]; i++; }
+                        }
+                        return true;
+                    };
+                    std::wstring baseArg, labelArg;
+                    if (parseBraceArg(baseArg) && parseBraceArg(labelArg)) {
+                        std::wstring resolvedBase = resolveLatexCommands(baseArg);
+                        std::wstring resolvedLabel = resolveLatexCommands(labelArg);
+                        result += resolvedBase;
+                        if (cmdName == L"chemabove") {
+                            result += L'^';
+                            result += resolvedLabel;
+                        } else {
+                            result += L'_';
+                            result += resolvedLabel;
+                        }
+                    }
+                } else if (cmdName == L"scriptstyle" || cmdName == L"scriptscriptstyle" ||
+                           cmdName == L"displaystyle" || cmdName == L"textstyle") {
+                } else if (cmdName == L"vphantom" || cmdName == L"hphantom" || cmdName == L"phantom") {
+                    if (i < n && text[i] == L'{') {
+                        i++;
+                        int depth = 1;
+                        while (i < n && depth > 0) {
+                            if (text[i] == L'{') depth++;
+                            else if (text[i] == L'}') {
+                                depth--;
+                                if (depth == 0) { i++; break; }
+                            }
+                            i++;
+                        }
+                    }
+                } else {
+                    result += text.substr(cmdStart, i - cmdStart);
+                }
+            } else {
+                result += text[i];
+                i++;
+            }
+        }
+        return result;
+    }
+
+    std::vector<TextSegment> splitTextToSegments(const std::wstring& rawText,
                                                   const sptr<Font>& font, float textScale) {
+        std::wstring text = resolveLatexCommands(rawText);
         std::vector<TextSegment> segments;
         std::wstring current;
         TextSegmentType currentType = SEG_NORMAL;
@@ -58,7 +140,9 @@ namespace {
     }
 
     bool hasSubOrSuper(const std::wstring& text) {
-        return text.find_first_of(L"_^|") != std::wstring::npos;
+        if (text.find_first_of(L"_^|") != std::wstring::npos) return true;
+        if (text.find(L'\\') != std::wstring::npos) return true;
+        return false;
     }
 
     float computeSegmentsTotalWidth(const std::vector<TextSegment>& segments) {

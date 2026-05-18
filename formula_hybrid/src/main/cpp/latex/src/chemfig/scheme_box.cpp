@@ -778,7 +778,7 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
             const auto& arrow = _scheme.arrows[al.arrowIndex];
             if (arrow.params.isCurved()) {
                 ChemPoint ctrl = ArrowRenderer::computeCurveControlPoint(
-                    al.from, al.to, arrow.params.curveHeight);
+                    al.from, al.to, arrow.params.effectiveCurveHeight());
                 if (ctrl.x < minX) minX = ctrl.x;
                 if (ctrl.x > maxX) maxX = ctrl.x;
                 if (ctrl.y < minY) minY = ctrl.y;
@@ -825,21 +825,25 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
 }
 
 void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
+    SchemeConfig& cfg = SchemeConfig::instance();
     ArrowStyle style;
-    style.headLength = SchemeConfig::instance().arrowHeadLength;
-    style.headWidth = SchemeConfig::instance().arrowHeadWidth;
+    style.headLength = cfg.arrowHeadLength;
+    style.headWidth = cfg.arrowHeadWidth;
     style.lineWidth = ARROW_LINE_WIDTH;
-    style.doubleBondOffset = ARROW_DOUBLE_BOND_OFFSET;
+    style.doubleBondOffset = cfg.arrowDoubleSep;
     style.harpRadius = ARROW_HARP_RADIUS;
     style.dashLength = ARROW_DASH_LENGTH;
     style.dashGap = ARROW_DASH_GAP;
+
+    float arrowOffset = cfg.arrowOffset * _scale;
+    float labelSep = cfg.arrowLabelSep * _scale;
 
     for (const auto& al : _arrowLayouts) {
         if (al.arrowIndex < 0 || al.arrowIndex >= static_cast<int>(_scheme.arrows.size())) continue;
         const auto& arrow = _scheme.arrows[al.arrowIndex];
 
-        ChemPoint fromPos(al.from.x + ox, al.from.y + oy - al.yShift);
-        ChemPoint toPos(al.to.x + ox, al.to.y + oy - al.yShift);
+        ChemPoint fromPos(al.from.x + ox, al.from.y + oy - al.yShift - arrowOffset);
+        ChemPoint toPos(al.to.x + ox, al.to.y + oy - al.yShift - arrowOffset);
 
         ArrowRenderer::drawArrow(g2, arrow.params.type,
                                  fromPos, toPos, _scale,
@@ -851,7 +855,7 @@ void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
             
             if (arrow.params.isCurved()) {
                 ChemPoint ctrl = ArrowRenderer::computeCurveControlPoint(
-                    fromPos, toPos, arrow.params.curveHeight);
+                    fromPos, toPos, arrow.params.effectiveCurveHeight());
                 float t = 0.5f;
                 float t1 = 1.0f - t;
                 labelRef = ChemPoint(
@@ -876,7 +880,7 @@ void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
             float perpY = -std::cos(arrowAngle);
 
             if (al.labelAboveBox) {
-                float offsetDist = LABEL_OFFSET + al.labelAboveBox->_depth;
+                float offsetDist = LABEL_OFFSET + labelSep + al.labelAboveBox->_depth;
                 float cx = labelRef.x + perpX * offsetDist;
                 float cy = labelRef.y + perpY * offsetDist;
                 g2.rotate(arrowAngle, cx, cy);
@@ -886,7 +890,7 @@ void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
                 g2.rotate(-arrowAngle, cx, cy);
             }
             if (al.labelBelowBox) {
-                float offsetDist = LABEL_OFFSET + al.labelBelowBox->_height;
+                float offsetDist = LABEL_OFFSET + labelSep + al.labelBelowBox->_height;
                 float cx = labelRef.x - perpX * offsetDist;
                 float cy = labelRef.y - perpY * offsetDist;
                 g2.rotate(arrowAngle, cx, cy);

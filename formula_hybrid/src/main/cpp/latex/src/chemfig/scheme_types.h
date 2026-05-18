@@ -2,6 +2,7 @@
 #define SCHEME_TYPES_H_INCLUDED
 
 #include "chemfig_types.h"
+#include "scheme_config.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -90,6 +91,14 @@ struct ArrowParams {
                type == ARROW_ARC_BACKWARD ||
                type == ARROW_ARC_BIDIR ||
                curveHeight != 0.0f;
+    }
+
+    float effectiveCurveHeight() const {
+        if (curveHeight != 0.0f) return curveHeight;
+        if (type == ARROW_ARC_FORWARD || type == ARROW_ARC_BACKWARD || type == ARROW_ARC_BIDIR) {
+            return SchemeConfig::instance().defaultCurveHeight;
+        }
+        return curveHeight;
     }
 
     bool isDashed() const {

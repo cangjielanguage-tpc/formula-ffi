@@ -486,16 +486,22 @@ void ArrowRenderer::drawArrow(Graphics2D& g2, ArrowType type,
                 drawInvisible(g2, from, to, scale, style);
                 break;
             case ARROW_CURVED_FORWARD:
+                drawCurvedForward(g2, from, to, scale, style, params.effectiveCurveHeight());
+                break;
             case ARROW_ARC_FORWARD:
-                drawCurvedForward(g2, from, to, scale, style, params.curveHeight);
+                drawCurvedForward(g2, from, to, scale, style, params.effectiveCurveHeight());
                 break;
             case ARROW_CURVED_BACKWARD:
+                drawCurvedBackward(g2, from, to, scale, style, params.effectiveCurveHeight());
+                break;
             case ARROW_ARC_BACKWARD:
-                drawCurvedBackward(g2, from, to, scale, style, params.curveHeight);
+                drawCurvedBackward(g2, from, to, scale, style, params.effectiveCurveHeight());
                 break;
             case ARROW_CURVED_BIDIR:
+                drawCurvedBidirectional(g2, from, to, scale, style, params.effectiveCurveHeight());
+                break;
             case ARROW_ARC_BIDIR:
-                drawCurvedBidirectional(g2, from, to, scale, style, params.curveHeight);
+                drawCurvedBidirectional(g2, from, to, scale, style, params.effectiveCurveHeight());
                 break;
             case ARROW_HARPOON_RIGHT:
                 drawHarpoonRight(g2, from, to, scale, style);

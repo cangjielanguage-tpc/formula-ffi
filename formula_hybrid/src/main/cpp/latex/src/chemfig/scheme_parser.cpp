@@ -255,6 +255,29 @@ std::wstring SchemeParser::preprocessSchemeSyntax(const std::wstring& input) {
                 continue;
             }
 
+            if (cmd == L"chemmove") {
+                while (i < n && iswspace(input[i])) i++;
+                if (i < n && input[i] == L'{') {
+                    i++;
+                    int bd = 1;
+                    while (i < n && bd > 0) {
+                        if (input[i] == L'\\' && i + 1 < n) {
+                            i += 2;
+                        } else if (input[i] == L'{') {
+                            bd++;
+                            i++;
+                        } else if (input[i] == L'}') {
+                            bd--;
+                            if (bd == 0) i++;
+                            else i++;
+                        } else {
+                            i++;
+                        }
+                    }
+                }
+                continue;
+            }
+
             result += input.substr(cmdStart, i - cmdStart);
             continue;
         }
@@ -458,8 +481,13 @@ ArrowParams SchemeParser::parseArrowArgs(const wchar_t*& p) {
                 params.lengthCoeff = safeStofWithBraces(parts[1]);
                 if (params.lengthCoeff <= 0.0f) params.lengthCoeff = 1.0f;
             }
-            if (parts.size() > 2 && !parts[2].empty()) {
-                params.tikzStyle = parts[2];
+            if (parts.size() > 2) {
+                std::wstring combined;
+                for (size_t k = 2; k < parts.size(); k++) {
+                    if (k > 2) combined += L",";
+                    if (!parts[k].empty()) combined += parts[k];
+                }
+                params.tikzStyle = combined;
             }
             argIndex = (argIndex <= 1) ? 4 : (argIndex + 2);
         } else if ((argIndex == 0 || argIndex == 1) && isNumericString(content) && !labelAboveSet) {
@@ -786,23 +814,69 @@ bool SchemeParser::parseMerge(const wchar_t*& p, ReactionScheme& scheme) {
 
     skipWhitespace(p);
 
-    while (peek(p) == L'{') {
-        std::wstring sourceContent = parseBraceContent(p);
-        MergeSource src;
-        if (!sourceContent.empty()) {
-            parseMergeCompoundRef(sourceContent, src.compoundRef, src.anchorName, src.compoundIndex, scheme);
-        }
-        elem.sources.push_back(src);
+    if (peek(p) == L'\\') {
+        const wchar_t* saveP = p;
+        p++;
+        wchar_t dirChar = *p;
+        if (dirChar == L'v') { elem.direction = MERGE_DOWN; p++; }
+        else if (dirChar == L'V') { elem.direction = MERGE_UP; p++; }
+        else if (dirChar == L'h') { elem.direction = MERGE_RIGHT; p++; }
+        else if (dirChar == L'H') { elem.direction = MERGE_LEFT; p++; }
+        else { p = saveP; }
+    }
 
-        skipWhitespace(p);
-        if (peek(p) == L'\\') {
-            if (peekNext(p) == L'+') {
-                p += 2;
-                skipWhitespace(p);
-                continue;
+    skipWhitespace(p);
+
+    if (peek(p) == L'(') {
+        p++;
+        std::wstring refContent;
+        int depth = 1;
+        while (*p != L'\0' && depth > 0) {
+            if (*p == L'(') { depth++; refContent += *p++; }
+            else if (*p == L')') { depth--; if (depth == 0) { p++; break; } refContent += *p++; }
+            else if (*p == L'\\' && *(p + 1) != L'\0') { refContent += *p++; refContent += *p++; }
+            else { refContent += *p++; }
+        }
+
+        std::vector<std::wstring> refs;
+        std::wstring current;
+        int rDepth = 0;
+        for (wchar_t c : refContent) {
+            if (c == L'{') rDepth++;
+            else if (c == L'}') rDepth--;
+            if (c == L',' && rDepth == 0) {
+                refs.push_back(trim(current));
+                current.clear();
+            } else {
+                current += c;
             }
         }
-        break;
+        if (!current.empty()) refs.push_back(trim(current));
+
+        for (const auto& ref : refs) {
+            MergeSource src;
+            parseMergeCompoundRef(ref, src.compoundRef, src.anchorName, src.compoundIndex, scheme);
+            elem.sources.push_back(src);
+        }
+    } else {
+        while (peek(p) == L'{') {
+            std::wstring sourceContent = parseBraceContent(p);
+            MergeSource src;
+            if (!sourceContent.empty()) {
+                parseMergeCompoundRef(sourceContent, src.compoundRef, src.anchorName, src.compoundIndex, scheme);
+            }
+            elem.sources.push_back(src);
+
+            skipWhitespace(p);
+            if (peek(p) == L'\\') {
+                if (peekNext(p) == L'+') {
+                    p += 2;
+                    skipWhitespace(p);
+                    continue;
+                }
+            }
+            break;
+        }
     }
 
     skipWhitespace(p);
@@ -811,6 +885,14 @@ bool SchemeParser::parseMerge(const wchar_t*& p, ReactionScheme& scheme) {
         std::wstring targetContent = parseBraceContent(p);
         if (!targetContent.empty()) {
             parseMergeCompoundRef(targetContent, elem.target.compoundRef, elem.target.anchorName, elem.target.compoundIndex, scheme);
+        }
+    } else if (!iswspace(*p) && *p != L'\0' && *p != L'\\' && *p != L'[') {
+        std::wstring bareTarget;
+        while (*p != L'\0' && *p != L'\\' && !iswspace(*p) && *p != L'[') {
+            bareTarget += *p++;
+        }
+        if (!bareTarget.empty()) {
+            parseMergeCompoundRef(bareTarget, elem.target.compoundRef, elem.target.anchorName, elem.target.compoundIndex, scheme);
         }
     }
 
@@ -1116,16 +1198,14 @@ bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
                 }
             } else if (cmd == L"chemabove") {
                 skipWhitespace(p);
-                std::wstring label = parseBraceContent(p);
-                if (!scheme.arrows.empty()) {
-                    scheme.arrows.back().params.labelAbove = label;
-                }
+                parseBraceContent(p);
+                skipWhitespace(p);
+                if (peek(p) == L'{') parseBraceContent(p);
             } else if (cmd == L"chembelow") {
                 skipWhitespace(p);
-                std::wstring label = parseBraceContent(p);
-                if (!scheme.arrows.empty()) {
-                    scheme.arrows.back().params.labelBelow = label;
-                }
+                parseBraceContent(p);
+                skipWhitespace(p);
+                if (peek(p) == L'{') parseBraceContent(p);
             } else if (cmd == L"chemsign") {
                 skipWhitespace(p);
                 std::wstring sign = parseBraceContent(p);
@@ -1138,6 +1218,11 @@ bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
                 if (!scheme.compounds.empty()) {
                     scheme.compounds.back().refName = ref;
                     scheme.compoundRefs[ref] = static_cast<int>(scheme.compounds.size()) - 1;
+                }
+            } else if (cmd == L"chemmove") {
+                skipWhitespace(p);
+                if (peek(p) == L'{') {
+                    parseBraceContent(p);
                 }
             } else {
                 while (*p != L'\0' && *p != L'\\' && !iswspace(*p)) p++;

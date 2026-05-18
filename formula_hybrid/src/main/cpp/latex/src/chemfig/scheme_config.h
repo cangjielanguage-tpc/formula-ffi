@@ -18,6 +18,12 @@ struct SchemeConfig {
     float nameOffset;
     float numOffset;
     float lineSpacing;
+    float arrowOffset;
+    float arrowLabelSep;
+    float arrowDoubleSep;
+    float arrowDoubleCoeff;
+    bool arrowDoubleHarpoon;
+    std::wstring arrowHeadStyle;
     bool debugMode;
     bool autoNumber;
 
@@ -44,6 +50,11 @@ private:
           nameOffset(0.5f),
           numOffset(0.3f),
           lineSpacing(2.0f),
+          arrowOffset(0.0f),
+          arrowLabelSep(0.3f),
+          arrowDoubleSep(0.35f),
+          arrowDoubleCoeff(0.6f),
+          arrowDoubleHarpoon(false),
           debugMode(false),
           autoNumber(false) {}
 
