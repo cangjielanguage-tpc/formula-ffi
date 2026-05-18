@@ -3,6 +3,7 @@
 #include "chemfig_box.h"
 #include "core/formula.h"
 #include "atom/atom_basic.h"
+#include "atom/box.h"
 #include <cmath>
 #include <algorithm>
 
@@ -10,6 +11,27 @@ namespace tex {
 
 namespace {
     using namespace chemfig;
+
+    std::string delimCharToSymbol(const std::wstring& delim) {
+        if (delim == L"[") return "lsqbrack";
+        if (delim == L"]") return "rsqbrack";
+        if (delim == L"(") return "lbrack";
+        if (delim == L")") return "rbrack";
+        if (delim == L"\\{") return "lbrace";
+        if (delim == L"\\}") return "rbrace";
+        if (delim == L"|") return "vert";
+        if (delim == L"||") return "Vert";
+        if (delim == L"<") return "langle";
+        if (delim == L">") return "rangle";
+        if (delim == L"\\langle") return "langle";
+        if (delim == L"\\rangle") return "rangle";
+        if (delim == L"\\lfloor") return "lfloor";
+        if (delim == L"\\rfloor") return "rfloor";
+        if (delim == L"\\lceil") return "lceil";
+        if (delim == L"\\rceil") return "rceil";
+        if (delim == L".") return "";
+        return "";
+    }
 
     float parseLengthValue(const std::wstring& s, float scale, float emBase) {
         if (s.empty()) return 0.0f;
@@ -280,6 +302,31 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         float boxDepth = sl.height * 0.5f;
         sl.anchors = ReactionScheme::calculateCompoundAnchors(
             sl.minX, sl.centerY, sl.width, sl.height, boxHeight, boxDepth);
+
+        if (!subInfo.leftDelim.empty() && subInfo.leftDelim != L".") {
+            std::string symName = delimCharToSymbol(subInfo.leftDelim);
+            if (!symName.empty()) {
+                try {
+                    sl.leftDelimBox = DelimiterFactory::create(symName, env, sl.height);
+                    sl.leftDelimWidth = sl.leftDelimBox->_width;
+                } catch (...) {
+                    sl.leftDelimBox = nullptr;
+                    sl.leftDelimWidth = 0;
+                }
+            }
+        }
+        if (!subInfo.rightDelim.empty() && subInfo.rightDelim != L".") {
+            std::string symName = delimCharToSymbol(subInfo.rightDelim);
+            if (!symName.empty()) {
+                try {
+                    sl.rightDelimBox = DelimiterFactory::create(symName, env, sl.height);
+                    sl.rightDelimWidth = sl.rightDelimBox->_width;
+                } catch (...) {
+                    sl.rightDelimBox = nullptr;
+                    sl.rightDelimWidth = 0;
+                }
+            }
+        }
     }
 
     std::vector<std::pair<bool, int>> layoutElements;
@@ -394,7 +441,10 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 
                 currentX += gap;
                 
-                float offsetX = currentX - sl.minX;
+                float delimGap = _compoundGap * 0.15f;
+                float leftDelimOffset = sl.leftDelimWidth + delimGap;
+                
+                float offsetX = currentX + leftDelimOffset - sl.minX;
                 float offsetY = currentY - sl.centerY;
                 
                 for (int j = subInfo.startCompound; j <= subInfo.endCompound; j++) {
@@ -413,10 +463,19 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
 
                 float slBoxHeight = sl.height * 0.5f;
                 float slBoxDepth = sl.height * 0.5f;
+                float anchorX = sl.minX;
+                float anchorW = sl.width;
+                if (sl.leftDelimBox) {
+                    anchorX -= (sl.leftDelimWidth + delimGap);
+                    anchorW += (sl.leftDelimWidth + delimGap);
+                }
+                if (sl.rightDelimBox) {
+                    anchorW += (sl.rightDelimWidth + delimGap);
+                }
                 sl.anchors = ReactionScheme::calculateCompoundAnchors(
-                    sl.minX, sl.centerY, sl.width, sl.height, slBoxHeight, slBoxDepth);
+                    anchorX, sl.centerY, anchorW, sl.height, slBoxHeight, slBoxDepth);
                 
-                currentX += sl.width;
+                currentX += leftDelimOffset + sl.width + sl.rightDelimWidth + delimGap;
             }
         }
     }
@@ -818,6 +877,23 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         if (ml.toPoint.y < maxTop) maxTop = ml.toPoint.y;
     }
 
+    for (const auto& sl : _subschemeLayouts) {
+        if (sl.leftDelimBox) {
+            float delimTop = sl.centerY - sl.leftDelimBox->_height;
+            float delimBottom = sl.centerY + sl.leftDelimBox->_depth;
+            if (delimTop < maxTop) maxTop = delimTop;
+            if (delimBottom > maxBottom) maxBottom = delimBottom;
+        }
+        if (sl.rightDelimBox) {
+            float delimRight = sl.maxX + sl.rightDelimWidth;
+            if (delimRight > totalWidth) totalWidth = delimRight;
+            float delimTop = sl.centerY - sl.rightDelimBox->_height;
+            float delimBottom = sl.centerY + sl.rightDelimBox->_depth;
+            if (delimTop < maxTop) maxTop = delimTop;
+            if (delimBottom > maxBottom) maxBottom = delimBottom;
+        }
+    }
+
     _width = totalWidth + 2 * PADDING;
     _height = (-maxTop) + PADDING;
     _depth = maxBottom + PADDING;
@@ -1025,9 +1101,28 @@ void SchemeBox::draw(Graphics2D& g2, float x, float y) {
     drawMerges(g2, ox, oy);
     drawCompoundNames(g2, ox, oy);
     drawCompoundNumbers(g2, ox, oy);
+    drawSubschemeDelimiters(g2, ox, oy);
 
     if (SchemeConfig::instance().debugMode) {
         drawDebug(g2, ox, oy);
+    }
+}
+
+void SchemeBox::drawSubschemeDelimiters(Graphics2D& g2, float ox, float oy) {
+    for (size_t si = 0; si < _subschemeLayouts.size(); si++) {
+        const auto& sl = _subschemeLayouts[si];
+        if (sl.leftDelimBox) {
+            float dx = sl.minX - sl.leftDelimWidth + ox;
+            float totalH = sl.leftDelimBox->_height + sl.leftDelimBox->_depth;
+            float dy = sl.centerY - totalH * 0.5f + sl.leftDelimBox->_height + oy;
+            sl.leftDelimBox->draw(g2, dx, dy);
+        }
+        if (sl.rightDelimBox) {
+            float dx = sl.maxX + ox;
+            float totalH = sl.rightDelimBox->_height + sl.rightDelimBox->_depth;
+            float dy = sl.centerY - totalH * 0.5f + sl.rightDelimBox->_height + oy;
+            sl.rightDelimBox->draw(g2, dx, dy);
+        }
     }
 }
 

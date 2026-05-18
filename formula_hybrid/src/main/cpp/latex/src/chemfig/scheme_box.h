@@ -66,9 +66,14 @@ private:
         float centerX, centerY;
         float width, height;
         CompoundAnchorPos anchors;
+        sptr<Box> leftDelimBox;
+        sptr<Box> rightDelimBox;
+        float leftDelimWidth;
+        float rightDelimWidth;
         SubschemeLayout() : subschemeIndex(-1), firstCompound(-1), lastCompound(-1),
                             minX(0), maxX(0), minY(0), maxY(0),
-                            centerX(0), centerY(0), width(0), height(0) {}
+                            centerX(0), centerY(0), width(0), height(0),
+                            leftDelimWidth(0), rightDelimWidth(0) {}
     };
     std::vector<SubschemeLayout> _subschemeLayouts;
 
@@ -86,6 +91,7 @@ private:
     void drawMerges(Graphics2D& g2, float ox, float oy);
     void drawCompoundNames(Graphics2D& g2, float ox, float oy);
     void drawCompoundNumbers(Graphics2D& g2, float ox, float oy);
+    void drawSubschemeDelimiters(Graphics2D& g2, float ox, float oy);
     void drawDebug(Graphics2D& g2, float ox, float oy);
 
     sptr<Box> createLabelBox(const std::wstring& text, TeXEnvironment& env);

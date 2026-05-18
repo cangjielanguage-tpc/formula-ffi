@@ -1124,6 +1124,8 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
 }
 
 bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
+    std::wstring pendingLeftDelim;
+
     while (*p != L'\0') {
         skipWhitespace(p);
         if (*p == L'\0') break;
@@ -1162,6 +1164,40 @@ bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
                 }
             } else if (cmd == L"schemestart" || cmd == L"schemestop") {
                 continue;
+            } else if (cmd == L"chemleft") {
+                skipWhitespace(p);
+                std::wstring delim;
+                if (*p == L'\\') {
+                    delim += *p++;
+                    if (*p == L'{') {
+                        delim += *p++;
+                    } else {
+                        while (*p != L'\0' && iswalpha(*p)) {
+                            delim += *p++;
+                        }
+                    }
+                } else if (*p != L'\0' && *p != L' ' && *p != L'\t' && *p != L'\n' && *p != L'\r') {
+                    delim += *p++;
+                }
+                pendingLeftDelim = delim;
+            } else if (cmd == L"chemright") {
+                skipWhitespace(p);
+                std::wstring delim;
+                if (*p == L'\\') {
+                    delim += *p++;
+                    if (*p == L'{') {
+                        delim += *p++;
+                    } else {
+                        while (*p != L'\0' && iswalpha(*p)) {
+                            delim += *p++;
+                        }
+                    }
+                } else if (*p != L'\0' && *p != L' ' && *p != L'\t' && *p != L'\n' && *p != L'\r') {
+                    delim += *p++;
+                }
+                if (!scheme.subschemes.empty()) {
+                    scheme.subschemes.back().rightDelim = delim;
+                }
             } else if (cmd == L"subscheme") {
                 std::wstring content = parseBraceContent(p);
                 int startIdx = static_cast<int>(scheme.compounds.size());
@@ -1171,6 +1207,8 @@ bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
                 SubschemeInfo subInfo;
                 subInfo.startCompound = startIdx;
                 subInfo.startArrow = arrowStartIdx;
+                subInfo.leftDelim = pendingLeftDelim;
+                pendingLeftDelim.clear();
                 const wchar_t* subP = content.c_str();
                 if (!parseContent(subP, scheme)) return false;
                 int endIdx = static_cast<int>(scheme.compounds.size()) - 1;

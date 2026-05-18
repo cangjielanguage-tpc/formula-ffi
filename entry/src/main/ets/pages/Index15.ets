@@ -342,9 +342,7 @@ struct Index15 {
     { description: '[21] 箭头类型 - U形双向<U>', formula: '\\schemestart A\\arrow{<U>}B\\schemestop' },
     { description: '[21] 箭头类型 - 鱼钩<>', formula: '\\schemestart A\\arrow{\\<\\>}B\\schemestop' },
 
-    { description: '[待调试][21] 合并箭头 - 向下合并v', formula: '\\schemestart A\\arrow B\\arrow[-90]C \\merge v(c2)(c3)--(D) \\schemestop' },
-    { description: '[待调试][21] 合并箭头 - 向上合并V', formula: '\\schemestart A\\arrow B\\arrow[90]C \\merge ^(c2)(c3)--(D) \\schemestop' },
-    { description: '[待调试][21] 合并箭头 - 向右合并h', formula: '\\schemestart A\\arrow[90]B\\arrow[-90]C \\merge >(c2)(c3)--(D) \\schemestop' },
+    { description: '[待调试][21] 合并箭头', formula: '\\schemestart ABC\\arrow[30]EFGHIJ\\arrow[45]KLM\\arrow[60]NO\\merge>(c1)(c2)(c3)--()series 1\\arrow series 2\\schemestop' },
 
     { description: '[21] 电荷 - 自定义标记oplus', formula: '\\chemfig{\\charge{90=$\\oplus$}{N}}' },
     { description: '[21] 电荷 - 自定义标记ominus', formula: '\\chemfig{\\charge{90=$\\ominus$}{O}}' },

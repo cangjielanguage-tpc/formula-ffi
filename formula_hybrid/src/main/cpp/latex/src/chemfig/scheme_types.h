@@ -217,6 +217,8 @@ struct SubschemeInfo {
     std::vector<int> internalArrows;
     int startArrow;
     int endArrow;
+    std::wstring leftDelim;
+    std::wstring rightDelim;
 
     SubschemeInfo() : startCompound(-1), endCompound(-1), firstCompoundIndex(-1), startArrow(-1), endArrow(-1) {}
 };
