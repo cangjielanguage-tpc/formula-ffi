@@ -101,7 +101,36 @@ ChemPoint SchemeBox::resolveArrowEndpoint(
     const ArrowRef& ref,
     const ArrowAnchor& anchor,
     float angle,
-    bool isFrom) {
+    bool isFrom,
+    int subschemeIdx) {
+    if (subschemeIdx >= 0 && subschemeIdx < static_cast<int>(_subschemeLayouts.size())) {
+        const auto& sl = _subschemeLayouts[subschemeIdx];
+        bool hasAngle = (std::abs(angle) > EPSILON);
+        bool isExplicitRef = !anchor.compoundRef.empty() || !ref.compoundRef.empty();
+
+        std::wstring effectiveAnchorName;
+        if (!anchor.anchorName.empty()) {
+            effectiveAnchorName = anchor.anchorName;
+        } else if (!ref.anchorName.empty() && !isExplicitRef) {
+            effectiveAnchorName = ref.anchorName;
+        }
+
+        if (!effectiveAnchorName.empty()) {
+            ChemPoint pt = sl.anchors.getAnchor(effectiveAnchorName);
+            if (std::abs(pt.x - sl.anchors.center.x) > ANCHOR_EQUALITY_THRESHOLD ||
+                std::abs(pt.y - sl.anchors.center.y) > ANCHOR_EQUALITY_THRESHOLD) {
+                return pt;
+            }
+        }
+
+        if (hasAngle) {
+            float entryAngle = isFrom ? angle : (angle + 180.0f);
+            return sl.anchors.getAnchor(std::to_wstring(static_cast<int>(entryAngle)));
+        }
+
+        return isFrom ? sl.anchors.east : sl.anchors.west;
+    }
+
     if (compoundIdx < 0 || compoundIdx >= static_cast<int>(_compoundLayouts.size())) {
         return ChemPoint();
     }
@@ -250,7 +279,7 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         float boxHeight = sl.height * 0.5f;
         float boxDepth = sl.height * 0.5f;
         sl.anchors = ReactionScheme::calculateCompoundAnchors(
-            sl.minX, sl.minY, sl.width, sl.height, boxHeight, boxDepth);
+            sl.minX, sl.centerY, sl.width, sl.height, boxHeight, boxDepth);
     }
 
     std::vector<std::pair<bool, int>> layoutElements;
@@ -381,6 +410,11 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 sl.maxY += offsetY;
                 sl.centerX += offsetX;
                 sl.centerY += offsetY;
+
+                float slBoxHeight = sl.height * 0.5f;
+                float slBoxDepth = sl.height * 0.5f;
+                sl.anchors = ReactionScheme::calculateCompoundAnchors(
+                    sl.minX, sl.centerY, sl.width, sl.height, slBoxHeight, slBoxDepth);
                 
                 currentX += sl.width;
             }
@@ -480,26 +514,41 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
 
             ChemPoint fromPos = resolveArrowEndpoint(
                 fromIdx, arrow.params.fromRef, arrow.params.fromAnchor,
-                arrow.params.angle, true);
+                arrow.params.angle, true, arrow.fromSubschemeIdx);
 
             ChemPoint toPos = resolveArrowEndpoint(
                 toIdx, arrow.params.toRef, arrow.params.toAnchor,
-                arrow.params.angle, false);
+                arrow.params.angle, false, arrow.toSubschemeIdx);
 
             if (!hasAngle && fromIdx >= 0 && toIdx >= 0 &&
                 fromIdx < static_cast<int>(_compoundLayouts.size()) &&
                 toIdx < static_cast<int>(_compoundLayouts.size())) {
                 auto& fL = _compoundLayouts[fromIdx];
                 auto& tL = _compoundLayouts[toIdx];
-                float dx = tL.anchors.center.x - fL.anchors.center.x;
-                float dy = tL.anchors.center.y - fL.anchors.center.y;
+
+                ChemPoint fromCenter = (arrow.fromSubschemeIdx >= 0 && arrow.fromSubschemeIdx < static_cast<int>(_subschemeLayouts.size()))
+                    ? _subschemeLayouts[arrow.fromSubschemeIdx].anchors.center : fL.anchors.center;
+                ChemPoint toCenter = (arrow.toSubschemeIdx >= 0 && arrow.toSubschemeIdx < static_cast<int>(_subschemeLayouts.size()))
+                    ? _subschemeLayouts[arrow.toSubschemeIdx].anchors.center : tL.anchors.center;
+
+                float dx = toCenter.x - fromCenter.x;
+                float dy = toCenter.y - fromCenter.y;
                 float dist = std::sqrt(dx * dx + dy * dy);
                 if (dist > EPSILON) {
                     float actualAngle = std::atan2(-dy, dx) * 180.0f / CHEM_PI;
                     float fromAngle = actualAngle;
                     float entryAngle = actualAngle + 180.0f;
-                    fromPos = fL.anchors.getAnchor(std::to_wstring(static_cast<int>(fromAngle)));
-                    toPos = tL.anchors.getAnchor(std::to_wstring(static_cast<int>(entryAngle)));
+
+                    if (arrow.fromSubschemeIdx >= 0 && arrow.fromSubschemeIdx < static_cast<int>(_subschemeLayouts.size())) {
+                        fromPos = _subschemeLayouts[arrow.fromSubschemeIdx].anchors.getAnchor(std::to_wstring(static_cast<int>(fromAngle)));
+                    } else {
+                        fromPos = fL.anchors.getAnchor(std::to_wstring(static_cast<int>(fromAngle)));
+                    }
+                    if (arrow.toSubschemeIdx >= 0 && arrow.toSubschemeIdx < static_cast<int>(_subschemeLayouts.size())) {
+                        toPos = _subschemeLayouts[arrow.toSubschemeIdx].anchors.getAnchor(std::to_wstring(static_cast<int>(entryAngle)));
+                    } else {
+                        toPos = tL.anchors.getAnchor(std::to_wstring(static_cast<int>(entryAngle)));
+                    }
                 }
             }
 

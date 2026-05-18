@@ -304,19 +304,32 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
             float dirX = dx / bondLen;
             float dirY = dy / bondLen;
 
+            float shortenFrom = 0.0f;
+            float shortenTo = 0.0f;
+
             auto itFrom = _atomTextBounds.find(bond.fromAtom);
             if (itFrom != _atomTextBounds.end()) {
-                float shorten = computeShortening(dirX, dirY, itFrom->second.halfW, itFrom->second.halfH);
-                fromX += dirX * shorten;
-                fromY += dirY * shorten;
+                shortenFrom = computeShortening(dirX, dirY, itFrom->second.halfW, itFrom->second.halfH);
             }
 
             auto itTo = _atomTextBounds.find(bond.toAtom);
             if (itTo != _atomTextBounds.end()) {
-                float shorten = computeShortening(-dirX, -dirY, itTo->second.halfW, itTo->second.halfH);
-                toX -= dirX * shorten;
-                toY -= dirY * shorten;
+                shortenTo = computeShortening(-dirX, -dirY, itTo->second.halfW, itTo->second.halfH);
             }
+
+            float totalShorten = shortenFrom + shortenTo;
+            float minVisibleLen = TEXT_BOND_GAP * 2.0f;
+            if (totalShorten + minVisibleLen > bondLen && totalShorten > EPSILON) {
+                float ratio = (bondLen - minVisibleLen) / totalShorten;
+                if (ratio < 0.0f) ratio = 0.0f;
+                shortenFrom *= ratio;
+                shortenTo *= ratio;
+            }
+
+            fromX += dirX * shortenFrom;
+            fromY += dirY * shortenFrom;
+            toX -= dirX * shortenTo;
+            toY -= dirY * shortenTo;
 
             if (bond.params.hasOffset) {
                 float startGap = bond.params.offsetStart * scale * 0.06f;

@@ -893,6 +893,8 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
 
             int fromIdx = -1;
             int toIdx = -1;
+            int fromSubIdx = -1;
+            int toSubIdx = -1;
 
             for (int j = static_cast<int>(i) - 1; j >= 0; j--) {
                 if (scheme.elementOrder[j].first == ELEM_COMPOUND) {
@@ -903,6 +905,7 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
                     if (subIdx >= 0 && subIdx < static_cast<int>(scheme.subschemes.size())) {
                         const auto& subInfo = scheme.subschemes[subIdx];
                         fromIdx = subInfo.firstCompoundIndex;
+                        fromSubIdx = subIdx;
                         break;
                     }
                 }
@@ -916,6 +919,7 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
                     if (subIdx >= 0 && subIdx < static_cast<int>(scheme.subschemes.size())) {
                         const auto& subInfo = scheme.subschemes[subIdx];
                         toIdx = subInfo.firstCompoundIndex;
+                        toSubIdx = subIdx;
                         break;
                     }
                 }
@@ -949,6 +953,13 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
 
             arrow.fromCompound = resolveCompoundIdx(arrow.params.fromRef, arrow.params.fromAnchor, fromIdx);
             arrow.toCompound = resolveCompoundIdx(arrow.params.toRef, arrow.params.toAnchor, toIdx);
+
+            if (arrow.params.fromRef.compoundRef.empty() && arrow.params.fromAnchor.compoundRef.empty()) {
+                arrow.fromSubschemeIdx = fromSubIdx;
+            }
+            if (arrow.params.toRef.compoundRef.empty() && arrow.params.toAnchor.compoundRef.empty()) {
+                arrow.toSubschemeIdx = toSubIdx;
+            }
 
             if (!arrow.params.fromAnchor.anchorName.empty() && arrow.fromCompound >= 0) {
                 scheme.compoundRefs[arrow.params.fromAnchor.anchorName] = arrow.fromCompound;

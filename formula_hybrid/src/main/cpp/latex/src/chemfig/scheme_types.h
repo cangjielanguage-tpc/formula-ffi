@@ -111,8 +111,10 @@ struct ArrowElement {
     ArrowParams params;
     int fromCompound;
     int toCompound;
+    int fromSubschemeIdx;
+    int toSubschemeIdx;
 
-    ArrowElement() : fromCompound(-1), toCompound(-1) {}
+    ArrowElement() : fromCompound(-1), toCompound(-1), fromSubschemeIdx(-1), toSubschemeIdx(-1) {}
 };
 
 struct PlusElement {

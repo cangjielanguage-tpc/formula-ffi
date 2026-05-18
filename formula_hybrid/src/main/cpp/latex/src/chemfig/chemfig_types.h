@@ -208,7 +208,11 @@ struct Molecule {
             } else if (ch == L'^') {
                 inSuperscript = true;
                 continue;
-            } else if (ch == L'{' || ch == L'}') {
+            } else if (ch == L'{' || ch == L'}' || ch == L'|') {
+                if (ch == L'|') {
+                    inSubscript = false;
+                    inSuperscript = false;
+                }
                 continue;
             }
 

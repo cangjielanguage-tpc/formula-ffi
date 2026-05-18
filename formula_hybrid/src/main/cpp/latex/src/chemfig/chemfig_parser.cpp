@@ -1,4 +1,4 @@
-﻿#include "chemfig_parser.h"
+#include "chemfig_parser.h"
 #include "chemfig_constants.h"
 #include "common.h"
 #include <cmath>
@@ -391,6 +391,14 @@ static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& lab
     mol.updateMaxAtomWidth(label);
 
     float bondLength = chemfig::DEFAULT_BOND_LENGTH * params.lengthCoeff;
+
+    float fromHalfW = Molecule::calculateAtomWidth(mol.atoms[fromAtomId].text) / 2.0f;
+    float toHalfW = Molecule::calculateAtomWidth(label) / 2.0f;
+    float minVisibleBond = chemfig::DEFAULT_BOND_LENGTH * 0.3f;
+    float requiredDist = fromHalfW + toHalfW + 2.0f * chemfig::TEXT_BOND_GAP + minVisibleBond;
+    if (requiredDist > bondLength) {
+        bondLength = requiredDist;
+    }
 
     ChemPoint lastPos = mol.atoms[fromAtomId].position;
     ChemPoint newPos(lastPos.x + bondLength * std::cos(bondAngle),
@@ -788,6 +796,7 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
                         if (peek(p) == L'}') {
                             p++;
                         }
+                        label += L'|';
                     }
                     continue;
                 }

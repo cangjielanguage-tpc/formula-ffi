@@ -79,7 +79,8 @@ private:
     void calculateLayout(TeXEnvironment& env);
     void calculateCompoundAnchors(CompoundLayout& cl);
     ChemPoint resolveArrowEndpoint(int compoundIdx, const ArrowRef& ref,
-                                   const ArrowAnchor& anchor, float angle, bool isFrom);
+                                   const ArrowAnchor& anchor, float angle, bool isFrom,
+                                   int subschemeIdx = -1);
     void drawArrows(Graphics2D& g2, float ox, float oy);
     void drawPlusSigns(Graphics2D& g2, float ox, float oy);
     void drawMerges(Graphics2D& g2, float ox, float oy);
