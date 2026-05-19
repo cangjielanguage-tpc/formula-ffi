@@ -6,6 +6,7 @@
 #include "atom/box.h"
 #include <cmath>
 #include <algorithm>
+#include <set>
 
 namespace tex {
 
@@ -552,6 +553,58 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         }
     }
 
+    std::set<int> repositionedMergeTargets;
+    for (const auto& elem : _scheme.elementOrder) {
+        if (elem.first != ELEM_MERGE) continue;
+        if (elem.second < 0 || elem.second >= static_cast<int>(_scheme.merges.size())) continue;
+        const MergeElement& merge = _scheme.merges[elem.second];
+        int targetIdx = merge.target.compoundIndex;
+        if (targetIdx < 0 || targetIdx >= _scheme.compoundCount()) continue;
+        if (repositionedMergeTargets.count(targetIdx)) continue;
+
+        float srcMinX = 0, srcMaxX = 0, srcMaxY = 0;
+        bool hasValidSource = false;
+        for (const auto& src : merge.sources) {
+            if (src.compoundIndex < 0 || src.compoundIndex >= _scheme.compoundCount()) continue;
+            const auto& scl = _compoundLayouts[src.compoundIndex];
+            if (!hasValidSource) {
+                srcMinX = scl.x; srcMaxX = scl.x + scl.width; srcMaxY = scl.y + scl.boxDepth;
+                hasValidSource = true;
+            } else {
+                srcMinX = std::min(srcMinX, scl.x);
+                srcMaxX = std::max(srcMaxX, scl.x + scl.width);
+                srcMaxY = std::max(srcMaxY, scl.y + scl.boxDepth);
+            }
+        }
+        if (!hasValidSource) continue;
+
+        auto& tcl = _compoundLayouts[targetIdx];
+        float mergeDist = _arrowLength * _scale;
+        float centerX = (srcMinX + srcMaxX) * 0.5f;
+
+        switch (merge.direction) {
+            case MERGE_DOWN:
+                tcl.x = centerX - tcl.width * 0.5f;
+                tcl.y = srcMaxY + mergeDist;
+                break;
+            case MERGE_UP:
+                tcl.x = centerX - tcl.width * 0.5f;
+                tcl.y = srcMaxY - mergeDist - tcl.height;
+                break;
+            case MERGE_RIGHT:
+                tcl.x = srcMaxX + mergeDist;
+                tcl.y = srcMaxY - tcl.height * 0.5f;
+                break;
+            case MERGE_LEFT:
+                tcl.x = srcMinX - mergeDist - tcl.width;
+                tcl.y = srcMaxY - tcl.height * 0.5f;
+                break;
+        }
+        calculateCompoundAnchors(tcl);
+        tcl.invisible = true;
+        repositionedMergeTargets.insert(targetIdx);
+    }
+
     for (const auto& elem : _scheme.elementOrder) {
         if (elem.first == ELEM_ARROW) {
             if (elem.second < 0 || elem.second >= static_cast<int>(_scheme.arrows.size())) continue;
@@ -646,7 +699,7 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                                 }
                             }
                         }
-                        if (!isAngledTarget) {
+                        if (!isAngledTarget && !nextL.invisible) {
                             float gap = isArrowTarget ? _compoundGap : 0.0f;
                             nextL.x = nextX + gap;
                             nextL.y = tl.y;
@@ -729,12 +782,16 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                     } else {
                         switch (merge.direction) {
                             case MERGE_RIGHT:
+                                mlayout.fromPoints.push_back(cl.anchors.east);
+                                break;
                             case MERGE_LEFT:
-                                mlayout.fromPoints.push_back(cl.anchors.south);
+                                mlayout.fromPoints.push_back(cl.anchors.west);
                                 break;
                             case MERGE_UP:
+                                mlayout.fromPoints.push_back(cl.anchors.north);
+                                break;
                             case MERGE_DOWN:
-                                mlayout.fromPoints.push_back(cl.anchors.east);
+                                mlayout.fromPoints.push_back(cl.anchors.south);
                                 break;
                         }
                     }
@@ -742,21 +799,33 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
             }
 
             int targetIdx = merge.target.compoundIndex;
+            bool hasValidTarget = false;
             if (targetIdx >= 0 && targetIdx < static_cast<int>(_compoundLayouts.size())) {
                 auto& cl = _compoundLayouts[targetIdx];
                 if (!merge.target.anchorName.empty()) {
                     mlayout.toPoint = cl.anchors.getAnchor(merge.target.anchorName);
                 } else {
                     switch (merge.direction) {
-                        case MERGE_RIGHT:
-                        case MERGE_LEFT:
-                            mlayout.toPoint = cl.anchors.north;
-                            break;
-                        case MERGE_UP:
-                        case MERGE_DOWN:
-                            mlayout.toPoint = cl.anchors.west;
-                            break;
+                        case MERGE_RIGHT: mlayout.toPoint = cl.anchors.west; break;
+                        case MERGE_LEFT: mlayout.toPoint = cl.anchors.east; break;
+                        case MERGE_UP: mlayout.toPoint = cl.anchors.south; break;
+                        case MERGE_DOWN: mlayout.toPoint = cl.anchors.north; break;
                     }
+                }
+                hasValidTarget = true;
+            }
+
+            if (!hasValidTarget && !mlayout.fromPoints.empty()) {
+                float sumX = 0, sumY = 0;
+                for (const auto& fp : mlayout.fromPoints) { sumX += fp.x; sumY += fp.y; }
+                float avgX = sumX / mlayout.fromPoints.size();
+                float avgY = sumY / mlayout.fromPoints.size();
+                float ext = _arrowLength * _scale * 0.6f;
+                switch (merge.direction) {
+                    case MERGE_RIGHT: mlayout.toPoint = ChemPoint(avgX + ext, avgY); break;
+                    case MERGE_LEFT:  mlayout.toPoint = ChemPoint(avgX - ext, avgY); break;
+                    case MERGE_UP:    mlayout.toPoint = ChemPoint(avgX, avgY - ext); break;
+                    case MERGE_DOWN:  mlayout.toPoint = ChemPoint(avgX, avgY + ext); break;
                 }
             }
 
@@ -1002,45 +1071,100 @@ void SchemeBox::drawMerges(Graphics2D& g2, float ox, float oy) {
 
     g2.setStroke(Stroke(ARROW_LINE_WIDTH * _scale, CAP_ROUND, JOIN_ROUND));
 
-    float headLength = SchemeConfig::instance().arrowHeadLength * _scale;
-    float headWidth = SchemeConfig::instance().arrowHeadWidth * _scale;
+    float headLength = SchemeConfig::instance().arrowHeadLength;
+    float headWidth = SchemeConfig::instance().arrowHeadWidth;
 
     for (const auto& ml : _mergeLayouts) {
         if (ml.fromPoints.empty()) continue;
+        if (ml.fromPoints.size() < 2) {
+            ChemPoint target(ml.toPoint.x + ox, ml.toPoint.y + oy);
+            ChemPoint source(ml.fromPoints[0].x + ox, ml.fromPoints[0].y + oy);
+            g2.drawLine(source.x, source.y, target.x, target.y);
+            ArrowRenderer::drawMergeArrowHead(g2, target, source, _scale, headLength, headWidth);
+            continue;
+        }
 
         ChemPoint target(ml.toPoint.x + ox, ml.toPoint.y + oy);
 
-        for (const auto& fromPt : ml.fromPoints) {
-            ChemPoint source(fromPt.x + ox, fromPt.y + oy);
+        bool isVertical = (ml.direction == MERGE_UP || ml.direction == MERGE_DOWN);
+        bool isDownOrRight = (ml.direction == MERGE_DOWN || ml.direction == MERGE_RIGHT);
 
-            float dx = target.x - source.x;
-            float dy = target.y - source.y;
-            float len = std::sqrt(dx * dx + dy * dy);
-            if (len < EPSILON) continue;
+        float spineCoord = 0.0f;
+        float minSpineEnd = 0.0f;
+        float maxSpineEnd = 0.0f;
+        bool first = true;
 
-            float dirX = dx / len;
-            float dirY = dy / len;
-            ChemPoint perp(-dirY, dirX);
+        std::vector<ChemPoint> spineEntryPoints;
 
-            float segLen = len * ml.segmentCoeff;
-            float offset = len * MERGE_BEND_OFFSET_RATIO;
-            float bendSign = (ml.direction == MERGE_RIGHT || ml.direction == MERGE_DOWN) ? 1.0f : -1.0f;
-            bool isVertical = (ml.direction == MERGE_UP || ml.direction == MERGE_DOWN);
+        for (size_t i = 0; i < ml.fromPoints.size(); i++) {
+            ChemPoint src(ml.fromPoints[i].x + ox, ml.fromPoints[i].y + oy);
+
+            float segLen = 3.0f * _scale * ml.segmentCoeff;
+            ChemPoint bendPt;
 
             if (isVertical) {
-                float vertOffset = len * MERGE_BEND_OFFSET_RATIO * bendSign;
-                ChemPoint bend(source.x, source.y + vertOffset);
-                g2.drawLine(source.x, source.y, bend.x, bend.y);
-                g2.drawLine(bend.x, bend.y, target.x, target.y);
-            } else {
-                ChemPoint midPoint(source.x + dirX * segLen, source.y + dirY * segLen);
-                ChemPoint bend(midPoint.x + perp.x * offset * bendSign,
-                               midPoint.y + perp.y * offset * bendSign);
-                g2.drawLine(source.x, source.y, bend.x, bend.y);
-                g2.drawLine(bend.x, bend.y, target.x, target.y);
-            }
+                float sign = isDownOrRight ? 1.0f : -1.0f;
+                bendPt = ChemPoint(src.x, src.y + segLen * sign);
 
-            ArrowRenderer::drawMergeArrowHead(g2, target, source, _scale, headLength, headWidth);
+                if (first) { spineCoord = bendPt.x; minSpineEnd = bendPt.y; maxSpineEnd = bendPt.y; first = false; }
+                else { spineCoord = (spineCoord * i + bendPt.x) / (i + 1); }
+                minSpineEnd = std::min(minSpineEnd, bendPt.y);
+                maxSpineEnd = std::max(maxSpineEnd, bendPt.y);
+
+                g2.drawLine(src.x, src.y, bendPt.x, bendPt.y);
+                spineEntryPoints.push_back(bendPt);
+            } else {
+                float sign = isDownOrRight ? 1.0f : -1.0f;
+                bendPt = ChemPoint(src.x + segLen * sign, src.y);
+
+                if (first) { spineCoord = bendPt.y; minSpineEnd = bendPt.x; maxSpineEnd = bendPt.x; first = false; }
+                else { spineCoord = (spineCoord * i + bendPt.y) / (i + 1); }
+                minSpineEnd = std::min(minSpineEnd, bendPt.x);
+                maxSpineEnd = std::max(maxSpineEnd, bendPt.x);
+
+                g2.drawLine(src.x, src.y, bendPt.x, bendPt.y);
+                spineEntryPoints.push_back(bendPt);
+            }
+        }
+
+        for (const auto& ep : spineEntryPoints) {
+            if (isVertical) {
+                g2.drawLine(ep.x, ep.y, spineCoord, ep.y);
+            } else {
+                g2.drawLine(ep.x, ep.y, ep.x, spineCoord);
+            }
+        }
+
+        float spineExt = 2.5f * _scale;
+
+        if (isVertical) {
+            float spineStart;
+            if (isDownOrRight) {
+                spineStart = (target.y >= maxSpineEnd) ? maxSpineEnd : minSpineEnd;
+            } else {
+                spineStart = (target.y <= minSpineEnd) ? minSpineEnd : maxSpineEnd;
+            }
+            float sign = isDownOrRight ? 1.0f : -1.0f;
+            float spineEnd = spineStart + spineExt * sign;
+            g2.drawLine(spineCoord, spineStart, spineCoord, spineEnd);
+
+            ChemPoint tip(spineCoord, spineEnd);
+            ChemPoint from(spineCoord, spineStart);
+            ArrowRenderer::drawMergeArrowHead(g2, tip, from, _scale, headLength, headWidth);
+        } else {
+            float spineStart;
+            if (isDownOrRight) {
+                spineStart = (target.x >= maxSpineEnd) ? maxSpineEnd : minSpineEnd;
+            } else {
+                spineStart = (target.x <= minSpineEnd) ? minSpineEnd : maxSpineEnd;
+            }
+            float sign = isDownOrRight ? 1.0f : -1.0f;
+            float spineEnd = spineStart + spineExt * sign;
+            g2.drawLine(spineStart, spineCoord, spineEnd, spineCoord);
+
+            ChemPoint tip(spineEnd, spineCoord);
+            ChemPoint from(spineStart, spineCoord);
+            ArrowRenderer::drawMergeArrowHead(g2, tip, from, _scale, headLength, headWidth);
         }
     }
 
@@ -1091,7 +1215,7 @@ void SchemeBox::draw(Graphics2D& g2, float x, float y) {
     float oy = y;
 
     for (const auto& cl : _compoundLayouts) {
-        if (cl.box) {
+        if (cl.box && !cl.invisible) {
             cl.box->draw(g2, cl.x + ox, cl.y + oy);
         }
     }

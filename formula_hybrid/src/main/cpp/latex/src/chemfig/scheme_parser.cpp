@@ -761,6 +761,24 @@ void SchemeParser::parseMergeCompoundRef(const std::wstring& content,
         } else {
             compoundRef = ref;
         }
+    } else if (content.size() > 1 && (content[0] == L'c' || content[0] == L'C')) {
+        std::wstring numStr = content.substr(1);
+        bool allDigits = true;
+        for (wchar_t c : numStr) {
+            if (!iswdigit(c)) { allDigits = false; break; }
+        }
+        if (allDigits && !numStr.empty()) {
+            compoundRef = content;
+        } else {
+            CompoundInfo info;
+            if (ChemfigParser::parse(content, info.molecule)) {
+                info.molecule.calculateBounds();
+                int idx = static_cast<int>(scheme.compounds.size());
+                scheme.compounds.push_back(info);
+                scheme.elementOrder.push_back(std::make_pair(ELEM_COMPOUND, idx));
+                compoundIndex = idx;
+            }
+        }
     } else if (content.size() > 8 && content.substr(0, 8) == L"\\chemfig") {
         size_t bracePos = content.find(L'{');
         if (bracePos != std::wstring::npos) {
@@ -823,11 +841,17 @@ bool SchemeParser::parseMerge(const wchar_t*& p, ReactionScheme& scheme) {
         else if (dirChar == L'h') { elem.direction = MERGE_RIGHT; p++; }
         else if (dirChar == L'H') { elem.direction = MERGE_LEFT; p++; }
         else { p = saveP; }
+    } else {
+        wchar_t dirChar = peek(p);
+        if (dirChar == L'>') { elem.direction = MERGE_RIGHT; p++; }
+        else if (dirChar == L'<') { elem.direction = MERGE_LEFT; p++; }
+        else if (dirChar == L'^') { elem.direction = MERGE_UP; p++; }
+        else if (dirChar == L'v') { elem.direction = MERGE_DOWN; p++; }
     }
 
     skipWhitespace(p);
 
-    if (peek(p) == L'(') {
+    while (peek(p) == L'(') {
         p++;
         std::wstring refContent;
         int depth = 1;
@@ -858,41 +882,77 @@ bool SchemeParser::parseMerge(const wchar_t*& p, ReactionScheme& scheme) {
             parseMergeCompoundRef(ref, src.compoundRef, src.anchorName, src.compoundIndex, scheme);
             elem.sources.push_back(src);
         }
-    } else {
-        while (peek(p) == L'{') {
-            std::wstring sourceContent = parseBraceContent(p);
-            MergeSource src;
-            if (!sourceContent.empty()) {
-                parseMergeCompoundRef(sourceContent, src.compoundRef, src.anchorName, src.compoundIndex, scheme);
-            }
-            elem.sources.push_back(src);
 
-            skipWhitespace(p);
-            if (peek(p) == L'\\') {
-                if (peekNext(p) == L'+') {
-                    p += 2;
-                    skipWhitespace(p);
-                    continue;
-                }
-            }
-            break;
+        skipWhitespace(p);
+    }
+
+    while (peek(p) == L'{') {
+        std::wstring sourceContent = parseBraceContent(p);
+        MergeSource src;
+        if (!sourceContent.empty()) {
+            parseMergeCompoundRef(sourceContent, src.compoundRef, src.anchorName, src.compoundIndex, scheme);
         }
+        elem.sources.push_back(src);
+
+        skipWhitespace(p);
+        if (peek(p) == L'\\') {
+            if (peekNext(p) == L'+') {
+                p += 2;
+                skipWhitespace(p);
+                continue;
+            }
+        }
+        break;
     }
 
     skipWhitespace(p);
 
-    if (peek(p) == L'{') {
-        std::wstring targetContent = parseBraceContent(p);
-        if (!targetContent.empty()) {
-            parseMergeCompoundRef(targetContent, elem.target.compoundRef, elem.target.anchorName, elem.target.compoundIndex, scheme);
+    if (peek(p) == L'-' && *(p + 1) == L'-') {
+        p += 2;
+        skipWhitespace(p);
+
+        if (peek(p) == L'(') {
+            p++;
+            std::wstring targetRefContent;
+            int depth = 1;
+            while (*p != L'\0' && depth > 0) {
+                if (*p == L'(') { depth++; targetRefContent += *p++; }
+                else if (*p == L')') { depth--; if (depth == 0) { p++; break; } targetRefContent += *p++; }
+                else if (*p == L'\\' && *(p + 1) != L'\0') { targetRefContent += *p++; targetRefContent += *p++; }
+                else { targetRefContent += *p++; }
+            }
+            std::wstring trimmedTarget = trim(targetRefContent);
+            if (!trimmedTarget.empty()) {
+                parseMergeCompoundRef(trimmedTarget, elem.target.compoundRef, elem.target.anchorName, elem.target.compoundIndex, scheme);
+            }
+        } else if (peek(p) == L'{') {
+            std::wstring targetContent = parseBraceContent(p);
+            if (!targetContent.empty()) {
+                parseMergeCompoundRef(targetContent, elem.target.compoundRef, elem.target.anchorName, elem.target.compoundIndex, scheme);
+            }
+        } else if (!iswspace(*p) && *p != L'\0' && *p != L'\\' && *p != L'[') {
+            std::wstring bareTarget;
+            while (*p != L'\0' && *p != L'\\' && !iswspace(*p) && *p != L'[') {
+                bareTarget += *p++;
+            }
+            if (!bareTarget.empty()) {
+                parseMergeCompoundRef(bareTarget, elem.target.compoundRef, elem.target.anchorName, elem.target.compoundIndex, scheme);
+            }
         }
-    } else if (!iswspace(*p) && *p != L'\0' && *p != L'\\' && *p != L'[') {
-        std::wstring bareTarget;
-        while (*p != L'\0' && *p != L'\\' && !iswspace(*p) && *p != L'[') {
-            bareTarget += *p++;
-        }
-        if (!bareTarget.empty()) {
-            parseMergeCompoundRef(bareTarget, elem.target.compoundRef, elem.target.anchorName, elem.target.compoundIndex, scheme);
+    } else {
+        if (peek(p) == L'{') {
+            std::wstring targetContent = parseBraceContent(p);
+            if (!targetContent.empty()) {
+                parseMergeCompoundRef(targetContent, elem.target.compoundRef, elem.target.anchorName, elem.target.compoundIndex, scheme);
+            }
+        } else if (!iswspace(*p) && *p != L'\0' && *p != L'\\' && *p != L'[') {
+            std::wstring bareTarget;
+            while (*p != L'\0' && *p != L'\\' && !iswspace(*p) && *p != L'[') {
+                bareTarget += *p++;
+            }
+            if (!bareTarget.empty()) {
+                parseMergeCompoundRef(bareTarget, elem.target.compoundRef, elem.target.anchorName, elem.target.compoundIndex, scheme);
+            }
         }
     }
 
@@ -1106,11 +1166,45 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
         for (auto& src : merge.sources) {
             if (src.compoundIndex < 0 && !src.compoundRef.empty()) {
                 src.compoundIndex = scheme.findCompound(src.compoundRef);
+                if (src.compoundIndex < 0 && src.compoundRef.size() > 1 &&
+                    (src.compoundRef[0] == L'c' || src.compoundRef[0] == L'C')) {
+                    std::wstring numStr = src.compoundRef.substr(1);
+                    if (!numStr.empty()) {
+                        bool allDigits = true;
+                        for (wchar_t c : numStr) {
+                            if (!iswdigit(c)) { allDigits = false; break; }
+                        }
+                        if (allDigits) {
+                            int cIdx = std::stoi(numStr) - 1;
+                            if (cIdx >= 0 && cIdx < scheme.compoundCount()) {
+                                src.compoundIndex = cIdx;
+                                scheme.compoundRefs[src.compoundRef] = cIdx;
+                            }
+                        }
+                    }
+                }
             }
             if (src.compoundIndex >= scheme.compoundCount()) src.compoundIndex = -1;
         }
         if (merge.target.compoundIndex < 0 && !merge.target.compoundRef.empty()) {
             merge.target.compoundIndex = scheme.findCompound(merge.target.compoundRef);
+            if (merge.target.compoundIndex < 0 && merge.target.compoundRef.size() > 1 &&
+                (merge.target.compoundRef[0] == L'c' || merge.target.compoundRef[0] == L'C')) {
+                std::wstring numStr = merge.target.compoundRef.substr(1);
+                if (!numStr.empty()) {
+                    bool allDigits = true;
+                    for (wchar_t c : numStr) {
+                        if (!iswdigit(c)) { allDigits = false; break; }
+                    }
+                    if (allDigits) {
+                        int cIdx = std::stoi(numStr) - 1;
+                        if (cIdx >= 0 && cIdx < scheme.compoundCount()) {
+                            merge.target.compoundIndex = cIdx;
+                            scheme.compoundRefs[merge.target.compoundRef] = cIdx;
+                        }
+                    }
+                }
+            }
         }
         if (merge.target.compoundIndex >= scheme.compoundCount()) merge.target.compoundIndex = -1;
     }

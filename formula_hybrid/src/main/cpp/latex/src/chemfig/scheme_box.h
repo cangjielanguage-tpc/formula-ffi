@@ -27,8 +27,9 @@ private:
         sptr<Box> numberBox;
         CompoundAnchorPos anchors;
         bool positioned;
+        bool invisible;
         CompoundLayout() : x(0), y(0), width(0), height(0),
-                           boxHeight(0), boxDepth(0), rowMaxDepth(0), positioned(false) {}
+                           boxHeight(0), boxDepth(0), rowMaxDepth(0), positioned(false), invisible(false) {}
     };
     std::vector<CompoundLayout> _compoundLayouts;
 
