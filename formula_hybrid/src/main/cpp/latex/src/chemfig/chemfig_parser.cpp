@@ -514,7 +514,10 @@ static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& lab
     mol.updateMaxAtomWidth(pureFromLabel);
     mol.updateMaxAtomWidth(pureLabel);
 
-    float bondLength = chemfig::DEFAULT_BOND_LENGTH * params.lengthCoeff;
+    float fromWidth = Molecule::calculateAtomWidth(pureFromLabel);
+    float toWidth = Molecule::calculateAtomWidth(pureLabel);
+    float minBondForText = (fromWidth + toWidth) * 0.5f + 1.0f;
+    float bondLength = std::max(chemfig::DEFAULT_BOND_LENGTH, minBondForText) * params.lengthCoeff;
 
     ChemPoint lastPos = mol.atoms[fromAtomId].position;
     ChemPoint newPos(lastPos.x + bondLength * std::cos(bondAngle),
