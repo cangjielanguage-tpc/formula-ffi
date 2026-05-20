@@ -111,6 +111,7 @@ SchemeBox::SchemeBox(const ReactionScheme& scheme, color c,
     _compoundGap = SchemeConfig::instance().compoundSep;
     _arrowLength = _compoundGap;
     _scale = BOND_SCALE;
+    _xOffset = 0.0f;
     calculateLayout(env);
 }
 
@@ -553,58 +554,6 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         }
     }
 
-    std::set<int> repositionedMergeTargets;
-    for (const auto& elem : _scheme.elementOrder) {
-        if (elem.first != ELEM_MERGE) continue;
-        if (elem.second < 0 || elem.second >= static_cast<int>(_scheme.merges.size())) continue;
-        const MergeElement& merge = _scheme.merges[elem.second];
-        int targetIdx = merge.target.compoundIndex;
-        if (targetIdx < 0 || targetIdx >= _scheme.compoundCount()) continue;
-        if (repositionedMergeTargets.count(targetIdx)) continue;
-
-        float srcMinX = 0, srcMaxX = 0, srcMaxY = 0;
-        bool hasValidSource = false;
-        for (const auto& src : merge.sources) {
-            if (src.compoundIndex < 0 || src.compoundIndex >= _scheme.compoundCount()) continue;
-            const auto& scl = _compoundLayouts[src.compoundIndex];
-            if (!hasValidSource) {
-                srcMinX = scl.x; srcMaxX = scl.x + scl.width; srcMaxY = scl.y + scl.boxDepth;
-                hasValidSource = true;
-            } else {
-                srcMinX = std::min(srcMinX, scl.x);
-                srcMaxX = std::max(srcMaxX, scl.x + scl.width);
-                srcMaxY = std::max(srcMaxY, scl.y + scl.boxDepth);
-            }
-        }
-        if (!hasValidSource) continue;
-
-        auto& tcl = _compoundLayouts[targetIdx];
-        float mergeDist = _arrowLength * _scale;
-        float centerX = (srcMinX + srcMaxX) * 0.5f;
-
-        switch (merge.direction) {
-            case MERGE_DOWN:
-                tcl.x = centerX - tcl.width * 0.5f;
-                tcl.y = srcMaxY + mergeDist;
-                break;
-            case MERGE_UP:
-                tcl.x = centerX - tcl.width * 0.5f;
-                tcl.y = srcMaxY - mergeDist - tcl.height;
-                break;
-            case MERGE_RIGHT:
-                tcl.x = srcMaxX + mergeDist;
-                tcl.y = srcMaxY - tcl.height * 0.5f;
-                break;
-            case MERGE_LEFT:
-                tcl.x = srcMinX - mergeDist - tcl.width;
-                tcl.y = srcMaxY - tcl.height * 0.5f;
-                break;
-        }
-        calculateCompoundAnchors(tcl);
-        tcl.invisible = true;
-        repositionedMergeTargets.insert(targetIdx);
-    }
-
     for (const auto& elem : _scheme.elementOrder) {
         if (elem.first == ELEM_ARROW) {
             if (elem.second < 0 || elem.second >= static_cast<int>(_scheme.arrows.size())) continue;
@@ -765,72 +714,144 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 playout.y = cl.y + (cl.boxDepth - cl.boxHeight) * 0.5f - vshift;
             }
             _plusLayouts.push_back(playout);
-        } else if (elem.first == ELEM_MERGE) {
-            if (elem.second < 0 || elem.second >= static_cast<int>(_scheme.merges.size())) continue;
-            const MergeElement& merge = _scheme.merges[elem.second];
-            MergeLayout mlayout;
-            mlayout.mergeIndex = elem.second;
-            mlayout.direction = merge.direction;
-            mlayout.segmentCoeff = merge.geometry.segmentCoeff;
+        }
+    }
 
-            for (const auto& src : merge.sources) {
-                int srcIdx = src.compoundIndex;
-                if (srcIdx >= 0 && srcIdx < static_cast<int>(_compoundLayouts.size())) {
-                    auto& cl = _compoundLayouts[srcIdx];
-                    if (!src.anchorName.empty()) {
-                        mlayout.fromPoints.push_back(cl.anchors.getAnchor(src.anchorName));
-                    } else {
-                        switch (merge.direction) {
-                            case MERGE_RIGHT:
-                                mlayout.fromPoints.push_back(cl.anchors.east);
-                                break;
-                            case MERGE_LEFT:
-                                mlayout.fromPoints.push_back(cl.anchors.west);
-                                break;
-                            case MERGE_UP:
-                                mlayout.fromPoints.push_back(cl.anchors.north);
-                                break;
-                            case MERGE_DOWN:
-                                mlayout.fromPoints.push_back(cl.anchors.south);
-                                break;
-                        }
-                    }
+    std::set<int> repositionedMergeTargets;
+    for (const auto& elem : _scheme.elementOrder) {
+        if (elem.first != ELEM_MERGE) continue;
+        if (elem.second < 0 || elem.second >= static_cast<int>(_scheme.merges.size())) continue;
+        const MergeElement& merge = _scheme.merges[elem.second];
+        int targetIdx = merge.target.compoundIndex;
+        if (targetIdx < 0 || targetIdx >= _scheme.compoundCount()) continue;
+        if (repositionedMergeTargets.count(targetIdx)) continue;
+
+        float srcMinX = 0, srcMaxX = 0;
+        float srcAnchorSumX = 0, srcAnchorSumY = 0;
+        int srcCount = 0;
+        bool hasValidSource = false;
+        for (const auto& src : merge.sources) {
+            if (src.compoundIndex < 0 || src.compoundIndex >= _scheme.compoundCount()) continue;
+            if (src.compoundIndex == targetIdx) continue;
+            const auto& scl = _compoundLayouts[src.compoundIndex];
+            if (!hasValidSource) {
+                srcMinX = scl.x; srcMaxX = scl.x + scl.width;
+                hasValidSource = true;
+            } else {
+                srcMinX = std::min(srcMinX, scl.x);
+                srcMaxX = std::max(srcMaxX, scl.x + scl.width);
+            }
+            ChemPoint anchorPt;
+            if (!src.anchorName.empty()) {
+                anchorPt = scl.anchors.getAnchor(src.anchorName);
+            } else {
+                switch (merge.direction) {
+                    case MERGE_DOWN:  anchorPt = scl.anchors.south; break;
+                    case MERGE_UP:    anchorPt = scl.anchors.north; break;
+                    case MERGE_RIGHT: anchorPt = scl.anchors.east; break;
+                    case MERGE_LEFT:  anchorPt = scl.anchors.west; break;
+                    default:          anchorPt = scl.anchors.south; break;
                 }
             }
+            srcAnchorSumX += anchorPt.x;
+            srcAnchorSumY += anchorPt.y;
+            srcCount++;
+        }
+        if (!hasValidSource) continue;
 
-            int targetIdx = merge.target.compoundIndex;
-            bool hasValidTarget = false;
-            if (targetIdx >= 0 && targetIdx < static_cast<int>(_compoundLayouts.size())) {
-                auto& cl = _compoundLayouts[targetIdx];
-                if (!merge.target.anchorName.empty()) {
-                    mlayout.toPoint = cl.anchors.getAnchor(merge.target.anchorName);
+        auto& tcl = _compoundLayouts[targetIdx];
+        float baseMergeDist = _arrowLength * 2.0f * _scale;
+        float hCenterX = (srcMinX + srcMaxX) * 0.5f;
+        float avgSrcAnchorX = srcAnchorSumX / srcCount;
+        float avgSrcAnchorY = srcAnchorSumY / srcCount;
+
+        float mergeAngle = 0.0f;
+        switch (merge.direction) {
+            case MERGE_DOWN:  mergeAngle = -90.0f; break;
+            case MERGE_UP:    mergeAngle = 90.0f;  break;
+            case MERGE_RIGHT: mergeAngle = 0.0f;   break;
+            case MERGE_LEFT:  mergeAngle = 180.0f; break;
+        }
+        float angleRad = mergeAngle * CHEM_PI / 180.0f;
+        ChemPoint fromAnchor(avgSrcAnchorX, avgSrcAnchorY);
+        float targetCenterX = fromAnchor.x + std::cos(angleRad) * baseMergeDist;
+        float targetCenterY = fromAnchor.y - std::sin(angleRad) * baseMergeDist;
+        tcl.x = targetCenterX - tcl.width * 0.5f;
+        tcl.y = targetCenterY - (tcl.boxDepth - tcl.boxHeight) * 0.5f;
+        calculateCompoundAnchors(tcl);
+        tcl.invisible = true;
+        repositionedMergeTargets.insert(targetIdx);
+    }
+
+    for (const auto& elem : _scheme.elementOrder) {
+        if (elem.first != ELEM_MERGE) continue;
+        if (elem.second < 0 || elem.second >= static_cast<int>(_scheme.merges.size())) continue;
+        const MergeElement& merge = _scheme.merges[elem.second];
+        MergeLayout mlayout;
+        mlayout.mergeIndex = elem.second;
+        mlayout.direction = merge.direction;
+        mlayout.segmentCoeff = merge.geometry.segmentCoeff;
+
+        for (const auto& src : merge.sources) {
+            int srcIdx = src.compoundIndex;
+            if (srcIdx >= 0 && srcIdx < static_cast<int>(_compoundLayouts.size())) {
+                if (srcIdx == merge.target.compoundIndex) continue;
+                auto& cl = _compoundLayouts[srcIdx];
+                ChemPoint pt;
+                if (!src.anchorName.empty()) {
+                    pt = cl.anchors.getAnchor(src.anchorName);
                 } else {
                     switch (merge.direction) {
-                        case MERGE_RIGHT: mlayout.toPoint = cl.anchors.west; break;
-                        case MERGE_LEFT: mlayout.toPoint = cl.anchors.east; break;
-                        case MERGE_UP: mlayout.toPoint = cl.anchors.south; break;
-                        case MERGE_DOWN: mlayout.toPoint = cl.anchors.north; break;
+                        case MERGE_RIGHT: pt = cl.anchors.east; break;
+                        case MERGE_LEFT:  pt = cl.anchors.west; break;
+                        case MERGE_UP:    pt = cl.anchors.north; break;
+                        case MERGE_DOWN:  pt = cl.anchors.south; break;
                     }
                 }
-                hasValidTarget = true;
+                mlayout.fromPoints.push_back(pt);
             }
+        }
 
-            if (!hasValidTarget && !mlayout.fromPoints.empty()) {
-                float sumX = 0, sumY = 0;
-                for (const auto& fp : mlayout.fromPoints) { sumX += fp.x; sumY += fp.y; }
-                float avgX = sumX / mlayout.fromPoints.size();
-                float avgY = sumY / mlayout.fromPoints.size();
-                float ext = _arrowLength * _scale * 0.6f;
+        bool isHorizontalMerge = (mlayout.direction == MERGE_RIGHT || mlayout.direction == MERGE_LEFT);
+        if (!isHorizontalMerge && mlayout.fromPoints.size() > 1) {
+            mlayout.fromPoints.resize(1);
+        }
+        if (mlayout.fromPoints.empty()) {
+            mlayout.fromPoints.resize(1);
+        }
+
+        int targetIdx = merge.target.compoundIndex;
+        bool hasValidTarget = false;
+        if (targetIdx >= 0 && targetIdx < static_cast<int>(_compoundLayouts.size())) {
+            auto& cl = _compoundLayouts[targetIdx];
+            if (!merge.target.anchorName.empty()) {
+                mlayout.toPoint = cl.anchors.getAnchor(merge.target.anchorName);
+            } else {
                 switch (merge.direction) {
-                    case MERGE_RIGHT: mlayout.toPoint = ChemPoint(avgX + ext, avgY); break;
-                    case MERGE_LEFT:  mlayout.toPoint = ChemPoint(avgX - ext, avgY); break;
-                    case MERGE_UP:    mlayout.toPoint = ChemPoint(avgX, avgY - ext); break;
-                    case MERGE_DOWN:  mlayout.toPoint = ChemPoint(avgX, avgY + ext); break;
+                    case MERGE_RIGHT: mlayout.toPoint = cl.anchors.west; break;
+                    case MERGE_LEFT: mlayout.toPoint = cl.anchors.east; break;
+                    case MERGE_UP: mlayout.toPoint = cl.anchors.south; break;
+                    case MERGE_DOWN: mlayout.toPoint = cl.anchors.north; break;
                 }
             }
-
-            _mergeLayouts.push_back(mlayout);
+            hasValidTarget = true;
         }
+
+        if (!hasValidTarget && !mlayout.fromPoints.empty()) {
+            float sumX = 0, sumY = 0;
+            for (const auto& fp : mlayout.fromPoints) { sumX += fp.x; sumY += fp.y; }
+            float avgX = sumX / mlayout.fromPoints.size();
+            float avgY = sumY / mlayout.fromPoints.size();
+            float ext = _arrowLength * _scale * 0.6f;
+            switch (merge.direction) {
+                case MERGE_RIGHT: mlayout.toPoint = ChemPoint(avgX + ext, avgY); break;
+                case MERGE_LEFT:  mlayout.toPoint = ChemPoint(avgX - ext, avgY); break;
+                case MERGE_UP:    mlayout.toPoint = ChemPoint(avgX, avgY - ext); break;
+                case MERGE_DOWN:  mlayout.toPoint = ChemPoint(avgX, avgY + ext); break;
+            }
+        }
+
+        _mergeLayouts.push_back(mlayout);
     }
 
     for (size_t si = 0; si < _scheme.subschemes.size(); si++) {
@@ -872,12 +893,14 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
     }
 
     float totalWidth = 0.0f;
+    float minLeft = 0.0f;
     float maxBottom = 0.0f;
     float maxTop = 0.0f;
 
     for (const auto& cl : _compoundLayouts) {
         float right = cl.x + cl.width;
         if (right > totalWidth) totalWidth = right;
+        if (cl.x < minLeft) minLeft = cl.x;
 
         float bottom = cl.y + cl.boxDepth;
         float top = cl.y - cl.boxHeight;
@@ -915,6 +938,7 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         }
 
         if (maxX > totalWidth) totalWidth = maxX;
+        if (minX < minLeft) minLeft = minX;
         if (minY < maxTop) maxTop = minY;
         if (maxY > maxBottom) maxBottom = maxY;
 
@@ -938,10 +962,12 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
     for (const auto& ml : _mergeLayouts) {
         for (const auto& fp : ml.fromPoints) {
             if (fp.x > totalWidth) totalWidth = fp.x;
+            if (fp.x < minLeft) minLeft = fp.x;
             if (fp.y > maxBottom) maxBottom = fp.y;
             if (fp.y < maxTop) maxTop = fp.y;
         }
         if (ml.toPoint.x > totalWidth) totalWidth = ml.toPoint.x;
+        if (ml.toPoint.x < minLeft) minLeft = ml.toPoint.x;
         if (ml.toPoint.y > maxBottom) maxBottom = ml.toPoint.y;
         if (ml.toPoint.y < maxTop) maxTop = ml.toPoint.y;
     }
@@ -963,9 +989,10 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         }
     }
 
-    _width = totalWidth + 2 * PADDING;
+    _width = totalWidth - minLeft + 2 * PADDING;
     _height = (-maxTop) + PADDING;
     _depth = maxBottom + PADDING;
+    _xOffset = -minLeft + PADDING;
     _foreground = _color;
 }
 
@@ -1099,7 +1126,7 @@ void SchemeBox::drawMerges(Graphics2D& g2, float ox, float oy) {
         for (size_t i = 0; i < ml.fromPoints.size(); i++) {
             ChemPoint src(ml.fromPoints[i].x + ox, ml.fromPoints[i].y + oy);
 
-            float segLen = 3.0f * _scale * ml.segmentCoeff;
+            float segLen = 5.0f * _scale * ml.segmentCoeff;
             ChemPoint bendPt;
 
             if (isVertical) {
@@ -1156,7 +1183,7 @@ void SchemeBox::drawMerges(Graphics2D& g2, float ox, float oy) {
             if (isDownOrRight) {
                 spineStart = (target.x >= maxSpineEnd) ? maxSpineEnd : minSpineEnd;
             } else {
-                spineStart = (target.x <= minSpineEnd) ? minSpineEnd : maxSpineEnd;
+                spineStart = (target.x >= maxSpineEnd) ? maxSpineEnd : minSpineEnd;
             }
             float sign = isDownOrRight ? 1.0f : -1.0f;
             float spineEnd = spineStart + spineExt * sign;
@@ -1211,7 +1238,7 @@ void SchemeBox::drawDebug(Graphics2D& g2, float ox, float oy) {
 }
 
 void SchemeBox::draw(Graphics2D& g2, float x, float y) {
-    float ox = x + PADDING;
+    float ox = x + _xOffset;
     float oy = y;
 
     for (const auto& cl : _compoundLayouts) {

@@ -81,6 +81,7 @@ private:
     float _compoundGap;
     float _arrowLength;
     float _scale;
+    float _xOffset;
 
     void calculateLayout(TeXEnvironment& env);
     void calculateCompoundAnchors(CompoundLayout& cl);
