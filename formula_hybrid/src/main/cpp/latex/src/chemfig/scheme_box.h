@@ -93,6 +93,7 @@ private:
     void drawMerges(Graphics2D& g2, float ox, float oy);
     void drawCompoundNames(Graphics2D& g2, float ox, float oy);
     void drawCompoundNumbers(Graphics2D& g2, float ox, float oy);
+    void drawCurves(Graphics2D& g2, float ox, float oy);
     void drawSubschemeDelimiters(Graphics2D& g2, float ox, float oy);
     void drawDebug(Graphics2D& g2, float ox, float oy);
 

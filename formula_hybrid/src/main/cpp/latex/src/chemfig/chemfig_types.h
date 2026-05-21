@@ -70,10 +70,11 @@ struct BondParams {
     float offsetStart;
     float offsetEnd;
     std::wstring anchorName;
+    float anchorPosition;
 
     BondParams() : angle(0), lengthCoeff(1.0f), fromAtomNum(-1), toAtomNum(-1),
                    hasAngle(false), isRelativeAngle(false),
-                   hasOffset(false), offsetStart(0), offsetEnd(0) {}
+                   hasOffset(false), offsetStart(0), offsetEnd(0), anchorPosition(-1.0f) {}
 };
 
 struct Charge {
@@ -135,9 +136,45 @@ struct Hook {
 struct Anchor {
     std::wstring name;
     int atomIndex;
+    int bondIndex;
+    float bondPosition;
 
-    Anchor() : atomIndex(-1) {}
-    Anchor(const std::wstring& n, int idx) : name(n), atomIndex(idx) {}
+    Anchor() : atomIndex(-1), bondIndex(-1), bondPosition(-1.0f) {}
+    Anchor(const std::wstring& n, int idx, int bondIdx = -1, float pos = -1.0f)
+        : name(n), atomIndex(idx), bondIndex(bondIdx), bondPosition(pos) {}
+};
+
+struct CurvePoint {
+    float angle;
+    float distance;
+
+    CurvePoint() : angle(0), distance(0) {}
+    CurvePoint(float ang, float dist) : angle(ang), distance(dist) {}
+};
+
+struct CurveControlPoint {
+    CurvePoint point;
+    bool relative;
+    bool toEnd;
+
+    CurveControlPoint() : relative(true), toEnd(false) {}
+    CurveControlPoint(float angle, float dist, bool rel, bool toEndPt)
+        : point(angle, dist), relative(rel), toEnd(toEndPt) {}
+};
+
+struct CurvePath {
+    std::wstring fromName;
+    std::wstring toName;
+    int fromAtom;
+    int toAtom;
+    std::vector<CurveControlPoint> controlPoints;
+    bool hasArrow;
+    float lineWidth;
+    float shortenStart;
+    float shortenEnd;
+
+    CurvePath() : fromAtom(-1), toAtom(-1), hasArrow(true), lineWidth(1.0f),
+                  shortenStart(0.0f), shortenEnd(0.0f) {}
 };
 
 struct Molecule {
@@ -146,6 +183,7 @@ struct Molecule {
     std::vector<Ring> rings;
     std::vector<Hook> hooks;
     std::vector<Anchor> anchors;
+    std::vector<CurvePath> curves;
 
     float minX, maxX, minY, maxY;
     float maxAtomWidth;

@@ -230,6 +230,7 @@ struct ReactionScheme {
     std::vector<MergeElement> merges;
     std::vector<SubschemeInfo> subschemes;
     std::vector<std::pair<ElementKind, int>> elementOrder;
+    std::vector<CurvePath> curves;
 
     std::map<std::wstring, int> compoundRefs;
 

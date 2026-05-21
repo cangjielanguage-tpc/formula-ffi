@@ -65,6 +65,11 @@ public:
     void draw(Graphics2D& g2, float x, float y) override;
 
     int getLastFontId() override;
+
+    float getTextBoundsMinX() const { return _textBoundsMinX; }
+    float getTextBoundsMinY() const { return _textBoundsMinY; }
+    float getTextBoundsMaxY() const { return _textBoundsMaxY; }
+    float getSizeFactor() const { return _sizeFactor; }
 };
 
 } // namespace tex

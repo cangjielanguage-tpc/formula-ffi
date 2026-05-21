@@ -3,6 +3,7 @@
 #include "fonts/fonts.h"
 #include <cmath>
 #include <algorithm>
+#include <hilog/log.h>
 
 namespace tex {
 
@@ -617,6 +618,169 @@ void ChemfigBox::draw(Graphics2D& g2, float x, float y) {
     }
 
     drawMolecule(g2, x, y);
+
+    // Debug output
+    #ifdef _DEBUG
+    wprintf(L"[DEBUG] ChemfigBox::draw: %d curves to render\n", (int)_molecule.curves.size());
+    #endif
+    
+    for (const auto& curve : _molecule.curves) {
+        // Debug output
+        #ifdef _DEBUG
+        wprintf(L"[DEBUG] Processing curve from '%ls' to '%ls'\n", 
+                curve.fromName.c_str(), curve.toName.c_str());
+        #endif
+        
+        ChemPoint fromPos, toPos;
+        bool foundFrom = false, foundTo = false;
+    bool fromIsAtom = false, toIsAtom = false;
+    float fromBondExtra = 0.0f, toBondExtra = 0.0f;
+
+        for (const auto& anchor : _molecule.anchors) {
+            float anchorYOffset = 0.0f;
+            if (anchor.atomIndex >= 0) {
+                bool hasAngleControl = false;
+                for (const auto& b : _molecule.bonds) {
+                    if (b.params.hasAngle) {
+                        hasAngleControl = true;
+                        break;
+                    }
+                }
+                if (_molecule.rings.empty() && !hasAngleControl && !_molecule.anchors.empty()) {
+                    anchorYOffset = computeAnchorYOffset(anchor.atomIndex);
+                }
+            }
+
+            if (anchor.name == curve.fromName) {
+                if (anchor.bondIndex >= 0 && anchor.bondIndex < static_cast<int>(_molecule.bonds.size())) {
+                    const auto& bond = _molecule.bonds[anchor.bondIndex];
+                    const auto& fromAtom = _molecule.atoms[bond.fromAtom];
+                    const auto& toAtom = _molecule.atoms[bond.toAtom];
+                    float pos = (anchor.bondPosition >= 0.0f) ? anchor.bondPosition : 0.5f;
+                    fromPos.x = (fromAtom.position.x * (1.0f - pos) + toAtom.position.x * pos) * scale + offsetX;
+                    fromPos.y = (fromAtom.position.y * (1.0f - pos) + toAtom.position.y * pos) * scale + offsetY;
+                    if (bond.type == BOND_DOUBLE) {
+                        fromBondExtra = 1.0f;
+                    } else if (bond.type == BOND_TRIPLE) {
+                        fromBondExtra = 2.0f;
+                    }
+                } else if (anchor.atomIndex >= 0 && anchor.atomIndex < static_cast<int>(_molecule.atoms.size())) {
+                    const auto& atom = _molecule.atoms[anchor.atomIndex];
+                    fromPos.x = atom.position.x * scale + offsetX;
+                    fromPos.y = atom.position.y * scale + offsetY - anchorYOffset;
+                    fromIsAtom = !atom.text.empty() || !atom.charges.empty();
+                }
+                foundFrom = true;
+            }
+            if (anchor.name == curve.toName) {
+                if (anchor.bondIndex >= 0 && anchor.bondIndex < static_cast<int>(_molecule.bonds.size())) {
+                    const auto& bond = _molecule.bonds[anchor.bondIndex];
+                    const auto& fromAtom = _molecule.atoms[bond.fromAtom];
+                    const auto& toAtom = _molecule.atoms[bond.toAtom];
+                    float pos = (anchor.bondPosition >= 0.0f) ? anchor.bondPosition : 0.5f;
+                    toPos.x = (fromAtom.position.x * (1.0f - pos) + toAtom.position.x * pos) * scale + offsetX;
+                    toPos.y = (fromAtom.position.y * (1.0f - pos) + toAtom.position.y * pos) * scale + offsetY;
+                    if (bond.type == BOND_DOUBLE) {
+                        toBondExtra = 1.0f;
+                    } else if (bond.type == BOND_TRIPLE) {
+                        toBondExtra = 2.0f;
+                    }
+                } else if (anchor.atomIndex >= 0 && anchor.atomIndex < static_cast<int>(_molecule.atoms.size())) {
+                    const auto& atom = _molecule.atoms[anchor.atomIndex];
+                    toPos.x = atom.position.x * scale + offsetX;
+                    toPos.y = atom.position.y * scale + offsetY - anchorYOffset;
+                    toIsAtom = !atom.text.empty() || !atom.charges.empty();
+                }
+                foundTo = true;
+            }
+        }
+
+        if (!foundFrom || !foundTo) {
+            // Debug output
+            #ifdef _DEBUG
+            wprintf(L"[DEBUG] Could not find anchors: foundFrom=%d, foundTo=%d\n", foundFrom, foundTo);
+            #endif
+            continue;
+        }
+        if (curve.controlPoints.size() < 2) {
+            // Debug output
+            #ifdef _DEBUG
+            wprintf(L"[DEBUG] Not enough control points: %d\n", (int)curve.controlPoints.size());
+            #endif
+            continue;
+        }
+
+        // Debug output
+        #ifdef _DEBUG
+        wprintf(L"[DEBUG] Rendering curve: from (%.2f, %.2f) to (%.2f, %.2f)\n", 
+                fromPos.x, fromPos.y, toPos.x, toPos.y);
+        #endif
+
+        float controlAngle1 = curve.controlPoints[0].point.angle * CHEM_PI / 180.0f;
+        float controlDist1 = curve.controlPoints[0].point.distance * scale;
+        float controlAngle2 = curve.controlPoints[1].point.angle * CHEM_PI / 180.0f;
+        float controlDist2 = curve.controlPoints[1].point.distance * scale;
+
+        float cp1x = fromPos.x + controlDist1 * std::cos(controlAngle1);
+        float cp1y = fromPos.y - controlDist1 * std::sin(controlAngle1);
+        float cp2x = toPos.x + controlDist2 * std::cos(controlAngle2);
+        float cp2y = toPos.y - controlDist2 * std::sin(controlAngle2);
+
+        {
+            float fromExtra = fromIsAtom ? 2.0f : fromBondExtra;
+            float startShorten = curve.shortenStart + fromExtra;
+            if (startShorten > 0.0f) {
+                float dx = cp1x - fromPos.x;
+                float dy = cp1y - fromPos.y;
+                float len = std::sqrt(dx * dx + dy * dy);
+                if (len > 0.001f) {
+                    float s = startShorten * scale * 0.1f;
+                    fromPos.x += dx / len * s;
+                    fromPos.y += dy / len * s;
+                }
+            }
+        }
+        {
+            float toExtra = toIsAtom ? 2.0f : toBondExtra;
+            float endShorten = curve.shortenEnd + toExtra;
+            if (endShorten > 0.0f) {
+                float dx = toPos.x - cp2x;
+                float dy = toPos.y - cp2y;
+                float len = std::sqrt(dx * dx + dy * dy);
+                if (len > 0.001f) {
+                    float s = endShorten * scale * 0.1f;
+                    toPos.x -= dx / len * s;
+                    toPos.y -= dy / len * s;
+                }
+            }
+        }
+
+        const int numPoints = 50;
+        ChemPoint curvePoints[numPoints];
+        for (int i = 0; i < numPoints; i++) {
+            float t = static_cast<float>(i) / (numPoints - 1);
+            float mt = 1.0f - t;
+            curvePoints[i].x = mt*mt*mt*fromPos.x + 3*mt*mt*t*cp1x + 3*mt*t*t*cp2x + t*t*t*toPos.x;
+            curvePoints[i].y = mt*mt*mt*fromPos.y + 3*mt*mt*t*cp1y + 3*mt*t*t*cp2y + t*t*t*toPos.y;
+        }
+
+        for (int i = 0; i < numPoints - 1; i++) {
+            g2.drawLine(curvePoints[i].x, curvePoints[i].y, curvePoints[i+1].x, curvePoints[i+1].y);
+        }
+
+        if (curve.hasArrow) {
+            float arrowSize = 8.0f;
+            float lastAngle = std::atan2(curvePoints[numPoints-1].y - curvePoints[numPoints-2].y,
+                                         curvePoints[numPoints-1].x - curvePoints[numPoints-2].x);
+            float ax1 = toPos.x - arrowSize * std::cos(lastAngle - 0.4f);
+            float ay1 = toPos.y - arrowSize * std::sin(lastAngle - 0.4f);
+            float ax2 = toPos.x - arrowSize * std::cos(lastAngle + 0.4f);
+            float ay2 = toPos.y - arrowSize * std::sin(lastAngle + 0.4f);
+
+            g2.drawLine(toPos.x, toPos.y, ax1, ay1);
+            g2.drawLine(toPos.x, toPos.y, ax2, ay2);
+        }
+    }
 
     g2.setStroke(oldStroke);
     g2.setColor(oldColor);

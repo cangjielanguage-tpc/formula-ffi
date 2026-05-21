@@ -58,7 +58,6 @@ char* formula_tag(char* dStr) {
         while ((mulPos = fstr.find("\\\\", mulPos)) != std::string::npos && mulPos < findEndPos) {
             ++mulPos;
             ++mulLineNum;
-            OH_LOG_Print(LOG_APP, LOG_INFO, LOG_DOMAIN, "FORMULA", "---- mulLineNum: %{public}d", mulLineNum);
         }
         mulLineNum += 1;
     }

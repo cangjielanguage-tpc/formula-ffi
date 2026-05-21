@@ -108,6 +108,27 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
         }
         skipWhitespace(p);
     }
+    
+    while (peek(p) != L'\0' && result) {
+        skipWhitespace(p);
+        if (peek(p) == L'\\' && peekNext(p) != L'\0') {
+            const wchar_t* cmdCheck = p + 1;
+            std::wstring cmdName;
+            while (*cmdCheck != L'\0' && *cmdCheck >= L'a' && *cmdCheck <= L'z') {
+                cmdName += *cmdCheck;
+                cmdCheck++;
+            }
+            if (cmdName == L"chemmove") {
+                p = cmdCheck;
+                if (!parseChemmove(p, mol)) {
+                    return false;
+                }
+                continue;
+            }
+        }
+        break;
+    }
+
     if (result) {
         resolveHooks(mol);
         mol.normalizeBondLengths();
@@ -396,25 +417,6 @@ static std::wstring extractPureAtomText(const std::wstring& label) {
                 cmd += *temp;
                 temp++;
             }
-            // Check if this is a single-character LaTeX symbol command
-            if (cmd == L"ominus" || cmd == L"oplus" || cmd == L"cdot" || 
-                cmd == L"times" || cmd == L"alpha" || cmd == L"beta" || 
-                cmd == L"gamma" || cmd == L"delta" || cmd == L"epsilon" ||
-                cmd == L"zeta" || cmd == L"eta" || cmd == L"theta" ||
-                cmd == L"iota" || cmd == L"kappa" || cmd == L"lambda" ||
-                cmd == L"mu" || cmd == L"nu" || cmd == L"xi" ||
-                cmd == L"pi" || cmd == L"rho" || cmd == L"sigma" ||
-                cmd == L"tau" || cmd == L"upsilon" || cmd == L"phi" ||
-                cmd == L"chi" || cmd == L"psi" || cmd == L"omega" ||
-                cmd == L"Gamma" || cmd == L"Delta" || cmd == L"Theta" ||
-                cmd == L"Lambda" || cmd == L"Xi" || cmd == L"Pi" ||
-                cmd == L"Sigma" || cmd == L"Upsilon" || cmd == L"Phi" ||
-                cmd == L"Psi" || cmd == L"Omega" || cmd == L"prime") {
-                // Treat as a single character
-                result += L'X';  // Use X as placeholder for single-char symbol
-                p = temp;
-                continue;
-            }
             if (cmd == L"charge") {
                 p = temp;
                 if (*p == L'{') {
@@ -504,7 +506,7 @@ static std::wstring extractPureAtomText(const std::wstring& label) {
 
 static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& label,
                            BondType bondType, const BondParams& params,
-                           float bondAngle, int& atomIndex) {
+                           float bondAngle, int& atomIndex, int* outBondId = nullptr) {
     if (fromAtomId < 0 || fromAtomId >= static_cast<int>(mol.atoms.size())) {
         return -1;
     }
@@ -524,7 +526,14 @@ static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& lab
                      lastPos.y - bondLength * std::sin(bondAngle));
     int newAtomId = mol.addAtom(newPos, label);
     atomIndex++;
-    if (mol.addBond(fromAtomId, newAtomId, bondType, params) < 0) return -1;
+    int bondId = mol.addBond(fromAtomId, newAtomId, bondType, params);
+    if (bondId < 0) return -1;
+    if (outBondId) *outBondId = bondId;
+
+    if (!params.anchorName.empty()) {
+        mol.anchors.push_back(Anchor(params.anchorName, -1, bondId, params.anchorPosition));
+    }
+
     return newAtomId;
 }
 
@@ -626,9 +635,6 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
             lastAtomId = addAtomAndBond(mol, lastAtomId, label, bondType, params, bondAngle, atomIndex);
             if (lastAtomId < 0) return false;
             parseAndApplyChargeToAtom(mol, lastAtomId, mol.atoms[lastAtomId].text);
-            if (!params.anchorName.empty()) {
-                mol.anchors.push_back(Anchor(params.anchorName, lastAtomId));
-            }
             lastAngle = bondAngle;
         }
         lastBranchAtomId = -1;
@@ -803,7 +809,13 @@ BondParams ChemfigParser::parseBondParams(const wchar_t*& p, float currentAngle)
                 }
                 match(p, L'}');
             }
-            params.anchorName = anchorName;
+            size_t commaPos = anchorName.find(L',');
+            if (commaPos != std::wstring::npos) {
+                params.anchorName = anchorName.substr(0, commaPos);
+                params.anchorPosition = safeStof(anchorName.substr(commaPos + 1));
+            } else {
+                params.anchorName = anchorName;
+            }
             continue;
         }
         if (ch == L',' && fieldIndex < 4) {
@@ -1426,6 +1438,262 @@ void ChemfigParser::parseAndApplyChargeToAtom(Molecule& mol, int atomIndex, std:
     }
     
     mol.atoms[atomIndex].text = newLabel;
+}
+
+static bool parseIdentifier(const wchar_t*& p, std::wstring& out) {
+    while (*p != L'\0' && (iswalnum(*p) || *p == L'_' || *p == L'-')) {
+        out += *p;
+        p++;
+    }
+    return !out.empty();
+}
+
+static bool parseAngleDistance(const wchar_t*& p, float& angle, float& distance) {
+    if (*p == L'+') p++;
+    if (*p != L'(') return false;
+    p++;
+
+    std::wstring angleStr, distStr;
+    while (*p != L'\0' && *p != L':' && *p != L')') {
+        angleStr += *p;
+        p++;
+    }
+    if (*p != L':') return false;
+    p++;
+
+    while (*p != L'\0' && *p != L')') {
+        distStr += *p;
+        p++;
+    }
+    if (*p != L')') return false;
+    p++;
+
+    if (angleStr.empty() || distStr.empty()) return false;
+
+    angle = std::wcstof(angleStr.c_str(), nullptr);
+
+    size_t mmPos = distStr.find(L"mm");
+    if (mmPos != std::wstring::npos) {
+        distStr = distStr.substr(0, mmPos);
+    }
+    distance = std::wcstof(distStr.c_str(), nullptr);
+
+    return true;
+}
+
+bool ChemfigParser::parseChemmove(const wchar_t*& p, Molecule& mol) {
+    skipWhitespace(p);
+    if (!match(p, L'{')) return false;
+
+    skipWhitespace(p);
+    if (!parseDrawCommand(p, mol.curves)) {
+        return false;
+    }
+
+    skipWhitespace(p);
+    if (!match(p, L'}')) return false;
+
+    return true;
+}
+
+bool ChemfigParser::parseDrawCommand(const wchar_t*& p, std::vector<CurvePath>& curves) {
+    skipWhitespace(p);
+
+    // Check if we need to parse the command name or if it's already been parsed
+    if (*p == L'\\') {
+        p++;
+        std::wstring cmdName;
+        while (*p != L'\0' && *p >= L'a' && *p <= L'z') {
+            cmdName += *p;
+            p++;
+        }
+        if (cmdName != L"draw") return false;
+    }
+    
+    // Debug output
+    #ifdef _DEBUG
+    wprintf(L"[DEBUG] parseDrawCommand: found draw command\n");
+    #endif
+
+    skipWhitespace(p);
+    float shortenStart = 0.0f, shortenEnd = 0.0f;
+    if (peek(p) == L'[') {
+        p++;
+        std::wstring bracketContent;
+        int depth = 1;
+        while (*p != L'\0' && depth > 0) {
+            if (*p == L'[') depth++;
+            else if (*p == L']') depth--;
+            if (depth > 0) bracketContent += *p;
+            p++;
+        }
+        size_t pos = bracketContent.find(L"shorten");
+        while (pos != std::wstring::npos) {
+            size_t after = pos + 7;
+            while (after < bracketContent.length() && iswspace(bracketContent[after])) after++;
+            bool isStart = false;
+            if (after + 1 < bracketContent.length() && bracketContent[after] == L'<' && bracketContent[after + 1] == L'=') {
+                isStart = true;
+                after += 2;
+            } else if (after + 1 < bracketContent.length() && bracketContent[after] == L'>' && bracketContent[after + 1] == L'=') {
+                isStart = false;
+                after += 2;
+            } else {
+                pos = bracketContent.find(L"shorten", after);
+                continue;
+            }
+            while (after < bracketContent.length() && iswspace(bracketContent[after])) after++;
+            size_t numEnd = after;
+            while (numEnd < bracketContent.length() && (iswdigit(bracketContent[numEnd]) || bracketContent[numEnd] == L'.')) numEnd++;
+            if (numEnd > after) {
+                float val = std::wcstof(bracketContent.substr(after, numEnd - after).c_str(), nullptr);
+                if (isStart) shortenStart = val;
+                else shortenEnd = val;
+            }
+            pos = bracketContent.find(L"shorten", numEnd);
+        }
+        skipWhitespace(p);
+    }
+
+    CurvePath curve;
+    curve.shortenStart = shortenStart;
+    curve.shortenEnd = shortenEnd;
+    if (peek(p) == L'(') {
+        p++;
+        if (!parseIdentifier(p, curve.fromName)) return false;
+        if (!match(p, L')')) return false;
+    }
+
+    skipWhitespace(p);
+    if (peek(p) == L'.' && peekNext(p) == L'.') {
+        p += 2;
+    }
+
+    skipWhitespace(p);
+    while (*p != L'\0' && *p >= L'a' && *p <= L'z') {
+        p++;
+    }
+
+    skipWhitespace(p);
+    CurveControlPoint cp1, cp2;
+    if (peek(p) == L'+') {
+        p++;
+        if (peek(p) == L'(') {
+            p++;
+            float angle = 0, dist = 0;
+            std::wstring angleStr, distStr;
+            while (*p != L'\0' && *p != L':') {
+                angleStr += *p;
+                p++;
+            }
+            if (*p == L':') p++;
+            while (*p != L'\0' && *p != L')') {
+                distStr += *p;
+                p++;
+            }
+            if (*p == L')') p++;
+
+            if (!angleStr.empty()) {
+                if (angleStr == L"up") angle = 90.0f;
+                else if (angleStr == L"down") angle = 270.0f;
+                else if (angleStr == L"left") angle = 180.0f;
+                else if (angleStr == L"right") angle = 0.0f;
+                else angle = std::wcstof(angleStr.c_str(), nullptr);
+            }
+            if (!distStr.empty()) {
+                size_t mmPos = distStr.find(L"mm");
+                if (mmPos != std::wstring::npos) {
+                    distStr = distStr.substr(0, mmPos);
+                }
+                dist = std::wcstof(distStr.c_str(), nullptr);
+            }
+            cp1.point = CurvePoint(angle, dist);
+            cp1.relative = true;
+            cp1.toEnd = false;
+        }
+    }
+
+    skipWhitespace(p);
+    while (*p != L'\0' && *p >= L'a' && *p <= L'z') {
+        p++;
+    }
+
+    skipWhitespace(p);
+    while (*p != L'\0' && *p >= L'a' && *p <= L'z') {
+        p++;
+    }
+
+    skipWhitespace(p);
+    if (peek(p) == L'+') {
+        p++;
+        if (peek(p) == L'(') {
+            p++;
+            float angle = 0, dist = 0;
+            std::wstring angleStr, distStr;
+            while (*p != L'\0' && *p != L':') {
+                angleStr += *p;
+                p++;
+            }
+            if (*p == L':') p++;
+            while (*p != L'\0' && *p != L')') {
+                distStr += *p;
+                p++;
+            }
+            if (*p == L')') p++;
+
+            if (!angleStr.empty()) {
+                if (angleStr == L"up") angle = 90.0f;
+                else if (angleStr == L"down") angle = 270.0f;
+                else if (angleStr == L"left") angle = 180.0f;
+                else if (angleStr == L"right") angle = 0.0f;
+                else angle = std::wcstof(angleStr.c_str(), nullptr);
+            }
+            if (!distStr.empty()) {
+                size_t mmPos = distStr.find(L"mm");
+                if (mmPos != std::wstring::npos) {
+                    distStr = distStr.substr(0, mmPos);
+                }
+                dist = std::wcstof(distStr.c_str(), nullptr);
+            }
+            cp2.point = CurvePoint(angle, dist);
+            cp2.relative = true;
+            cp2.toEnd = true;
+        }
+    }
+
+    skipWhitespace(p);
+    while (*p != L'\0' && *p >= L'a' && *p <= L'z') {
+        p++;
+    }
+
+    skipWhitespace(p);
+    if (peek(p) == L'.' && peekNext(p) == L'.') {
+        p += 2;
+    }
+
+    skipWhitespace(p);
+    if (peek(p) == L'(') {
+        p++;
+        if (!parseIdentifier(p, curve.toName)) return false;
+        if (!match(p, L')')) return false;
+    }
+
+    skipWhitespace(p);
+    if (peek(p) == L';') {
+        p++;
+    }
+
+    curve.controlPoints.push_back(cp1);
+    curve.controlPoints.push_back(cp2);
+    curves.push_back(curve);
+    
+    // Debug output
+    #ifdef _DEBUG
+    wprintf(L"[DEBUG] parseDrawCommand: added curve from '%ls' to '%ls' with %d control points\n", 
+            curve.fromName.c_str(), curve.toName.c_str(), (int)curve.controlPoints.size());
+    #endif
+
+    return true;
 }
 
 } // namespace tex

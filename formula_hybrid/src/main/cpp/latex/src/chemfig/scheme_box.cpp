@@ -1221,6 +1221,199 @@ void SchemeBox::drawCompoundNumbers(Graphics2D& g2, float ox, float oy) {
     }
 }
 
+void SchemeBox::drawCurves(Graphics2D& g2, float ox, float oy) {    
+    if (_scheme.curves.empty()) {
+        return;
+    }
+
+    const Stroke& oldStroke = g2.getStroke();
+    g2.setStroke(Stroke(BOND_LINE_WIDTH, CAP_ROUND, JOIN_ROUND));
+
+    for (const auto& curve : _scheme.curves) {
+        ChemPoint fromPos, toPos;
+        bool foundFrom = false, foundTo = false;
+        bool fromIsAtom = false, toIsAtom = false;
+        float fromBondExtra = 0.0f, toBondExtra = 0.0f;
+        
+        for (size_t ci = 0; ci < _scheme.compounds.size(); ci++) {
+            const auto& compound = _scheme.compounds[ci];
+            const auto& layout = _compoundLayouts[ci];
+            if (ci < _compoundLayouts.size()) {
+            } else {
+                continue;
+            }
+                        
+            for (const auto& anchor : compound.molecule.anchors) {                
+                ChemfigBox* cbox = dynamic_cast<ChemfigBox*>(layout.box.get());
+                float internalOffsetX = 0.0f;
+                float internalOffsetY = 0.0f;
+                if (cbox) {
+                    float tbMinX = cbox->getTextBoundsMinX();
+                    float tbMinY = cbox->getTextBoundsMinY();
+                    float tbMaxY = cbox->getTextBoundsMaxY();
+                    internalOffsetX = (-tbMinX + PADDING) * _scale;
+                    internalOffsetY = (-tbMinY - (tbMaxY - tbMinY) * 0.5f) * _scale;
+                }
+                
+                if (anchor.name == curve.fromName) {
+                    if (anchor.bondIndex >= 0 && anchor.bondIndex < static_cast<int>(compound.molecule.bonds.size())) {
+                        const auto& bond = compound.molecule.bonds[anchor.bondIndex];
+                        const auto& fromAtom = compound.molecule.atoms[bond.fromAtom];
+                        const auto& toAtom = compound.molecule.atoms[bond.toAtom];
+                        
+                        float pos = (anchor.bondPosition >= 0.0f) ? anchor.bondPosition : 0.5f;
+                        float baseX = fromAtom.position.x * (1.0f - pos) + toAtom.position.x * pos;
+                        float baseY = fromAtom.position.y * (1.0f - pos) + toAtom.position.y * pos;
+                        
+                        fromPos.x = baseX * _scale + layout.x + ox + internalOffsetX;
+                        fromPos.y = baseY * _scale + layout.y + oy + internalOffsetY;
+                        if (bond.type == BOND_DOUBLE) {
+                            fromBondExtra = 1.0f;
+                        } else if (bond.type == BOND_TRIPLE) {
+                            fromBondExtra = 2.0f;
+                        }
+                    } else if (anchor.atomIndex >= 0 && anchor.atomIndex < static_cast<int>(compound.molecule.atoms.size())) {
+                        const auto& atom = compound.molecule.atoms[anchor.atomIndex];
+                        fromPos.x = atom.position.x * _scale + layout.x + ox + internalOffsetX;
+                        fromPos.y = atom.position.y * _scale + layout.y + oy + internalOffsetY;
+                        fromIsAtom = !atom.text.empty() || !atom.charges.empty();
+                    }
+                    foundFrom = true;
+                }
+                if (anchor.name == curve.toName) {
+                    if (anchor.bondIndex >= 0 && anchor.bondIndex < static_cast<int>(compound.molecule.bonds.size())) {
+                        const auto& bond = compound.molecule.bonds[anchor.bondIndex];
+                        const auto& fromAtom = compound.molecule.atoms[bond.fromAtom];
+                        const auto& toAtom = compound.molecule.atoms[bond.toAtom];
+                        
+                        float pos = (anchor.bondPosition >= 0.0f) ? anchor.bondPosition : 0.5f;
+                        float baseX = fromAtom.position.x * (1.0f - pos) + toAtom.position.x * pos;
+                        float baseY = fromAtom.position.y * (1.0f - pos) + toAtom.position.y * pos;
+                        
+                        toPos.x = baseX * _scale + layout.x + ox + internalOffsetX;
+                        toPos.y = baseY * _scale + layout.y + oy + internalOffsetY;
+                        if (bond.type == BOND_DOUBLE) {
+                            toBondExtra = 1.0f;
+                        } else if (bond.type == BOND_TRIPLE) {
+                            toBondExtra = 2.0f;
+                        }                        
+                    } else if (anchor.atomIndex >= 0 && anchor.atomIndex < static_cast<int>(compound.molecule.atoms.size())) {
+                        const auto& atom = compound.molecule.atoms[anchor.atomIndex];
+                        toPos.x = atom.position.x * _scale + layout.x + ox + internalOffsetX;
+                        toPos.y = atom.position.y * _scale + layout.y + oy + internalOffsetY;
+                        toIsAtom = !atom.text.empty() || !atom.charges.empty();
+                    }
+                    foundTo = true;
+                }
+            }
+        }
+
+        if (!foundFrom || !foundTo) {
+            continue;
+        }
+        if (curve.controlPoints.size() < 2) {
+            continue;
+        }
+        
+        float controlAngle1 = curve.controlPoints[0].point.angle * CHEM_PI / 180.0f;
+        float controlDist1 = curve.controlPoints[0].point.distance * _scale * 0.4f;
+        float controlAngle2 = curve.controlPoints[1].point.angle * CHEM_PI / 180.0f;
+        float controlDist2 = curve.controlPoints[1].point.distance * _scale * 0.4f;
+
+        float cp1x = fromPos.x + controlDist1 * std::cos(controlAngle1);
+        float cp1y = fromPos.y - controlDist1 * std::sin(controlAngle1);
+        float cp2x = toPos.x + controlDist2 * std::cos(controlAngle2);
+        float cp2y = toPos.y - controlDist2 * std::sin(controlAngle2);
+
+        {
+            float fromExtra = fromIsAtom ? 6.0f : fromBondExtra;
+            float startShorten = curve.shortenStart + fromExtra;
+            if (startShorten > 0.0f) {
+                float dx = cp1x - fromPos.x;
+                float dy = cp1y - fromPos.y;
+                float len = std::sqrt(dx * dx + dy * dy);
+                if (len > 0.001f) {
+                    float s = startShorten * _scale * 0.1f;
+                    fromPos.x += dx / len * s;
+                    fromPos.y += dy / len * s;
+                }
+            }
+        }
+        {
+            float toExtra = toIsAtom ? 6.0f : toBondExtra;
+            float endShorten = curve.shortenEnd + toExtra;
+            if (endShorten > 0.0f) {
+                float dx = toPos.x - cp2x;
+                float dy = toPos.y - cp2y;
+                float len = std::sqrt(dx * dx + dy * dy);
+                if (len > 0.001f) {
+                    float s = endShorten * _scale * 0.1f;
+                    toPos.x -= dx / len * s;
+                    toPos.y -= dy / len * s;
+                }
+            }
+        }
+
+        const int numPoints = 50;
+        ChemPoint curvePoints[numPoints];
+        for (int i = 0; i < numPoints; i++) {
+            float t = static_cast<float>(i) / (numPoints - 1);
+            float mt = 1.0f - t;
+            curvePoints[i].x = mt*mt*mt*fromPos.x + 3*mt*mt*t*cp1x + 3*mt*t*t*cp2x + t*t*t*toPos.x;
+            curvePoints[i].y = mt*mt*mt*fromPos.y + 3*mt*mt*t*cp1y + 3*mt*t*t*cp2y + t*t*t*toPos.y;
+        }
+
+        for (int i = 0; i < numPoints - 1; i++) {
+            g2.drawLine(curvePoints[i].x, curvePoints[i].y, curvePoints[i+1].x, curvePoints[i+1].y);
+        }
+
+        if (curve.hasArrow) {
+            float headLength = 0.25f;
+            float headWidth = 0.13f;
+
+            float lastAngle = std::atan2(curvePoints[numPoints-1].y - curvePoints[numPoints-2].y,
+                                         curvePoints[numPoints-1].x - curvePoints[numPoints-2].x);
+
+            float baseX = toPos.x - headLength * std::cos(lastAngle);
+            float baseY = toPos.y - headLength * std::sin(lastAngle);
+
+            float perpX = -std::sin(lastAngle);
+            float perpY = std::cos(lastAngle);
+
+            float leftX = baseX + perpX * headWidth;
+            float leftY = baseY + perpY * headWidth;
+            float rightX = baseX - perpX * headWidth;
+            float rightY = baseY - perpY * headWidth;
+
+            color oldColor = g2.getColor();
+            const Stroke& savedStroke = g2.getStroke();
+            float oldLineWidth = savedStroke.lineWidth;
+
+            g2.setColor(black);
+            g2.setStrokeWidth(BOND_LINE_WIDTH);
+
+            int fillLines = 15;
+            for (int i = 0; i < fillLines; i++) {
+                float t = static_cast<float>(i + 1) / fillLines;
+                float flx = toPos.x + (leftX - toPos.x) * t;
+                float fly = toPos.y + (leftY - toPos.y) * t;
+                float frx = toPos.x + (rightX - toPos.x) * t;
+                float fry = toPos.y + (rightY - toPos.y) * t;
+                g2.drawLine(flx, fly, frx, fry);
+            }
+
+            g2.drawLine(leftX, leftY, rightX, rightY);
+            g2.drawLine(rightX, rightY, toPos.x, toPos.y);
+            g2.drawLine(toPos.x, toPos.y, leftX, leftY);
+
+            g2.setStrokeWidth(oldLineWidth);
+            g2.setColor(oldColor);
+        }
+    }
+
+    g2.setStroke(oldStroke);
+}
+
 void SchemeBox::drawDebug(Graphics2D& g2, float ox, float oy) {
     color oldColor = g2.getColor();
     g2.setColor(0xFF0000FF);
@@ -1252,6 +1445,7 @@ void SchemeBox::draw(Graphics2D& g2, float x, float y) {
     drawMerges(g2, ox, oy);
     drawCompoundNames(g2, ox, oy);
     drawCompoundNumbers(g2, ox, oy);
+    drawCurves(g2, ox, oy);
     drawSubschemeDelimiters(g2, ox, oy);
 
     if (SchemeConfig::instance().debugMode) {

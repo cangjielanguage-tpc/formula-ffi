@@ -4,6 +4,7 @@
 #include "scheme_config.h"
 #include <cwctype>
 #include <algorithm>
+#include <hilog/log.h>
 
 namespace tex {
 
@@ -139,7 +140,67 @@ std::wstring SchemeParser::preprocessSchemeSyntax(const std::wstring& input) {
                         }
                         if (peekCmd == L"schemestop") {
                             depth--;
-                            if (depth == 0) break;
+                            if (depth == 0) {
+                                // Don't break immediately, continue to check for chemmove
+                                // Add the schemestop to result
+                                result += L"\\schemestop";
+                                // Now check for chemmove after schemestop
+                                while (i < n) {
+                                    // Skip whitespace
+                                    while (i < n && iswspace(input[i])) i++;
+                                    if (i >= n) break;
+                                    // Check if next is a command
+                                    if (input[i] == L'\\' && i + 1 < n) {
+                                        size_t cmdStart = i;
+                                        i++;
+                                        std::wstring postCmd;
+                                        while (i < n && iswalpha(input[i])) {
+                                            postCmd += input[i];
+                                            i++;
+                                        }
+                                        // Include chemmove and similar commands
+                                        if (postCmd == L"chemmove" || postCmd == L"chemname" || 
+                                            postCmd == L"chemnameinit") {
+                                            // Add the command and its content
+                                            result += input.substr(cmdStart, i - cmdStart);
+                                            // Parse the argument braces
+                                            while (i < n && iswspace(input[i])) i++;
+                                            if (i < n && input[i] == L'{') {
+                                                int braceDepth = 1;
+                                                result += input[i];
+                                                i++;
+                                                while (i < n && braceDepth > 0) {
+                                                    if (input[i] == L'\\' && i + 1 < n) {
+                                                        result += input[i];
+                                                        result += input[i + 1];
+                                                        i += 2;
+                                                    } else if (input[i] == L'{') {
+                                                        braceDepth++;
+                                                        result += input[i];
+                                                        i++;
+                                                    } else if (input[i] == L'}') {
+                                                        braceDepth--;
+                                                        result += input[i];
+                                                        if (braceDepth == 0) i++;
+                                                        else i++;
+                                                    } else {
+                                                        result += input[i];
+                                                        i++;
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            // Not a command we need, put back and exit
+                                            i = cmdStart;
+                                            break;
+                                        }
+                                    } else {
+                                        // Not a command, exit
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
                             result += L"\\schemestop";
                         } else if (peekCmd == L"schemestart") {
                             depth++;
@@ -1218,6 +1279,10 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
 }
 
 bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
+    wchar_t p_wch = *p;
+    // 将wchar_t p_wch转为char p_ch
+    char p_ch = static_cast<char>(p_wch);
+    
     std::wstring pendingLeftDelim;
 
     while (*p != L'\0') {
@@ -1241,7 +1306,7 @@ bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
             while (*p != L'\0' && (iswalpha(*p) || *p == L'@')) {
                 cmd += *p++;
             }
-
+            
             if (cmd == L"chemfig") {
                 if (!parseCompound(p, scheme)) return false;
             } else if (cmd == L"arrow") {
@@ -1354,7 +1419,29 @@ bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
             } else if (cmd == L"chemmove") {
                 skipWhitespace(p);
                 if (peek(p) == L'{') {
-                    parseBraceContent(p);
+                    p++;
+                    skipWhitespace(p);
+                    while (*p != L'\0' && *p != L'}') {
+                        if (*p == L'\\') {
+                            const wchar_t* cmdStart = p + 1;
+                            std::wstring drawCmd;
+                            while (*cmdStart != L'\0' && *cmdStart >= L'a' && *cmdStart <= L'z') {
+                                drawCmd += *cmdStart;
+                                cmdStart++;
+                            }
+                            if (drawCmd == L"draw") {
+                                p = cmdStart;  // Move p to after the command name
+                                bool parseResult = ChemfigParser::parseDrawCommand(p, scheme.curves);
+                            } else {
+                                p++;
+                            }
+                        } else if (*p == L'{') {
+                            parseBraceContent(p);
+                        } else {
+                            p++;
+                        }
+                    }
+                    if (*p == L'}') p++;
                 }
             } else {
                 while (*p != L'\0' && *p != L'\\' && !iswspace(*p)) p++;
@@ -1379,7 +1466,7 @@ bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
     return true;
 }
 
-bool SchemeParser::parse(const std::wstring& input, ReactionScheme& scheme) {
+bool SchemeParser::parse(const std::wstring& input, ReactionScheme& scheme) {    
     SchemeConfig::instance().reset();
 
     scheme.compounds.clear();
@@ -1389,10 +1476,13 @@ bool SchemeParser::parse(const std::wstring& input, ReactionScheme& scheme) {
     scheme.subschemes.clear();
     scheme.elementOrder.clear();
     scheme.compoundRefs.clear();
+    scheme.curves.clear();
 
     const wchar_t* p = input.c_str();
-    if (!parseContent(p, scheme)) return false;
-
+    if (!parseContent(p, scheme)) {
+        return false;
+    }
+        
     resolveReferences(scheme);
     return !scheme.compounds.empty();
 }

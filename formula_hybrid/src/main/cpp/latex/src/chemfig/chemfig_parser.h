@@ -10,6 +10,7 @@ namespace tex {
 class ChemfigParser {
 public:
     static bool parse(const std::wstring& input, Molecule& mol);
+    static bool parseDrawCommand(const wchar_t*& p, std::vector<CurvePath>& curves);
 
 private:
     static bool parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex);
@@ -27,6 +28,7 @@ private:
     static void resolveHooks(Molecule& mol);
     static bool parseChargeSpec(const wchar_t*& p, std::vector<Charge>& charges);
     static void parseAndApplyChargeToAtom(Molecule& mol, int atomIndex, std::wstring& label);
+    static bool parseChemmove(const wchar_t*& p, Molecule& mol);
     
     static wchar_t peek(const wchar_t* p);
     static wchar_t peekNext(const wchar_t* p);
