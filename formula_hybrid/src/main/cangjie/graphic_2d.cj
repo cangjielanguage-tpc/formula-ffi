@@ -49,4 +49,9 @@ public class Graphic2D {
     public func getColorFormat(): Int32 {
         return cf
     }
+
+    public func release(): Unit {
+        unsafe { destroyGraphics2D_ffi(g2) }
+    }
+
 }
