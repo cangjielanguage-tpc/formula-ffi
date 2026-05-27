@@ -234,13 +234,34 @@ void ArrowRenderer::drawHarpRight(Graphics2D& g2, const ChemPoint& from,
     DirInfo d(from, to);
     if (!d.valid()) return;
 
-    float r = style.harpRadius * scale;
-    ChemPoint mid((from.x + to.x) * 0.5f, (from.y + to.y) * 0.5f);
-    ChemPoint bend(mid.x + d.perp.x * r, mid.y + d.perp.y * r);
+    float hl = style.headLength * scale;
+    float margin = hl * 1.2f;
 
-    g2.drawLine(from.x, from.y, bend.x, bend.y);
-    g2.drawLine(bend.x, bend.y, to.x, to.y);
-    drawArrowHead(g2, to, bend, scale, style);
+    g2.drawLine(from.x, from.y, to.x, to.y);
+
+    float slashLen = style.doubleBondOffset * scale * 3.0f;
+    float slashSpacing = slashLen * 0.24f;
+    float slashAngle = 45.0f * CHEM_PI / 180.0f;
+    float cosA = std::cos(slashAngle);
+    float sinA = std::sin(slashAngle);
+
+    ChemPoint innerFrom(from.x + d.dirX * margin, from.y + d.dirY * margin);
+    ChemPoint innerTo(to.x - d.dirX * margin, to.y - d.dirY * margin);
+    ChemPoint mid((innerFrom.x + innerTo.x) * 0.5f, (innerFrom.y + innerTo.y) * 0.5f);
+
+    float sx = d.perp.x * cosA - d.dirX * sinA;
+    float sy = d.perp.y * cosA - d.dirY * sinA;
+    float slen = std::sqrt(sx * sx + sy * sy);
+    if (slen > EPSILON) { sx /= slen; sy /= slen; }
+
+    float offset = slashSpacing * 0.5f;
+    for (int i = -1; i <= 1; i += 2) {
+        ChemPoint sCenter(mid.x + d.dirX * offset * i, mid.y + d.dirY * offset * i);
+        g2.drawLine(sCenter.x - sx * slashLen * 0.5f, sCenter.y - sy * slashLen * 0.5f,
+                    sCenter.x + sx * slashLen * 0.5f, sCenter.y + sy * slashLen * 0.5f);
+    }
+
+    drawArrowHead(g2, to, from, scale, style);
 }
 
 void ArrowRenderer::drawHarpLeft(Graphics2D& g2, const ChemPoint& from,
@@ -249,13 +270,34 @@ void ArrowRenderer::drawHarpLeft(Graphics2D& g2, const ChemPoint& from,
     DirInfo d(from, to);
     if (!d.valid()) return;
 
-    float r = style.harpRadius * scale;
-    ChemPoint mid((from.x + to.x) * 0.5f, (from.y + to.y) * 0.5f);
-    ChemPoint bend(mid.x - d.perp.x * r, mid.y - d.perp.y * r);
+    float hl = style.headLength * scale;
+    float margin = hl * 1.2f;
 
-    g2.drawLine(from.x, from.y, bend.x, bend.y);
-    g2.drawLine(bend.x, bend.y, to.x, to.y);
-    drawArrowHead(g2, to, bend, scale, style);
+    g2.drawLine(from.x, from.y, to.x, to.y);
+
+    float slashLen = style.doubleBondOffset * scale * 3.0f;
+    float slashSpacing = slashLen * 0.24f;
+    float slashAngle = 45.0f * CHEM_PI / 180.0f;
+    float cosA = std::cos(slashAngle);
+    float sinA = std::sin(slashAngle);
+
+    ChemPoint innerFrom(from.x + d.dirX * margin, from.y + d.dirY * margin);
+    ChemPoint innerTo(to.x - d.dirX * margin, to.y - d.dirY * margin);
+    ChemPoint mid((innerFrom.x + innerTo.x) * 0.5f, (innerFrom.y + innerTo.y) * 0.5f);
+
+    float sx = d.perp.x * cosA - d.dirX * sinA;
+    float sy = d.perp.y * cosA - d.dirY * sinA;
+    float slen = std::sqrt(sx * sx + sy * sy);
+    if (slen > EPSILON) { sx /= slen; sy /= slen; }
+
+    float offset = slashSpacing * 0.5f;
+    for (int i = -1; i <= 1; i += 2) {
+        ChemPoint sCenter(mid.x + d.dirX * offset * i, mid.y + d.dirY * offset * i);
+        g2.drawLine(sCenter.x - sx * slashLen * 0.5f, sCenter.y - sy * slashLen * 0.5f,
+                    sCenter.x + sx * slashLen * 0.5f, sCenter.y + sy * slashLen * 0.5f);
+    }
+
+    drawArrowHead(g2, from, to, scale, style);
 }
 
 void ArrowRenderer::drawFishhook(Graphics2D& g2, const ChemPoint& from,
