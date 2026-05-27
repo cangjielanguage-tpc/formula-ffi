@@ -30,4 +30,5 @@ foreign {
 
     /* Graphics2D */
     func initGraphics2D_ffi(x: UInt32, y: UInt32, colorFormat: Int32): CPointer<UInt8>
+    func destroyGraphics2D_ffi(bitmap: CPointer<UInt8>): Unit
 }

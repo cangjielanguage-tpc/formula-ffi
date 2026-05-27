@@ -24,6 +24,10 @@ OH_Drawing_Bitmap *initGraphics2D_ffi(uint32_t w, uint32_t h, OH_Drawing_ColorFo
     return bitmap;
 }
 
+void destroyGraphics2D_ffi(OH_Drawing_Bitmap *bitmap) {
+    OH_Drawing_BitmapDestroy(bitmap);
+}
+
 #ifdef __cplusplus
 }
 #endif
