@@ -368,11 +368,20 @@ struct Index15 {
 
     { description: '[21] 箭头样式 - 红色虚线', formula: '\\schemestart A\\arrow[,,red,dashed]B\\schemestop' },
     { description: '[21] 箭头样式 - 蓝色粗线', formula: '\\schemestart A\\arrow[,,blue,thick]B\\schemestop' },
-    { description: '[21] 箭头样式 - 绿色线宽', formula: '\\schemestart A\\arrow[,,green,line width=2pt]B\\schemestop' },
+
 
     { description: '[21] 实际反应 - 酯化反应', formula: '\\schemestart \\chemname{\\chemfig{R-C(-[:-30]OH)=[:30]O}}{酸} \\+ \\chemname{\\chemfig{R\'OH}}{醇} \\arrow{->[$\\text{H}^+$][$\\Delta$]} \\chemname{\\chemfig{R-C(-[:-30]OR\')=[:30]O}}{酯} \\+ \\chemname{\\chemfig{H_2O}}{水} \\schemestop' },
     { description: '[21] 实际反应 - 苯硝化反应', formula: '\\schemestart \\chemfig{*6(=-=(-H)-=-)} \\+ \\chemfig{HNO_3} \\arrow{->[$\\text{H}_2\\text{SO}_4$]} \\chemfig{*6(=-=(-NO_2)-=-)} \\+ \\chemfig{H_2O} \\schemestop' },
     { description: '[21] 实际反应 - 乙醛氧化', formula: '\\schemestart \\chemfig{CH_3-[:30]C(=[2]O)-[:-30]H} \\arrow{->[\\text{O}_2][\\text{催化剂}]} \\chemfig{CH_3-[:30]C(=[2]O)-[:-30]OH} \\schemestop' },
+
+    { description: '[21] issue 187', formula: '\\schemestart A\\arrow{->}[,,dashed]B \\schemestop' },
+    { description: '[21] issue 187', formula: '\\schemestart A\\arrow{->}[,,dotted]B \\schemestop' },
+    { description: '[21] issue 187', formula: '\\schemestart A\\arrow{->}[,,densely dashed]B \\schemestop' },
+    { description: '[21] issue 187', formula: '\\schemestart A\\arrow{->}[,,loosely dashed]B \\schemestop' },
+
+    { description: '[21] issue 188', formula: '\\schemestart A\\+{2em,-2em,5pt}B \\schemestop' },
+    { description: '[21] issue 188', formula: '\\schemestart A\\+{2em,2em,5pt}B \\schemestop' },
+
   ]
 
   private getPageItems(): ChemfigItem[] {

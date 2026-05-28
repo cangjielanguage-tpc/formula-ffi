@@ -698,19 +698,23 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 auto& cl = _compoundLayouts[afterIdx];
                 float emBase = _compoundGap / 5.0f;
                 float sepLeft = emBase * 0.5f;
+                float sepRight = emBase * 0.5f;
                 float vshift = 0.0f;
                 float halfSize = PLUS_SIGN_SIZE * 0.5f * _scale;
-                
+
                 if (plus.hasCustomSep) {
                     if (!plus.sepLeftRaw.empty()) {
                         sepLeft = parseLengthValue(plus.sepLeftRaw, _scale, emBase);
+                    }
+                    if (!plus.sepRightRaw.empty()) {
+                        sepRight = parseLengthValue(plus.sepRightRaw, _scale, emBase);
                     }
                     if (!plus.vshiftRaw.empty()) {
                         vshift = parseLengthValue(plus.vshiftRaw, _scale, emBase);
                     }
                 }
-                
-                playout.x = cl.x + cl.width + sepLeft + halfSize;
+
+                playout.x = cl.x + cl.width + sepLeft + halfSize - std::min(0.0f, sepRight);
                 playout.y = cl.y + (cl.boxDepth - cl.boxHeight) * 0.5f - vshift;
             }
             _plusLayouts.push_back(playout);
@@ -1004,8 +1008,6 @@ void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
     style.lineWidth = ARROW_LINE_WIDTH;
     style.doubleBondOffset = cfg.arrowDoubleSep;
     style.harpRadius = ARROW_HARP_RADIUS;
-    style.dashLength = ARROW_DASH_LENGTH;
-    style.dashGap = ARROW_DASH_GAP;
 
     float arrowOffset = cfg.arrowOffset * _scale;
     float labelSep = cfg.arrowLabelSep * _scale;
@@ -1016,6 +1018,26 @@ void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
 
         ChemPoint fromPos(al.from.x + ox, al.from.y + oy - al.yShift - arrowOffset);
         ChemPoint toPos(al.to.x + ox, al.to.y + oy - al.yShift - arrowOffset);
+
+        switch (arrow.params.dashPattern) {
+            case DASH_DOTTED:
+                style.dashLength = 0.05f;
+                style.dashGap = 0.25f;
+                break;
+            case DASH_DENSELY_DASHED:
+                style.dashLength = 0.2f;
+                style.dashGap = 0.1f;
+                break;
+            case DASH_LOOSELY_DASHED:
+                style.dashLength = 0.5f;
+                style.dashGap = 0.5f;
+                break;
+            case DASH_DASHED:
+            default:
+                style.dashLength = ARROW_DASH_LENGTH;
+                style.dashGap = ARROW_DASH_LENGTH;
+                break;
+        }
 
         ArrowRenderer::drawArrow(g2, arrow.params.type,
                                  fromPos, toPos, _scale,

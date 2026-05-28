@@ -58,6 +58,14 @@ struct ArrowRef {
     }
 };
 
+enum DashPattern {
+    DASH_NONE,
+    DASH_DASHED,
+    DASH_DOTTED,
+    DASH_DENSELY_DASHED,
+    DASH_LOOSELY_DASHED
+};
+
 struct ArrowParams {
     ArrowType type;
     float angle;
@@ -70,6 +78,7 @@ struct ArrowParams {
     std::wstring tikzStyle;
     std::wstring color;
     bool dashed;
+    DashPattern dashPattern;
     ArrowRef fromRef;
     ArrowRef toRef;
     ArrowAnchor fromAnchor;
@@ -81,7 +90,8 @@ struct ArrowParams {
           lengthCoeff(1.0f),
           curveHeight(0.0f),
           yShift(0.0f),
-          dashed(false) {}
+          dashed(false),
+          dashPattern(DASH_NONE) {}
 
     bool isCurved() const {
         return type == ARROW_CURVED_FORWARD ||

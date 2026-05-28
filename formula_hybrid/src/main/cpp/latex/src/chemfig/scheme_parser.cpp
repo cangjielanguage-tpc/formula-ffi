@@ -593,8 +593,18 @@ ArrowParams SchemeParser::parseArrowArgs(const wchar_t*& p) {
 
     if (!params.tikzStyle.empty()) {
         std::wstring style = params.tikzStyle;
-        if (style.find(L"dashed") != std::wstring::npos) {
+        if (style.find(L"loosely dashed") != std::wstring::npos) {
             params.dashed = true;
+            params.dashPattern = DASH_LOOSELY_DASHED;
+        } else if (style.find(L"densely dashed") != std::wstring::npos) {
+            params.dashed = true;
+            params.dashPattern = DASH_DENSELY_DASHED;
+        } else if (style.find(L"dotted") != std::wstring::npos) {
+            params.dashed = true;
+            params.dashPattern = DASH_DOTTED;
+        } else if (style.find(L"dashed") != std::wstring::npos) {
+            params.dashed = true;
+            params.dashPattern = DASH_DASHED;
         }
         
         static const wchar_t* colorNames[] = {
