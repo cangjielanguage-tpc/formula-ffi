@@ -11,6 +11,8 @@ struct ArrowStyle {
     float headWidth;
     float lineWidth;
     float doubleBondOffset;
+    float doubleCoeff;
+    bool doubleHarpoon;
     float harpRadius;
     float dashLength;
     float dashGap;

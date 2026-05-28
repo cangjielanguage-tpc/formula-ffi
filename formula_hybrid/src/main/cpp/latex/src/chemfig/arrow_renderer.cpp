@@ -155,11 +155,16 @@ void ArrowRenderer::drawEquilibrium(Graphics2D& g2, const ChemPoint& from,
     g2.drawLine(upperFrom.x, upperFrom.y, upperTo.x, upperTo.y);
     g2.drawLine(lowerFrom.x, lowerFrom.y, lowerTo.x, lowerTo.y);
 
-    ChemPoint base1(upperTo.x - d.dirX * hl, upperTo.y - d.dirY * hl);
-    g2.drawLine(upperTo.x, upperTo.y, base1.x - d.perp.x * hw, base1.y - d.perp.y * hw);
+    if (style.doubleHarpoon) {
+        drawHarpoonHead(g2, upperTo, upperFrom, scale, style, true);
+        drawHarpoonHead(g2, lowerFrom, lowerTo, scale, style, false);
+    } else {
+        ChemPoint base1(upperTo.x - d.dirX * hl, upperTo.y - d.dirY * hl);
+        g2.drawLine(upperTo.x, upperTo.y, base1.x - d.perp.x * hw, base1.y - d.perp.y * hw);
 
-    ChemPoint base2(lowerFrom.x + d.dirX * hl, lowerFrom.y + d.dirY * hl);
-    g2.drawLine(lowerFrom.x, lowerFrom.y, base2.x + d.perp.x * hw, base2.y + d.perp.y * hw);
+        ChemPoint base2(lowerFrom.x + d.dirX * hl, lowerFrom.y + d.dirY * hl);
+        g2.drawLine(lowerFrom.x, lowerFrom.y, base2.x + d.perp.x * hw, base2.y + d.perp.y * hw);
+    }
 }
 
 void ArrowRenderer::drawLongEquilibrium(Graphics2D& g2, const ChemPoint& from,
@@ -177,7 +182,7 @@ void ArrowRenderer::drawLongEquilibrium(Graphics2D& g2, const ChemPoint& from,
     ChemPoint lowerTo(to.x + d.perp.x * offset, to.y + d.perp.y * offset);
 
     float longLen = d.len - 2.0f * margin;
-    float shortLen = longLen / 2.0f;
+    float shortLen = longLen * style.doubleCoeff;
     float shortStart = (longLen - shortLen) * 0.5f;
     ChemPoint upperFrom(from.x + d.dirX * (margin + shortStart) - d.perp.x * offset,
                         from.y + d.dirY * (margin + shortStart) - d.perp.y * offset);
@@ -187,12 +192,18 @@ void ArrowRenderer::drawLongEquilibrium(Graphics2D& g2, const ChemPoint& from,
     g2.drawLine(lowerFrom.x + d.dirX * margin, lowerFrom.y + d.dirY * margin,
                 lowerTo.x - d.dirX * margin, lowerTo.y - d.dirY * margin);
 
-    ChemPoint base1(upperTo.x - d.dirX * hl, upperTo.y - d.dirY * hl);
-    g2.drawLine(upperTo.x, upperTo.y, base1.x - d.perp.x * hw, base1.y - d.perp.y * hw);
+    if (style.doubleHarpoon) {
+        drawHarpoonHead(g2, upperTo, upperFrom, scale, style, true);
+        drawHarpoonHead(g2, lowerFrom + ChemPoint(d.dirX * margin, d.dirY * margin), 
+                        lowerTo - ChemPoint(d.dirX * margin, d.dirY * margin), scale, style, false);
+    } else {
+        ChemPoint base1(upperTo.x - d.dirX * hl, upperTo.y - d.dirY * hl);
+        g2.drawLine(upperTo.x, upperTo.y, base1.x - d.perp.x * hw, base1.y - d.perp.y * hw);
 
-    ChemPoint lowerMarginFrom(lowerFrom.x + d.dirX * margin, lowerFrom.y + d.dirY * margin);
-    ChemPoint base2(lowerMarginFrom.x + d.dirX * hl, lowerMarginFrom.y + d.dirY * hl);
-    g2.drawLine(lowerMarginFrom.x, lowerMarginFrom.y, base2.x + d.perp.x * hw, base2.y + d.perp.y * hw);
+        ChemPoint lowerMarginFrom(lowerFrom.x + d.dirX * margin, lowerFrom.y + d.dirY * margin);
+        ChemPoint base2(lowerMarginFrom.x + d.dirX * hl, lowerMarginFrom.y + d.dirY * hl);
+        g2.drawLine(lowerMarginFrom.x, lowerMarginFrom.y, base2.x + d.perp.x * hw, base2.y + d.perp.y * hw);
+    }
 }
 
 void ArrowRenderer::drawAltEquilibrium(Graphics2D& g2, const ChemPoint& from,
@@ -210,7 +221,7 @@ void ArrowRenderer::drawAltEquilibrium(Graphics2D& g2, const ChemPoint& from,
     ChemPoint upperTo(to.x - d.perp.x * offset, to.y - d.perp.y * offset);
 
     float longLen = d.len - 2.0f * margin;
-    float shortLen = longLen / 2.0f;
+    float shortLen = longLen * style.doubleCoeff;
     float shortStart = (longLen - shortLen) * 0.5f;
     ChemPoint lowerFrom(from.x + d.dirX * (margin + shortStart) + d.perp.x * offset,
                         from.y + d.dirY * (margin + shortStart) + d.perp.y * offset);
@@ -220,12 +231,18 @@ void ArrowRenderer::drawAltEquilibrium(Graphics2D& g2, const ChemPoint& from,
                 upperTo.x - d.dirX * margin, upperTo.y - d.dirY * margin);
     g2.drawLine(lowerFrom.x, lowerFrom.y, lowerTo.x, lowerTo.y);
 
-    ChemPoint upperMarginTo(upperTo.x - d.dirX * margin, upperTo.y - d.dirY * margin);
-    ChemPoint base1(upperMarginTo.x - d.dirX * hl, upperMarginTo.y - d.dirY * hl);
-    g2.drawLine(upperMarginTo.x, upperMarginTo.y, base1.x - d.perp.x * hw, base1.y - d.perp.y * hw);
+    if (style.doubleHarpoon) {
+        drawHarpoonHead(g2, upperTo - ChemPoint(d.dirX * margin, d.dirY * margin), 
+                        upperFrom + ChemPoint(d.dirX * margin, d.dirY * margin), scale, style, true);
+        drawHarpoonHead(g2, lowerFrom, lowerTo, scale, style, false);
+    } else {
+        ChemPoint upperMarginTo(upperTo.x - d.dirX * margin, upperTo.y - d.dirY * margin);
+        ChemPoint base1(upperMarginTo.x - d.dirX * hl, upperMarginTo.y - d.dirY * hl);
+        g2.drawLine(upperMarginTo.x, upperMarginTo.y, base1.x - d.perp.x * hw, base1.y - d.perp.y * hw);
 
-    ChemPoint base2(lowerFrom.x + d.dirX * hl, lowerFrom.y + d.dirY * hl);
-    g2.drawLine(lowerFrom.x, lowerFrom.y, base2.x + d.perp.x * hw, base2.y + d.perp.y * hw);
+        ChemPoint base2(lowerFrom.x + d.dirX * hl, lowerFrom.y + d.dirY * hl);
+        g2.drawLine(lowerFrom.x, lowerFrom.y, base2.x + d.perp.x * hw, base2.y + d.perp.y * hw);
+    }
 }
 
 void ArrowRenderer::drawHarpRight(Graphics2D& g2, const ChemPoint& from,

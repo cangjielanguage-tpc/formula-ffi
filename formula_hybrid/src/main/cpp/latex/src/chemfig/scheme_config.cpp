@@ -51,7 +51,10 @@ void SchemeConfig::set(const std::wstring& key, const std::wstring& value) {
     }
     else if (key == L"arrow label sep") arrowLabelSep = clampRange(safeStof(value), 0.0f, 50.0f);
     else if (key == L"arrow head") arrowHeadStyle = value;
-    else if (key == L"arrow double sep") arrowDoubleSep = clampPositive(safeStof(value), 0.01f, 50.0f);
+    else if (key == L"arrow double sep") {
+        arrowDoubleSepRaw = value;
+        arrowDoubleSep = clampPositive(safeStof(value), 0.01f, 50.0f);
+    }
     else if (key == L"arrow double coeff") arrowDoubleCoeff = clampRange(safeStof(value), 0.01f, 10.0f);
     else if (key == L"arrow double harpoon") arrowDoubleHarpoon = (value != L"false" && value != L"0");
     else if (key == L"delim height scale") delimHeightScale = clampRange(safeStof(value), 0.3f, 1.5f);
@@ -73,6 +76,7 @@ void SchemeConfig::reset() {
     arrowOffsetRaw.clear();
     arrowLabelSep = 0.3f;
     arrowDoubleSep = 0.35f;
+    arrowDoubleSepRaw.clear();
     arrowDoubleCoeff = 0.6f;
     arrowDoubleHarpoon = false;
     arrowHeadStyle.clear();

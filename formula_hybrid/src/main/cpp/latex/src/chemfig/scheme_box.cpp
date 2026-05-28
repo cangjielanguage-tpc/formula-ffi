@@ -1048,10 +1048,17 @@ void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
     style.headLength = cfg.arrowHeadLength;
     style.headWidth = cfg.arrowHeadWidth;
     style.lineWidth = ARROW_LINE_WIDTH;
-    style.doubleBondOffset = cfg.arrowDoubleSep;
+    
+    float emBase = _compoundGap / 5.0f;
+    if (!cfg.arrowDoubleSepRaw.empty()) {
+        style.doubleBondOffset = parseLengthValue(cfg.arrowDoubleSepRaw, _scale, emBase);
+    } else {
+        style.doubleBondOffset = cfg.arrowDoubleSep * emBase;
+    }
+    style.doubleCoeff = cfg.arrowDoubleCoeff;
+    style.doubleHarpoon = cfg.arrowDoubleHarpoon;
     style.harpRadius = ARROW_HARP_RADIUS;
 
-    float emBase = _compoundGap / 5.0f;
     float arrowOffset = 0.0f;
     if (!cfg.arrowOffsetRaw.empty()) {
         arrowOffset = parseLengthValue(cfg.arrowOffsetRaw, _scale, emBase);
