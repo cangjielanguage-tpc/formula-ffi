@@ -243,25 +243,35 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
             if (fromIdx >= static_cast<int>(_compoundLayouts.size()) ||
                 toIdx >= static_cast<int>(_compoundLayouts.size())) continue;
             
+            auto& fromL = _compoundLayouts[fromIdx];
+            if (!fromL.positioned) continue;
+            
             bool hasAngle = (std::abs(arrow.params.angle) > EPSILON);
-            if (!hasAngle) continue;
-            
-            float angleRad = arrow.params.angle * CHEM_PI / 180.0f;
-            
-            ChemPoint fromPos = resolveArrowEndpoint(
-                fromIdx, arrow.params.fromRef, arrow.params.fromAnchor,
-                arrow.params.angle, true);
             
             float arrowLen = std::max(
                 _arrowLength * arrow.params.lengthCoeff * _scale,
                 _compoundGap);
             
-            float centerX = fromPos.x + std::cos(angleRad) * arrowLen;
-            float centerY = fromPos.y - std::sin(angleRad) * arrowLen;
+            ChemPoint toPos;
+            if (hasAngle) {
+                float angleRad = arrow.params.angle * CHEM_PI / 180.0f;
+                ChemPoint fromPos = resolveArrowEndpoint(
+                    fromIdx, arrow.params.fromRef, arrow.params.fromAnchor,
+                    arrow.params.angle, true);
+                
+                float centerX = fromPos.x + std::cos(angleRad) * arrowLen;
+                float centerY = fromPos.y - std::sin(angleRad) * arrowLen;
+                toPos = ChemPoint(centerX, centerY);
+            } else {
+                toPos = ChemPoint(
+                    fromL.x + fromL.width + arrowLen,
+                    fromL.y
+                );
+            }
             
             auto& toL = _compoundLayouts[toIdx];
-            toL.x = centerX - toL.width * 0.5f;
-            toL.y = centerY - (toL.boxDepth - toL.boxHeight) * 0.5f;
+            toL.x = toPos.x - toL.width * 0.5f;
+            toL.y = toPos.y - (toL.boxDepth - toL.boxHeight) * 0.5f;
             toL.positioned = true;
             calculateCompoundAnchors(toL);
         }
@@ -309,7 +319,8 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
             std::string symName = delimCharToSymbol(subInfo.leftDelim);
             if (!symName.empty()) {
                 try {
-                    sl.leftDelimBox = DelimiterFactory::create(symName, env, sl.height);
+                    float delimHeight = sl.height * SchemeConfig::instance().delimHeightScale;
+                    sl.leftDelimBox = DelimiterFactory::create(symName, env, delimHeight);
                     sl.leftDelimWidth = sl.leftDelimBox->_width;
                 } catch (...) {
                     sl.leftDelimBox = nullptr;
@@ -321,7 +332,8 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
             std::string symName = delimCharToSymbol(subInfo.rightDelim);
             if (!symName.empty()) {
                 try {
-                    sl.rightDelimBox = DelimiterFactory::create(symName, env, sl.height);
+                    float delimHeight = sl.height * SchemeConfig::instance().delimHeightScale;
+                    sl.rightDelimBox = DelimiterFactory::create(symName, env, delimHeight);
                     sl.rightDelimWidth = sl.rightDelimBox->_width;
                 } catch (...) {
                     sl.rightDelimBox = nullptr;

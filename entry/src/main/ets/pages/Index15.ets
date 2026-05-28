@@ -382,6 +382,8 @@ struct Index15 {
     { description: '[21] issue 188', formula: '\\schemestart A\\+{2em,-2em,5pt}B \\schemestop' },
     { description: '[21] issue 188', formula: '\\schemestart A\\+{2em,2em,5pt}B \\schemestop' },
 
+    { description: '[21] issue 189', formula: '\\schemestart A\\arrow\\chemleft[\\subscheme{B\\arrow C}\\chemright] \\schemestop' },
+
   ]
 
   private getPageItems(): ChemfigItem[] {

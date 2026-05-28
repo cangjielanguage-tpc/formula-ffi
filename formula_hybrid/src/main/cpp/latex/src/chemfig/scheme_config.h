@@ -22,6 +22,7 @@ struct SchemeConfig {
     float arrowLabelSep;
     float arrowDoubleSep;
     float arrowDoubleCoeff;
+    float delimHeightScale;
     bool arrowDoubleHarpoon;
     std::wstring arrowHeadStyle;
     bool debugMode;
@@ -55,6 +56,7 @@ private:
           arrowDoubleSep(0.35f),
           arrowDoubleCoeff(0.6f),
           arrowDoubleHarpoon(false),
+          delimHeightScale(0.85f),
           debugMode(false),
           autoNumber(false) {}
 
