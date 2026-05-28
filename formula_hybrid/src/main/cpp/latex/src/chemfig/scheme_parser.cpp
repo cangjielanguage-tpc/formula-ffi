@@ -112,6 +112,8 @@ std::vector<std::wstring> splitByComma(const std::wstring& s) {
 }
 
 std::wstring SchemeParser::preprocessSchemeSyntax(const std::wstring& input) {
+    SchemeConfig::instance().reset();
+    
     std::wstring result;
     size_t i = 0;
     size_t n = input.size();
@@ -777,6 +779,14 @@ bool SchemeParser::parseArrow(const wchar_t*& p, ReactionScheme& scheme) {
 
     if (params.isCurved() && params.curveHeight == 0.0f) {
         params.curveHeight = SchemeConfig::instance().defaultCurveHeight;
+    }
+
+    if (params.angle == ARROW_PARAM_UNSET) {
+        params.angle = SchemeConfig::instance().arrowAngle;
+    }
+
+    if (params.lengthCoeff == ARROW_PARAM_UNSET) {
+        params.lengthCoeff = SchemeConfig::instance().arrowCoeff;
     }
 
     int idx = static_cast<int>(scheme.arrows.size());
@@ -1476,9 +1486,7 @@ bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
     return true;
 }
 
-bool SchemeParser::parse(const std::wstring& input, ReactionScheme& scheme) {    
-    SchemeConfig::instance().reset();
-
+bool SchemeParser::parse(const std::wstring& input, ReactionScheme& scheme) {
     scheme.compounds.clear();
     scheme.arrows.clear();
     scheme.pluses.clear();

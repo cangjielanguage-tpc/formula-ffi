@@ -13,6 +13,14 @@ namespace tex {
 namespace {
     using namespace chemfig;
 
+    inline float getEffectiveAngle(float angle) {
+        return (angle == ARROW_PARAM_UNSET) ? 0.0f : angle;
+    }
+
+    inline float getEffectiveLengthCoeff(float coeff) {
+        return (coeff == ARROW_PARAM_UNSET) ? 1.0f : coeff;
+    }
+
     std::string delimCharToSymbol(const std::wstring& delim) {
         if (delim == L"[") return "lsqbrack";
         if (delim == L"]") return "rsqbrack";
@@ -246,18 +254,20 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
             auto& fromL = _compoundLayouts[fromIdx];
             if (!fromL.positioned) continue;
             
-            bool hasAngle = (std::abs(arrow.params.angle) > EPSILON);
+            float effectiveAngle = getEffectiveAngle(arrow.params.angle);
+            float effectiveLengthCoeff = getEffectiveLengthCoeff(arrow.params.lengthCoeff);
+            bool hasAngle = (std::abs(effectiveAngle) > EPSILON);
             
             float arrowLen = std::max(
-                _arrowLength * arrow.params.lengthCoeff * _scale,
+                _arrowLength * effectiveLengthCoeff * _scale,
                 _compoundGap);
             
             ChemPoint toPos;
             if (hasAngle) {
-                float angleRad = arrow.params.angle * CHEM_PI / 180.0f;
+                float angleRad = effectiveAngle * CHEM_PI / 180.0f;
                 ChemPoint fromPos = resolveArrowEndpoint(
                     fromIdx, arrow.params.fromRef, arrow.params.fromAnchor,
-                    arrow.params.angle, true);
+                    effectiveAngle, true);
                 
                 float centerX = fromPos.x + std::cos(angleRad) * arrowLen;
                 float centerY = fromPos.y - std::sin(angleRad) * arrowLen;
@@ -381,9 +391,11 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                     int arrowIdx = -prevLe.second - 1000;
                     if (arrowIdx >= 0 && arrowIdx < static_cast<int>(_scheme.arrows.size())) {
                         const auto& arrow = _scheme.arrows[arrowIdx];
-                        bool hasAngle = (std::abs(arrow.params.angle) > EPSILON);
+                        float effectiveAngle = getEffectiveAngle(arrow.params.angle);
+                        float effectiveLengthCoeff = getEffectiveLengthCoeff(arrow.params.lengthCoeff);
+                        bool hasAngle = (std::abs(effectiveAngle) > EPSILON);
                         if (!hasAngle) {
-                            gap = _arrowLength * arrow.params.lengthCoeff * _scale;
+                            gap = _arrowLength * effectiveLengthCoeff * _scale;
                         } else {
                             gap = _compoundGap;
                         }
@@ -438,9 +450,11 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                         int arrowIdx = -prevLe.second - 1000;
                         if (arrowIdx >= 0 && arrowIdx < static_cast<int>(_scheme.arrows.size())) {
                             const auto& arrow = _scheme.arrows[arrowIdx];
-                            bool hasAngle = (std::abs(arrow.params.angle) > EPSILON);
+                            float effectiveAngle = getEffectiveAngle(arrow.params.angle);
+                            float effectiveLengthCoeff = getEffectiveLengthCoeff(arrow.params.lengthCoeff);
+                            bool hasAngle = (std::abs(effectiveAngle) > EPSILON);
                             if (!hasAngle) {
-                                gap = _arrowLength * arrow.params.lengthCoeff * _scale;
+                                gap = _arrowLength * effectiveLengthCoeff * _scale;
                             } else {
                                 gap = _compoundGap;
                             }
@@ -582,16 +596,17 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
             if (fromIdx >= _scheme.compoundCount()) fromIdx = _scheme.compoundCount() - 1;
             if (toIdx >= _scheme.compoundCount()) toIdx = _scheme.compoundCount() - 1;
 
-            bool hasAngle = (std::abs(arrow.params.angle) > EPSILON);
-            float angleRad = hasAngle ? arrow.params.angle * CHEM_PI / 180.0f : 0.0f;
+            float effectiveAngle = getEffectiveAngle(arrow.params.angle);
+            bool hasAngle = (std::abs(effectiveAngle) > EPSILON);
+            float angleRad = hasAngle ? effectiveAngle * CHEM_PI / 180.0f : 0.0f;
 
             ChemPoint fromPos = resolveArrowEndpoint(
                 fromIdx, arrow.params.fromRef, arrow.params.fromAnchor,
-                arrow.params.angle, true, arrow.fromSubschemeIdx);
+                effectiveAngle, true, arrow.fromSubschemeIdx);
 
             ChemPoint toPos = resolveArrowEndpoint(
                 toIdx, arrow.params.toRef, arrow.params.toAnchor,
-                arrow.params.angle, false, arrow.toSubschemeIdx);
+                effectiveAngle, false, arrow.toSubschemeIdx);
 
             if (!hasAngle && fromIdx >= 0 && toIdx >= 0 &&
                 fromIdx < static_cast<int>(_compoundLayouts.size()) &&
@@ -629,14 +644,15 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 auto& tl = _compoundLayouts[toIdx];
                 bool shouldReposition = hasAngle;
                 if (shouldReposition) {
-                    float arrowLen = _arrowLength * arrow.params.lengthCoeff * _scale;
+                    float effectiveLengthCoeff = getEffectiveLengthCoeff(arrow.params.lengthCoeff);
+                    float arrowLen = _arrowLength * effectiveLengthCoeff * _scale;
                     float centerX = fromPos.x + std::cos(angleRad) * arrowLen;
                     float centerY = fromPos.y - std::sin(angleRad) * arrowLen;
                     tl.x = centerX - tl.width * 0.5f;
                     tl.y = centerY - (tl.boxDepth - tl.boxHeight) * 0.5f;
                     tl.positioned = true;
                     calculateCompoundAnchors(tl);
-                    float entryAngle = arrow.params.angle + 180.0f;
+                    float entryAngle = effectiveAngle + 180.0f;
                     toPos = tl.anchors.getAnchor(
                         std::to_wstring(static_cast<int>(entryAngle)));
 
@@ -652,7 +668,8 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                                     const auto& a = _scheme.arrows[aIdx];
                                     if (a.toCompound == k) {
                                         isArrowTarget = true;
-                                        if (std::abs(a.params.angle) > EPSILON) {
+                                        float aEffectiveAngle = getEffectiveAngle(a.params.angle);
+                                        if (std::abs(aEffectiveAngle) > EPSILON) {
                                             isAngledTarget = true;
                                         }
                                         break;
@@ -672,14 +689,16 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                     }
                 }
             } else if (hasAngle) {
-                float arrowLen = _arrowLength * arrow.params.lengthCoeff * _scale;
+                float effectiveLengthCoeff = getEffectiveLengthCoeff(arrow.params.lengthCoeff);
+                float arrowLen = _arrowLength * effectiveLengthCoeff * _scale;
                 toPos = ChemPoint(
                     fromPos.x + std::cos(angleRad) * arrowLen,
                     fromPos.y - std::sin(angleRad) * arrowLen
                 );
             }
 
-            float arrowLen = _arrowLength * arrow.params.lengthCoeff * _scale;
+            float effectiveLengthCoeff = getEffectiveLengthCoeff(arrow.params.lengthCoeff);
+            float arrowLen = _arrowLength * effectiveLengthCoeff * _scale;
             if (std::abs(toPos.x - fromPos.x) < EPSILON &&
                 std::abs(toPos.y - fromPos.y) < EPSILON) {
                 toPos = ChemPoint(fromPos.x + arrowLen, fromPos.y);
@@ -885,14 +904,16 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
             
             ArrowLayout alayout;
             alayout.arrowIndex = arrowIdx;
-            
+
+            float effectiveAngle = getEffectiveAngle(arrow.params.angle);
+
             ChemPoint fromPos = resolveArrowEndpoint(
                 fromIdx, arrow.params.fromRef, arrow.params.fromAnchor,
-                arrow.params.angle, true);
-            
+                effectiveAngle, true);
+
             ChemPoint toPos = resolveArrowEndpoint(
                 toIdx, arrow.params.toRef, arrow.params.toAnchor,
-                arrow.params.angle, false);
+                effectiveAngle, false);
             
             alayout.from = fromPos;
             alayout.to = toPos;
@@ -935,17 +956,26 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         }
     }
 
+    float emBase = _compoundGap / 5.0f;
+    float arrowOffsetForBounds = 0.0f;
+    if (!SchemeConfig::instance().arrowOffsetRaw.empty()) {
+        arrowOffsetForBounds = parseLengthValue(SchemeConfig::instance().arrowOffsetRaw, _scale, emBase);
+    } else {
+        arrowOffsetForBounds = SchemeConfig::instance().arrowOffset * emBase;
+    }
+
     for (const auto& al : _arrowLayouts) {
+        float minY = std::min(al.from.y - arrowOffsetForBounds, al.to.y - arrowOffsetForBounds);
+        float maxY = std::max(al.from.y - arrowOffsetForBounds, al.to.y - arrowOffsetForBounds);
         float minX = std::min(al.from.x, al.to.x);
         float maxX = std::max(al.from.x, al.to.x);
-        float minY = std::min(al.from.y, al.to.y);
-        float maxY = std::max(al.from.y, al.to.y);
 
         if (al.arrowIndex >= 0 && al.arrowIndex < static_cast<int>(_scheme.arrows.size())) {
             const auto& arrow = _scheme.arrows[al.arrowIndex];
             if (arrow.params.isCurved()) {
                 ChemPoint ctrl = ArrowRenderer::computeCurveControlPoint(
                     al.from, al.to, arrow.params.effectiveCurveHeight());
+                ctrl.y -= arrowOffsetForBounds;
                 if (ctrl.x < minX) minX = ctrl.x;
                 if (ctrl.x > maxX) maxX = ctrl.x;
                 if (ctrl.y < minY) minY = ctrl.y;
@@ -959,12 +989,12 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         if (maxY > maxBottom) maxBottom = maxY;
 
         if (al.labelAboveBox) {
-            float labelMidY = (al.from.y + al.to.y) * 0.5f;
+            float labelMidY = (al.from.y + al.to.y) * 0.5f - arrowOffsetForBounds;
             float labelTop = labelMidY - LABEL_OFFSET - al.labelAboveBox->_depth - al.labelAboveBox->_height;
             if (labelTop < maxTop) maxTop = labelTop;
         }
         if (al.labelBelowBox) {
-            float labelMidY = (al.from.y + al.to.y) * 0.5f;
+            float labelMidY = (al.from.y + al.to.y) * 0.5f - arrowOffsetForBounds;
             float labelBottom = labelMidY + LABEL_OFFSET + al.labelBelowBox->_height + al.labelBelowBox->_depth;
             if (labelBottom > maxBottom) maxBottom = labelBottom;
         }
@@ -1021,7 +1051,13 @@ void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
     style.doubleBondOffset = cfg.arrowDoubleSep;
     style.harpRadius = ARROW_HARP_RADIUS;
 
-    float arrowOffset = cfg.arrowOffset * _scale;
+    float emBase = _compoundGap / 5.0f;
+    float arrowOffset = 0.0f;
+    if (!cfg.arrowOffsetRaw.empty()) {
+        arrowOffset = parseLengthValue(cfg.arrowOffsetRaw, _scale, emBase);
+    } else {
+        arrowOffset = cfg.arrowOffset * emBase;
+    }
     float labelSep = cfg.arrowLabelSep * _scale;
 
     for (const auto& al : _arrowLayouts) {

@@ -45,7 +45,10 @@ void SchemeConfig::set(const std::wstring& key, const std::wstring& value) {
     else if (key == L"+ sep right") plusSep = clampPositive(safeStof(value), 0.0f, 50.0f);
     else if (key == L"+ vshift") {}
     else if (key == L"arrow style") {}
-    else if (key == L"arrow offset") arrowOffset = clampRange(safeStof(value), -50.0f, 50.0f);
+    else if (key == L"arrow offset") {
+        arrowOffsetRaw = value;
+        arrowOffset = clampRange(safeStof(value), -50.0f, 50.0f);
+    }
     else if (key == L"arrow label sep") arrowLabelSep = clampRange(safeStof(value), 0.0f, 50.0f);
     else if (key == L"arrow head") arrowHeadStyle = value;
     else if (key == L"arrow double sep") arrowDoubleSep = clampPositive(safeStof(value), 0.01f, 50.0f);
@@ -67,6 +70,7 @@ void SchemeConfig::reset() {
     numOffset = 0.3f;
     lineSpacing = 2.0f;
     arrowOffset = 0.0f;
+    arrowOffsetRaw.clear();
     arrowLabelSep = 0.3f;
     arrowDoubleSep = 0.35f;
     arrowDoubleCoeff = 0.6f;

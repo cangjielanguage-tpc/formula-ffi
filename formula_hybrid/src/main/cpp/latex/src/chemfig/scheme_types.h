@@ -66,6 +66,8 @@ enum DashPattern {
     DASH_LOOSELY_DASHED
 };
 
+constexpr float ARROW_PARAM_UNSET = -999.0f;
+
 struct ArrowParams {
     ArrowType type;
     float angle;
@@ -86,8 +88,8 @@ struct ArrowParams {
 
     ArrowParams()
         : type(ARROW_FORWARD),
-          angle(0.0f),
-          lengthCoeff(1.0f),
+          angle(ARROW_PARAM_UNSET),
+          lengthCoeff(ARROW_PARAM_UNSET),
           curveHeight(0.0f),
           yShift(0.0f),
           dashed(false),

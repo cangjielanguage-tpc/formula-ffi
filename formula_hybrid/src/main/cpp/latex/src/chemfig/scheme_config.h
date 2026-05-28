@@ -19,6 +19,7 @@ struct SchemeConfig {
     float numOffset;
     float lineSpacing;
     float arrowOffset;
+    std::wstring arrowOffsetRaw;
     float arrowLabelSep;
     float arrowDoubleSep;
     float arrowDoubleCoeff;
