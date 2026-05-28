@@ -264,7 +264,7 @@ struct Index15 {
     { description: '[19] issuxxx', formula: '\\chemfig{*6(-=-=-*6(-=-*5(-N-=-=)-=*6(-=-*5(-S-=-=)-=*6(-=-*5(-O-=-=)-=-=))))}' },
 
     { description: '[20] 氧原子+90°矩形电子', formula: '\\chemfig{\\charge{90=\"}{O}}' },
-    { description: '[20] 氧原子+45°矩形电子', formula: '\\chemfig{\\charge{45=\"}{O}}' },
+    { description: '[20] 氧原子+45°矩形电子', formula: '\\chemfig{\\charge{270=\"}{O}}' },
     { description: '[20] 氧原子+0°矩形电子', formula: '\\chemfig{\\charge{0=\"}{O}}' },
     { description: '[20] 氧原子+135°矩形电子', formula: '\\chemfig{\\charge{135=\"}{O}}' },
     { description: '[20] 氧原子+90°线电子', formula: '\\chemfig{\\charge{90=\|}{O}}' },
@@ -281,10 +281,11 @@ struct Index15 {
     { description: '[20] 氧原子+270°孤对电子', formula: '\\chemfig{\\charge{270=\:}{O}}' },
     { description: '[20] 矩形电子+孤对电子混合显示', formula: '\\chemfig{\\charge{90=\:}{O} - C = \\charge{90=\"}{O}}' },
     { description: '[20] 正负电子氧原子', formula: '\\chemfig{\\charge{180=\\oplus}{O} - \\charge{0=\\ominus}{O}}' },
-    { description: '[20] 正负电子的间距和大小调节', formula: '\\chemfig{\\charge{45:3pt=$\\scriptstyle\\ominus$}{O}}' },
-
-    // { description: '[20] 电子移动 - 羰基共振', formula: '\\schemestart \\chemfig{C([3]-)([5]-)=[@{db,.5}]@{atoo}\\charge{0=\\|,-90=\\|}{O}} \\arrow(.mid east--.mid west){<->} \\chemfig{\\charge{90:3pt=$\\scriptstyle\\oplus$}{C}([3]-)([5]-)-\\charge{0=\\|,90=\\|,-90=\\|,45:3pt=$\\scriptstyle\\ominus$}{O}} \\schemestop\\chemmove{\\draw[shorten <=2pt, shorten >=2pt](db) ..controls +(up:5mm) and +(up:5mm)..(atoo);}' },
-    { description: '[20] 电子移动 - 羰基共振[测试版]', formula: '\\schemestart \\chemfig{C([3]-)([5]-)=[@{db,.5}]@{atoo}\\charge{0=\\|,-90=\\|}{O}} \\arrow(.mid east--.mid west){<->} \\chemfig{\\charge{90:3pt=$\\scriptstyle\\oplus$}{C}([3]-)([5]-)-\\charge{0=\\|,90=\\|,-90=\\|,45:3pt=$\\scriptstyle\\ominus$}{O}} \\schemestop ' },
+    { description: '[20] 负电子的间距和大小调节', formula: '\\chemfig{\\charge{45:3pt=$\\scriptstyle\\ominus$}{O}}' },
+    { description: '[20] 氧原子+0和180°单电子,90°线电子', formula: '\\chemfig{\\charge{0=\\., 180=\\., 90=\\|}{O}}' },
+    { description: '[20] 氧原子+0和90°单电子', formula: '\\chemfig{\\charge{90=\\., 0=\\.}{O}}' },
+    { description: '[20] 氧原子+90和180°单电子', formula: '\\chemfig{\\charge{90=\\., 180=\\.}{O}}' },
+    { description: '[20] 氧原子+180和270°单电子', formula: '\\chemfig{\\charge{180=\\., 270=\\.}{O}}' },
 
     { description: '[20] 基础反应式 - 简单反应', formula: '\\schemestart \\chemfig{*6(-=-=-=)}\\arrow \\chemfig{X=[1]Y}\\arrow \\chemfig{S>T} \\schemestop' },
     { description: '[20] 基础反应式 - 多步反应', formula: '\\schemestart A\\arrow{->}B\\arrow{->}C\\arrow{->}D\\schemestop' },
@@ -325,6 +326,11 @@ struct Index15 {
     { description: '[20] 全局配置 - 箭头头部样式', formula: '\\setchemfig{arrow head=-Stealth}\\schemestart A\\arrow{->}B\\schemestop\\setchemfig{arrow head={}}' },
     { description: '[20] 全局配置 - 双箭头参数', formula: '\\setchemfig{arrow double sep=4pt,arrow double coeff=0.6,arrow double harpoon=true}\\schemestart A\\arrow{<=>}B\\arrow{<->>}C\\schemestop\\setchemfig{arrow double sep={},arrow double coeff={},arrow double harpoon={}}' },
     { description: '[20] 全局配置 - 重置resetchemfig', formula: '\\resetchemfig\\schemestart A\\arrow{->}B\\schemestop' },
+
+    { description: '[20] 虚箭头 较粗', formula: '\\schemestart A\\arrow{->}[,,dashed]B \\schemestop' },
+    { description: '[20] 虚箭头 细', formula: '\\schemestart A\\arrow{->}[,,dotted]B \\schemestop' },
+    { description: '[20] 虚箭头 中', formula: '\\schemestart A\\arrow{->}[,,densely dashed]B \\schemestop' },
+    { description: '[20] 间距', formula: '\\schemestart A\\+{2em,-2em,5pt}B \\schemestop' },
 
     { description: '[21] 箭头类型 - 长平衡<<->', formula: '\\schemestart A\\arrow{<<->}B\\schemestop' },
     { description: '[21] 箭头类型 - 交替平衡<->>', formula: '\\schemestart A\\arrow{<->>}B\\schemestop' },

@@ -1,6 +1,7 @@
 #include "chemfig_parser.h"
 #include "chemfig_constants.h"
 #include "common.h"
+#include <hilog/log.h>
 #include <cmath>
 #include <cstdlib>
 #include <cwctype>
@@ -1215,14 +1216,7 @@ std::wstring ChemfigParser::parseAtomGroup(const wchar_t*& p) {
         label.pop_back();
     }
 
-    std::wstring result;
-    result.reserve(label.size());
-    for (wchar_t c : label) {
-        if (c == L' ') result += L'|';
-        else result += c;
-    }
-
-    return result;
+    return label;
 }
 
 float ChemfigParser::parseNumber(const wchar_t*& p) {
@@ -1324,7 +1318,12 @@ bool ChemfigParser::parseChargeSpec(const wchar_t*& p, std::vector<Charge>& char
     size_t end = chargeSpec.find(L',');
 
     while (start < chargeSpec.length()) {
-        std::wstring pair = chargeSpec.substr(start, end - start);
+        std::wstring pair;
+        if (end == std::wstring::npos) {
+            pair = chargeSpec.substr(start);
+        } else {
+            pair = chargeSpec.substr(start, end - start);
+        }
 
         size_t equalsPos = pair.find(L'=');
         if (equalsPos == std::wstring::npos) {
@@ -1352,6 +1351,10 @@ bool ChemfigParser::parseChargeSpec(const wchar_t*& p, std::vector<Charge>& char
         size_t firstNonSpace = angleStr.find_first_not_of(L" \t");
         if (firstNonSpace != std::wstring::npos) {
             angleStr = angleStr.substr(firstNonSpace);
+            size_t lastNonSpace = angleStr.find_last_not_of(L" \t");
+            if (lastNonSpace != std::wstring::npos) {
+                angleStr = angleStr.substr(0, lastNonSpace + 1);
+            }
         } else {
             angleStr.clear();
         }
@@ -1379,7 +1382,7 @@ bool ChemfigParser::parseChargeSpec(const wchar_t*& p, std::vector<Charge>& char
 
         if (end == std::wstring::npos) break;
         start = end + 1;
-        while (start < chargeSpec.length() && chargeSpec[start] == L' ') start++;
+        while (start < chargeSpec.length() && (chargeSpec[start] == L' ' || chargeSpec[start] == L'\t')) start++;
         end = chargeSpec.find(L',', start);
     }
 

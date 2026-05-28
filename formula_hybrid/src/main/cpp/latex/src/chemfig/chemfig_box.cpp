@@ -527,7 +527,7 @@ void ChemfigBox::drawMolecule(Graphics2D& g2, float x, float y) {
             float chargeX = atomX + dx;
             float chargeY = atomY + dy;
             
-            if (charge.mark == L"\"") {
+            if (charge.mark == L"\"" || charge.mark == L"\\\"") {
                 float rectW = 0.45f * scale * textScale * 10;
                 float rectH = 0.12f * scale * textScale * 10;
                 float ca = std::cos(angleRad);
