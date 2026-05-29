@@ -503,13 +503,15 @@ ArrowType SchemeParser::parseArrowCode(const wchar_t*& p, std::wstring& labelAbo
         }
     }
 
+    int bracketCount = 0;
     while (peek(p) == L'[') {
         std::wstring content = parseBracketContent(p);
-        if (labelAbove.empty()) {
+        if (bracketCount == 0) {
             labelAbove = content;
-        } else if (labelBelow.empty()) {
+        } else if (bracketCount == 1) {
             labelBelow = content;
         }
+        bracketCount++;
     }
 
     if (code.empty()) return ARROW_FORWARD;

@@ -21,6 +21,7 @@ struct SchemeConfig {
     float arrowOffset;
     std::wstring arrowOffsetRaw;
     float arrowLabelSep;
+    std::wstring arrowLabelSepRaw;
     float arrowDoubleSep;
     std::wstring arrowDoubleSepRaw;
     float arrowDoubleCoeff;

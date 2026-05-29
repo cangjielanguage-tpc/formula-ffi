@@ -1065,7 +1065,12 @@ void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
     } else {
         arrowOffset = cfg.arrowOffset * emBase;
     }
-    float labelSep = cfg.arrowLabelSep * _scale;
+    float labelSep = 0.0f;
+    if (!cfg.arrowLabelSepRaw.empty()) {
+        labelSep = parseLengthValue(cfg.arrowLabelSepRaw, _scale, emBase);
+    } else {
+        labelSep = cfg.arrowLabelSep * _scale;
+    }
 
     for (const auto& al : _arrowLayouts) {
         if (al.arrowIndex < 0 || al.arrowIndex >= static_cast<int>(_scheme.arrows.size())) continue;

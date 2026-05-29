@@ -331,6 +331,10 @@ struct Index15 {
     { description: '[20] 虚箭头 细', formula: '\\schemestart A\\arrow{->}[,,dotted]B \\schemestop' },
     { description: '[20] 虚箭头 中', formula: '\\schemestart A\\arrow{->}[,,densely dashed]B \\schemestop' },
     { description: '[20] 间距', formula: '\\schemestart A\\+{2em,-2em,5pt}B \\schemestop' },
+    { description: '[20] 箭头标签间距', formula: '\\setchemfig{arrow label sep=3pt}\\schemestart A\\arrow{->[up][down]}B \\schemestop' },
+    { description: '[20] 箭头标签间距', formula: '\\setchemfig{arrow label sep=15pt}\\schemestart A\\arrow{->[cat][H]}B \\schemestop' },
+    { description: '[20] 箭头标签间距', formula: '\\setchemfig{arrow label sep=1pt}\\schemestart A\\arrow{->[ox][red]}B \\schemestop' },
+    { description: '[20] 箭头标签间距', formula: '\\setchemfig{arrow label sep=0pt}\\schemestart A\\arrow{->[][below]}B \\schemestop' },
 
     { description: '[21] 箭头类型 - 长平衡<<->', formula: '\\schemestart A\\arrow{<<->}B\\schemestop' },
     { description: '[21] 箭头类型 - 交替平衡<->>', formula: '\\schemestart A\\arrow{<->>}B\\schemestop' },
