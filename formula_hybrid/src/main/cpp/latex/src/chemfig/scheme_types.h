@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <hilog/log.h>
 
 namespace tex {
 
@@ -206,6 +207,9 @@ struct CompoundAnchorPos {
     ChemPoint midWest;
     ChemPoint midNorth;
     ChemPoint midSouth;
+    ChemPoint base;
+    ChemPoint baseEast;
+    ChemPoint baseWest;
     float width;
     float height;
 
@@ -316,6 +320,8 @@ inline bool parseNumericAnchor(const std::wstring& name, float& outAngle) {
 
 inline ChemPoint CompoundAnchorPos::getAnchor(const std::wstring& name) const {
     if (name.empty()) return center;
+    std::string nameStr(name.begin(), name.end());
+    OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "getAnchor line %{public}d: name=%{public}s", __LINE__, nameStr.c_str());
     switch (name[0]) {
         case L'n':
             if (name == L"n" || name == L"north") return north;
@@ -341,6 +347,20 @@ inline ChemPoint CompoundAnchorPos::getAnchor(const std::wstring& name) const {
             if (name == L"mw" || name == L"mid west") return midWest;
             if (name == L"mn" || name == L"mid north") return midNorth;
             if (name == L"ms" || name == L"mid south") return midSouth;
+            break;
+        case L'b':
+            if (name == L"b" || name == L"base") {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "getAnchor line %{public}d: returning base=(%{public}.2f,%{public}.2f)", __LINE__, base.x, base.y);
+                return base;
+            }
+            if (name == L"be" || name == L"base east") {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "getAnchor line %{public}d: returning baseEast=(%{public}.2f,%{public}.2f)", __LINE__, baseEast.x, baseEast.y);
+                return baseEast;
+            }
+            if (name == L"bw" || name == L"base west") {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "getAnchor line %{public}d: returning baseWest=(%{public}.2f,%{public}.2f)", __LINE__, baseWest.x, baseWest.y);
+                return baseWest;
+            }
             break;
         case L'1':
             if (name == L"180" || name == L"180.0") return west;
@@ -380,6 +400,7 @@ inline ChemPoint CompoundAnchorPos::getAnchor(const std::wstring& name) const {
         float t = std::min(tX, tY);
         return ChemPoint(center.x + dx * t, center.y + dy * t);
     }
+    OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "getAnchor line %{public}d: returning center=(%{public}.2f,%{public}.2f)", __LINE__, center.x, center.y);
     return center;
 }
 
@@ -401,6 +422,9 @@ inline CompoundAnchorPos ReactionScheme::calculateCompoundAnchors(
     pos.midWest = ChemPoint(x, pos.center.y);
     pos.midNorth = ChemPoint(pos.center.x, y - boxHeight * 0.5f);
     pos.midSouth = ChemPoint(pos.center.x, y + boxDepth * 0.5f);
+    pos.base = ChemPoint(pos.center.x, y + boxDepth);
+    pos.baseEast = ChemPoint(x + width, y + boxDepth);
+    pos.baseWest = ChemPoint(x, y + boxDepth);
     return pos;
 }
 

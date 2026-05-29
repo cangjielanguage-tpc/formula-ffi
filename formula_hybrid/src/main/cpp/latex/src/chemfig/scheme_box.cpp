@@ -7,6 +7,7 @@
 #include <cmath>
 #include <algorithm>
 #include <set>
+#include <hilog/log.h>
 
 namespace tex {
 
@@ -180,6 +181,7 @@ ChemPoint SchemeBox::resolveArrowEndpoint(
 
     if (!effectiveAnchorName.empty()) {
         ChemPoint pt = cl.anchors.getAnchor(effectiveAnchorName);
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "resolveArrowEndpoint line %{public}d: compoundIdx=%{public}d, anchorName=%{public}s, pt=(%{public}.2f,%{public}.2f)", __LINE__, compoundIdx, std::string(effectiveAnchorName.begin(), effectiveAnchorName.end()).c_str(), pt.x, pt.y);
         if (std::abs(pt.x - cl.anchors.center.x) > ANCHOR_EQUALITY_THRESHOLD ||
             std::abs(pt.y - cl.anchors.center.y) > ANCHOR_EQUALITY_THRESHOLD) {
             return pt;
@@ -231,6 +233,8 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
 
     for (size_t si = 0; si < _scheme.subschemes.size(); si++) {
         const auto& subInfo = _scheme.subschemes[si];
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: subInfo.size=%{public}zu, firstIdx=%{public}d, internalArrows.size=%{public}zu", __LINE__, _scheme.subschemes.size(), subInfo.firstCompoundIndex, subInfo.internalArrows.size());
+        
         int firstIdx = subInfo.firstCompoundIndex;
         if (firstIdx < 0 || firstIdx >= static_cast<int>(_compoundLayouts.size())) continue;
         
@@ -241,18 +245,25 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
         calculateCompoundAnchors(firstL);
         
         for (int arrowIdx : subInfo.internalArrows) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: processing arrowIdx=%{public}d", __LINE__, arrowIdx);
+            
             if (arrowIdx < 0 || arrowIdx >= static_cast<int>(_scheme.arrows.size())) continue;
             const ArrowElement& arrow = _scheme.arrows[arrowIdx];
             
             int fromIdx = arrow.fromCompound;
             int toIdx = arrow.toCompound;
             
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: fromIdx=%{public}d, toIdx=%{public}d", __LINE__, fromIdx, toIdx);
+            
             if (fromIdx < 0 || toIdx < 0) continue;
             if (fromIdx >= static_cast<int>(_compoundLayouts.size()) ||
                 toIdx >= static_cast<int>(_compoundLayouts.size())) continue;
             
             auto& fromL = _compoundLayouts[fromIdx];
-            if (!fromL.positioned) continue;
+            if (!fromL.positioned) {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: fromL not positioned, skipping", __LINE__);
+                continue;
+            }
             
             float effectiveAngle = getEffectiveAngle(arrow.params.angle);
             float effectiveLengthCoeff = getEffectiveLengthCoeff(arrow.params.lengthCoeff);
@@ -263,9 +274,10 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 _compoundGap);
             
             ChemPoint toPos;
+            ChemPoint fromPos;
             if (hasAngle) {
                 float angleRad = effectiveAngle * CHEM_PI / 180.0f;
-                ChemPoint fromPos = resolveArrowEndpoint(
+                fromPos = resolveArrowEndpoint(
                     fromIdx, arrow.params.fromRef, arrow.params.fromAnchor,
                     effectiveAngle, true);
                 
@@ -273,17 +285,51 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 float centerY = fromPos.y - std::sin(angleRad) * arrowLen;
                 toPos = ChemPoint(centerX, centerY);
             } else {
+                fromPos = resolveArrowEndpoint(
+                    fromIdx, arrow.params.fromRef, arrow.params.fromAnchor,
+                    effectiveAngle, true);
+                
                 toPos = ChemPoint(
-                    fromL.x + fromL.width + arrowLen,
-                    fromL.y
+                    fromPos.x + arrowLen,
+                    fromPos.y
                 );
             }
             
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: fromIdx=%{public}d, toIdx=%{public}d, fromPos=(%{public}.2f,%{public}.2f)", __LINE__, fromIdx, toIdx, fromPos.x, fromPos.y);
+            
+            float fromBottomY = fromL.y + fromL.boxDepth;
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: fromL.y=%{public}.2f, fromL.boxDepth=%{public}.2f, fromBottomY=%{public}.2f", __LINE__, fromL.y, fromL.boxDepth, fromBottomY);
+            
             auto& toL = _compoundLayouts[toIdx];
-            toL.x = toPos.x - toL.width * 0.5f;
-            toL.y = toPos.y - (toL.boxDepth - toL.boxHeight) * 0.5f;
-            toL.positioned = true;
-            calculateCompoundAnchors(toL);
+            
+            if (!hasAngle) {
+                ChemPoint toAnchor = resolveArrowEndpoint(
+                    toIdx, arrow.params.toRef, arrow.params.toAnchor,
+                    effectiveAngle, false);
+                
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: toAnchor before positioning=(%{public}.2f,%{public}.2f)", __LINE__, toAnchor.x, toAnchor.y);
+                
+                toL.x = toPos.x - toL.width * 0.5f;
+                toL.y = fromPos.y - toL.boxDepth;
+                toL.positioned = true;
+                calculateCompoundAnchors(toL);
+                
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: positioned compound %{public}d: x=%{public}.2f, y=%{public}.2f", __LINE__, toIdx, toL.x, toL.y);
+                
+                toAnchor = resolveArrowEndpoint(
+                    toIdx, arrow.params.toRef, arrow.params.toAnchor,
+                    effectiveAngle, false);
+                
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: toAnchor after positioning=(%{public}.2f,%{public}.2f)", __LINE__, toAnchor.x, toAnchor.y);
+            } else {
+                toL.x = toPos.x - toL.width * 0.5f;
+                toL.y = toPos.y - (toL.boxDepth - toL.boxHeight) * 0.5f;
+                toL.positioned = true;
+                calculateCompoundAnchors(toL);
+            }
+            
+            float toBottomY = toL.y + toL.boxDepth;
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: toL.y=%{public}.2f, toL.boxDepth=%{public}.2f, toBottomY=%{public}.2f", __LINE__, toL.y, toL.boxDepth, toBottomY);
         }
     }
 
@@ -396,6 +442,23 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                         bool hasAngle = (std::abs(effectiveAngle) > EPSILON);
                         if (!hasAngle) {
                             gap = _arrowLength * effectiveLengthCoeff * _scale;
+                            
+                            if (!arrow.params.fromAnchor.isDefault() || !arrow.params.toAnchor.isDefault()) {
+                                int fromIdx = arrow.fromCompound;
+                                if (fromIdx >= 0 && fromIdx < static_cast<int>(_compoundLayouts.size())) {
+                                    auto& fromL = _compoundLayouts[fromIdx];
+                                    ChemPoint fromPos = resolveArrowEndpoint(
+                                        fromIdx, arrow.params.fromRef, arrow.params.fromAnchor,
+                                        effectiveAngle, true);
+                                    
+                                    float targetY = fromPos.y - layout.boxDepth;
+                                    layout.y = targetY;
+                                    layout.positioned = true;
+                                    calculateCompoundAnchors(layout);
+                                    
+                                    OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: aligning compound %{public}d to anchor, y=%{public}.2f", __LINE__, idx, layout.y);
+                                }
+                            }
                         } else {
                             gap = _compoundGap;
                         }
@@ -413,7 +476,12 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
             float offsetX = currentX - layout.x;
             float offsetY = currentY - layout.y;
             layout.x += offsetX;
-            layout.y += offsetY;
+            if (!layout.positioned) {
+                layout.y += offsetY;
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: adjusting unpositioned compound %{public}d: y += %{public}.2f", __LINE__, idx, offsetY);
+            } else {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: skipping positioned compound %{public}d", __LINE__, idx);
+            }
             calculateCompoundAnchors(layout);
             currentX += layout.width;
         } else if (idx < -1999) {
@@ -478,7 +546,9 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 for (int j = subInfo.startCompound; j <= subInfo.endCompound; j++) {
                     auto& cl = _compoundLayouts[j];
                     cl.x += offsetX;
-                    cl.y += offsetY;
+                    if (!cl.positioned) {
+                        cl.y += offsetY;
+                    }
                     calculateCompoundAnchors(cl);
                 }
                 
@@ -610,7 +680,8 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
 
             if (!hasAngle && fromIdx >= 0 && toIdx >= 0 &&
                 fromIdx < static_cast<int>(_compoundLayouts.size()) &&
-                toIdx < static_cast<int>(_compoundLayouts.size())) {
+                toIdx < static_cast<int>(_compoundLayouts.size()) &&
+                arrow.params.fromAnchor.isDefault() && arrow.params.toAnchor.isDefault()) {
                 auto& fL = _compoundLayouts[fromIdx];
                 auto& tL = _compoundLayouts[toIdx];
 
