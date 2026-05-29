@@ -1047,7 +1047,7 @@ void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
     ArrowStyle style;
     style.headLength = cfg.arrowHeadLength;
     style.headWidth = cfg.arrowHeadWidth;
-    style.lineWidth = ARROW_LINE_WIDTH;
+    style.lineWidth = cfg.arrowStyleHasLineWidth ? cfg.arrowStyleLineWidth : ARROW_LINE_WIDTH;
     
     float emBase = _compoundGap / 5.0f;
     if (!cfg.arrowDoubleSepRaw.empty()) {
@@ -1094,9 +1094,14 @@ void SchemeBox::drawArrows(Graphics2D& g2, float ox, float oy) {
                 break;
         }
 
+        ArrowParams paramsWithStyle = arrow.params;
+        if (paramsWithStyle.color.empty() && !cfg.arrowStyleColor.empty()) {
+            paramsWithStyle.color = cfg.arrowStyleColor;
+        }
+
         ArrowRenderer::drawArrow(g2, arrow.params.type,
                                  fromPos, toPos, _scale,
-                                 arrow.params, style);
+                                 paramsWithStyle, style);
 
         if (al.labelAboveBox || al.labelBelowBox) {
             ChemPoint labelRef;

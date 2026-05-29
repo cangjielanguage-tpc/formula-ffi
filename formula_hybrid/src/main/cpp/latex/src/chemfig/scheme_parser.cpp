@@ -282,9 +282,62 @@ std::wstring SchemeParser::preprocessSchemeSyntax(const std::wstring& input) {
                     }
                     size_t eqPos = kvContent.find(L'=');
                     if (eqPos != std::wstring::npos) {
-                        std::wstring key = kvContent.substr(0, eqPos);
-                        std::wstring value = kvContent.substr(eqPos + 1);
-                        SchemeConfig::instance().set(key, value);
+                        bool hasBraces = (kvContent.find(L'{') != std::wstring::npos);
+
+                        if (hasBraces) {
+                            std::vector<std::wstring> pairs;
+                            std::wstring current;
+                            int braceDepth = 0;
+
+                            for (size_t ci = 0; ci <= kvContent.size(); ci++) {
+                                if (ci < kvContent.size()) {
+                                    if (kvContent[ci] == L'{') {
+                                        braceDepth++;
+                                        current += kvContent[ci];
+                                    } else if (kvContent[ci] == L'}') {
+                                        braceDepth--;
+                                        current += kvContent[ci];
+                                    } else if (kvContent[ci] == L',' && braceDepth == 0) {
+                                        pairs.push_back(current);
+                                        current.clear();
+                                    } else {
+                                        current += kvContent[ci];
+                                    }
+                                }
+                                if (ci == kvContent.size() && !current.empty()) {
+                                    pairs.push_back(current);
+                                }
+                            }
+
+                            for (const auto& pair : pairs) {
+                                size_t pairEqPos = pair.find(L'=');
+                                if (pairEqPos != std::wstring::npos) {
+                                    std::wstring key = pair.substr(0, pairEqPos);
+                                    std::wstring value = pair.substr(pairEqPos + 1);
+
+                                    while (!key.empty() && iswspace(key.back())) key.pop_back();
+                                    while (!key.empty() && iswspace(key.front())) key.erase(key.begin());
+                                    while (!value.empty() && iswspace(value.back())) value.pop_back();
+                                    while (!value.empty() && iswspace(value.front())) value.erase(value.begin());
+
+                                    if (value.size() >= 2 && value.front() == L'{' && value.back() == L'}') {
+                                        value = value.substr(1, value.size() - 2);
+                                    }
+
+                                    SchemeConfig::instance().set(key, value);
+                                }
+                            }
+                        } else {
+                            std::wstring key = kvContent.substr(0, eqPos);
+                            std::wstring value = kvContent.substr(eqPos + 1);
+
+                            while (!key.empty() && iswspace(key.back())) key.pop_back();
+                            while (!key.empty() && iswspace(key.front())) key.erase(key.begin());
+                            while (!value.empty() && iswspace(value.back())) value.pop_back();
+                            while (!value.empty() && iswspace(value.front())) value.erase(value.begin());
+
+                            SchemeConfig::instance().set(key, value);
+                        }
                     }
                 }
                 continue;

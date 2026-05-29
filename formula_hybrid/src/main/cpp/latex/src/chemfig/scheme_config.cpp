@@ -44,7 +44,36 @@ void SchemeConfig::set(const std::wstring& key, const std::wstring& value) {
     else if (key == L"+ sep left") plusSep = clampPositive(safeStof(value), 0.0f, 50.0f);
     else if (key == L"+ sep right") plusSep = clampPositive(safeStof(value), 0.0f, 50.0f);
     else if (key == L"+ vshift") {}
-    else if (key == L"arrow style") {}
+    else if (key == L"arrow style") {
+        arrowStyleColor.clear();
+        arrowStyleHasLineWidth = false;
+        arrowStyleLineWidth = ARROW_LINE_WIDTH;
+
+        static const wchar_t* colorNames[] = {
+            L"red", L"blue", L"green", L"yellow", L"black", L"white",
+            L"cyan", L"magenta", L"orange", L"purple", L"brown", L"gray",
+            L"pink", L"violet", L"olive", L"teal", L"lime", L"darkgray",
+            L"lightgray", L"darkblue", L"darkgreen", L"darkred"
+        };
+
+        for (const auto& colorName : colorNames) {
+            if (value.find(colorName) != std::wstring::npos) {
+                arrowStyleColor = colorName;
+                break;
+            }
+        }
+
+        if (value.find(L"thick") != std::wstring::npos) {
+            arrowStyleLineWidth = ARROW_LINE_WIDTH * 1.5f;
+            arrowStyleHasLineWidth = true;
+        } else if (value.find(L"thin") != std::wstring::npos) {
+            arrowStyleLineWidth = ARROW_LINE_WIDTH * 0.5f;
+            arrowStyleHasLineWidth = true;
+        } else if (value.find(L"bold") != std::wstring::npos) {
+            arrowStyleLineWidth = ARROW_LINE_WIDTH * 2.0f;
+            arrowStyleHasLineWidth = true;
+        }
+    }
     else if (key == L"arrow offset") {
         arrowOffsetRaw = value;
         arrowOffset = clampRange(safeStof(value), -50.0f, 50.0f);
@@ -80,6 +109,9 @@ void SchemeConfig::reset() {
     arrowDoubleCoeff = 0.6f;
     arrowDoubleHarpoon = false;
     arrowHeadStyle.clear();
+    arrowStyleColor.clear();
+    arrowStyleLineWidth = ARROW_LINE_WIDTH;
+    arrowStyleHasLineWidth = false;
     debugMode = false;
     autoNumber = false;
 }

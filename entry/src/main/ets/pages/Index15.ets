@@ -303,10 +303,10 @@ struct Index15 {
     { description: '[20] 箭头方向 - 长度系数', formula: '\\schemestart A\\arrow[,2]B\\arrow[,0.5]C\\schemestop' },
     { description: '[20] 箭头方向 - 样式', formula: '\\schemestart A\\arrow[,,red,thick]B\\arrow[,,dashed]C\\schemestop' },
     { description: '[20] 箭头方向 - 组合角度+系数+样式', formula: '\\schemestart A\\arrow[45,1.5,blue]B\\arrow[-20,2,dashed]C\\schemestop' },
-    { description: '[20] 箭头方向 - 全局默认setchemfig', formula: '\\setchemfig{arrow angle=15,arrow coeff=1.5,arrow style={red, thick}}\\schemestart A\\arrow B\\arrow C\\schemestop\\setchemfig{arrow angle={},arrow coeff={},arrow style={}}' },
+    // { description: '[20] 箭头方向 - 全局默认setchemfig', formula: '\\setchemfig{arrow angle=15,arrow coeff=1.5,arrow style={red, thick}}\\schemestart A\\arrow B\\arrow C\\schemestop\\setchemfig{arrow angle={},arrow coeff={},arrow style={}}' },
     { description: '[20] +号 - 基本加号', formula: '\\schemestart A\\+B\\+C\\arrow D\\+E\\schemestop' },
     { description: '[20] +号 - 自定义间距', formula: '\\schemestart A\\+B\\+{2em,,5pt}C\\+{0pt,0pt,-5pt}D\\arrow E\\+F\\schemestop' },
-    { description: '[20] +号 - 全局间距setchemfig', formula: '\\setchemfig{+ sep left=1em,+ sep right=1em,+ vshift=0pt}\\schemestart A\\+B\\+{2em,,5pt}C\\+{0pt,0pt,-5pt}D\\arrow E\\+F\\schemestop\\setchemfig{+ sep left={},+ sep right={},+ vshift={}}' },
+    // { description: '[20] +号 - 全局间距setchemfig', formula: '\\setchemfig{+ sep left=1em,+ sep right=1em,+ vshift=0pt}\\schemestart A\\+B\\+{2em,,5pt}C\\+{0pt,0pt,-5pt}D\\arrow E\\+F\\schemestop\\setchemfig{+ sep left={},+ sep right={},+ vshift={}}' },
     { description: '[20] 化合物名称 - 名称显示', formula: '\\schemestart \\chemname{\\chemfig{R-C(-[:-30]OH)=[:30]O}}{Carboxylic acid} \\+ \\chemname{\\chemfig{R\'OH}}{Alcohol} \\arrow(.mid east--.mid west) \\chemname{\\chemfig{R-C(-[:-30]OR\')=[:30]O}}{Ester} \\+ \\chemname{\\chemfig{H_2O}}{Water} \\schemestop\\chemnameinit{}' },
     { description: '[20] 化合物名称 - 名称对齐chemnameinit', formula: '\\chemnameinit{\\chemfig{R-C(-[:-30]OH)=[:30]O}}\\schemestart \\chemname{\\chemfig{R\'OH}}{Alcohol} \\+ \\chemname{\\chemfig{R-C(-[:-30]OH)=[:30]O}}{Carboxylic acid} \\arrow(.mid east--.mid west) \\chemname{\\chemfig{R-C(-[:-30]OR\')=[:30]O}}{Ester} \\+ \\chemname{\\chemfig{H_2O}}{Water} \\schemestop\\chemnameinit{}' },
     { description: '[20] 分支 - 锚点最简常用版', formula: '\\schemestart A\\arrow(aa--bb)B\\arrow(--cc)C \\arrow(@bb--)[-90]D\\schemestop' },
@@ -319,13 +319,13 @@ struct Index15 {
     { description: '待调试[20] 子方案 - 定界符', formula: '\\schemestart A\\arrow \\chemleft[\\subscheme{B\\arrow[-90,2]C}\\chemright] \\arrow D\\schemestop' },
     { description: '[20] 电子移动 - 中介效应', formula: '\\schemestart \\chemfig{@{a1}=_[@{db}::30]-[::-60]\\charge{90=\\|}{X}} \\arrow{<->} \\chemfig{\\chemabove{\\vphantom{X}}{\\ominus}-[::30]=_[::-60]\\chemabove{X}{\\scriptstyle\\oplus}} \\schemestop\\chemmove{\\draw(db).. controls +(100:5mm) and +(145:5mm).. (a1);}' },
     { description: '[20] 电子移动 - 羰基共振', formula: '\\schemestart \\chemfig{C([3]-)([5]-)=[@{db,.5}]@{atoo}\\charge{0=\\|,-90=\\|}{O}} \\arrow(.mid east--.mid west){<->} \\chemfig{\\charge{90:3pt=$\\scriptstyle\\oplus$}{C}([3]-)([5]-)-\\charge{0=\\|,90=\\|,-90=\\|,45:3pt=$\\scriptstyle\\ominus$}{O}} \\schemestop\\chemmove{\\draw[shorten <=2pt, shorten >=2pt](db) ..controls +(up:5mm) and +(up:5mm)..(atoo);}' },
-    { description: '[20] 全局配置 - 箭头系数', formula: '\\setchemfig{arrow coeff=2}\\schemestart A\\arrow{->}B\\schemestop\\setchemfig{arrow coeff={}}' },
-    { description: '[20] 全局配置 - 化合物间距', formula: '\\setchemfig{compound sep=2em}\\schemestart A\\arrow{->}B\\schemestop\\setchemfig{compound sep={}}' },
-    { description: '[20] 全局配置 - 箭头偏移', formula: '\\setchemfig{arrow offset=10pt}\\schemestart A\\arrow{->}B\\schemestop\\setchemfig{arrow offset={}}' },
-    { description: '[待调试][20] 全局配置 - 箭头标签间距', formula: '\\setchemfig{arrow label sep=8pt}\\schemestart A\\arrow{->[above][below]}B\\schemestop\\setchemfig{arrow label sep={}}' },
-    { description: '[20] 全局配置 - 箭头头部样式', formula: '\\setchemfig{arrow head=-Stealth}\\schemestart A\\arrow{->}B\\schemestop\\setchemfig{arrow head={}}' },
-    { description: '[20] 全局配置 - 双箭头参数', formula: '\\setchemfig{arrow double sep=4pt,arrow double coeff=0.6,arrow double harpoon=true}\\schemestart A\\arrow{<=>}B\\arrow{<->>}C\\schemestop\\setchemfig{arrow double sep={},arrow double coeff={},arrow double harpoon={}}' },
-    { description: '[20] 全局配置 - 重置resetchemfig', formula: '\\resetchemfig\\schemestart A\\arrow{->}B\\schemestop' },
+    // { description: '[20] 全局配置 - 箭头系数', formula: '\\setchemfig{arrow coeff=2}\\schemestart A\\arrow{->}B\\schemestop\\setchemfig{arrow coeff={}}' },
+    // { description: '[20] 全局配置 - 化合物间距', formula: '\\setchemfig{compound sep=2em}\\schemestart A\\arrow{->}B\\schemestop\\setchemfig{compound sep={}}' },
+    // { description: '[20] 全局配置 - 箭头偏移', formula: '\\setchemfig{arrow offset=10pt}\\schemestart A\\arrow{->}B\\schemestop\\setchemfig{arrow offset={}}' },
+    // { description: '[待调试][20] 全局配置 - 箭头标签间距', formula: '\\setchemfig{arrow label sep=8pt}\\schemestart A\\arrow{->[above][below]}B\\schemestop\\setchemfig{arrow label sep={}}' },
+    // { description: '[20] 全局配置 - 箭头头部样式', formula: '\\setchemfig{arrow head=-Stealth}\\schemestart A\\arrow{->}B\\schemestop\\setchemfig{arrow head={}}' },
+    // { description: '[20] 全局配置 - 双箭头参数', formula: '\\setchemfig{arrow double sep=4pt,arrow double coeff=0.6,arrow double harpoon=true}\\schemestart A\\arrow{<=>}B\\arrow{<->>}C\\schemestop\\setchemfig{arrow double sep={},arrow double coeff={},arrow double harpoon={}}' },
+    // { description: '[20] 全局配置 - 重置resetchemfig', formula: '\\resetchemfig\\schemestart A\\arrow{->}B\\schemestop' },
 
     { description: '[20] 虚箭头 较粗', formula: '\\schemestart A\\arrow{->}[,,dashed]B \\schemestop' },
     { description: '[20] 虚箭头 细', formula: '\\schemestart A\\arrow{->}[,,dotted]B \\schemestop' },
@@ -383,6 +383,15 @@ struct Index15 {
     { description: '[21] issue 188', formula: '\\schemestart A\\+{2em,2em,5pt}B \\schemestop' },
 
     { description: '[21] issue 189', formula: '\\schemestart A\\arrow\\chemleft[\\subscheme{B\\arrow C}\\chemright] \\schemestop' },
+
+    { description: '[20] 箭头', formula: '\\schemestart A\\arrow B \\schemestop' },
+    { description: '[21] issue 190', formula: '\\setchemfig{arrow coeff=2}\\schemestart A\\arrow{->}B \\schemestop' },
+    { description: '[21] issue 191', formula: '\\setchemfig{compound sep=2em}\\schemestart A\\arrow{->}B \\schemestop' },
+    { description: '[21] issue 192', formula: '\\setchemfig{arrow angle=15}\\schemestart A\\arrow{->}B \\schemestop' },
+    { description: '[21] issue 193', formula: '\\setchemfig{arrow offset=10pt}\\schemestart A\\arrow{->}B \\schemestop' },
+
+    { description: '[21] issue 194', formula: '\\setchemfig{arrow double sep=4pt,arrow double coeff=0.6,arrow double harpoon=true}\\schemestart A\\arrow{<=>}B \\schemestop' },
+    { description: '[21] issue 195', formula: '\\setchemfig{arrow angle=15,arrow coeff=1.5,arrow style={red, thick}}\\schemestart A\\arrow{->}B \\schemestop' },
 
   ]
 
