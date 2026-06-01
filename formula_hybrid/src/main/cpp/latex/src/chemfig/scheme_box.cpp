@@ -443,7 +443,19 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                         if (!hasAngle) {
                             gap = _arrowLength * effectiveLengthCoeff * _scale;
                             
-                            if (!arrow.params.fromAnchor.isDefault() || !arrow.params.toAnchor.isDefault()) {
+                            bool hasBaseAnchor = false;
+                            if (!arrow.params.fromAnchor.isDefault()) {
+                                std::wstring fromAnchorName = arrow.params.fromAnchor.anchorName;
+                                std::transform(fromAnchorName.begin(), fromAnchorName.end(), fromAnchorName.begin(), ::tolower);
+                                hasBaseAnchor = hasBaseAnchor || (fromAnchorName.find(L"base") != std::wstring::npos);
+                            }
+                            if (!arrow.params.toAnchor.isDefault()) {
+                                std::wstring toAnchorName = arrow.params.toAnchor.anchorName;
+                                std::transform(toAnchorName.begin(), toAnchorName.end(), toAnchorName.begin(), ::tolower);
+                                hasBaseAnchor = hasBaseAnchor || (toAnchorName.find(L"base") != std::wstring::npos);
+                            }
+                            
+                            if (hasBaseAnchor) {
                                 int fromIdx = arrow.fromCompound;
                                 if (fromIdx >= 0 && fromIdx < static_cast<int>(_compoundLayouts.size())) {
                                     auto& fromL = _compoundLayouts[fromIdx];
@@ -456,7 +468,7 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                                     layout.positioned = true;
                                     calculateCompoundAnchors(layout);
                                     
-                                    OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: aligning compound %{public}d to anchor, y=%{public}.2f", __LINE__, idx, layout.y);
+                                    OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: aligning compound %{public}d to base anchor, y=%{public}.2f", __LINE__, idx, layout.y);
                                 }
                             }
                         } else {
