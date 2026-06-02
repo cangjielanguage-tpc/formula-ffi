@@ -30,46 +30,63 @@ public class TeXParseResult {
 }
 
 public func latexStringToImage(latexMathTextString: String, latexMathTextSize: Float64,latexMathTextColor: UInt32, latexMathBackGroupColor: UInt32, latexMathColorFormat: Int64, resPath: String): Array<Byte> {
+    var latexOpt: ?LaTeX = None
+    var rOpt: ?Render = None
+    var g2Opt: ?Graphic2D = None
     try {
-        var latex = LaTeX(resPath)
+        let latex = LaTeX(resPath)
+        latexOpt = latex
         let latexMathTextNewString = latexStrCallback(latexMathTextString)
-        var r = latex.parse(latexMathTextNewString, getLatexmathWidth(latexMathTextNewString), Float32(latexMathTextSize), Float32(10.0), latexMathTextColor)
-        var g2 = Graphic2D(r, latexMathColorFormatEnum(latexMathColorFormat))
+        let r = latex.parse(latexMathTextNewString, getLatexmathWidth(latexMathTextNewString), Float32(latexMathTextSize), Float32(10.0), latexMathTextColor)
+        rOpt = r
+        let g2 = Graphic2D(r, latexMathColorFormatEnum(latexMathColorFormat))
+        g2Opt = g2
         r.draw(g2, latexMathBackGroupColor)
-        let arr = r.toBitmap(g2)
-        latex.release()
-        r.finalize()
-        unsafe {
-            if (g2.getG2().isNotNull()) {
-                LibC.free(g2.getG2())
-            }
-        }
-        return arr
+        return r.toBitmap(g2)
     } catch (_: Exception) {
         return Array<Byte>()
+    } finally {
+        if (let Some(g2) <- g2Opt) {
+            g2.release()
+        }
+        if (let Some(r) <- rOpt) {
+            r.finalize()
+        }
+        if (let Some(latex) <- latexOpt) {
+            latex.release()
+        }
     }
 }
 
 public func latexStringToImageWithError(latexMathTextString: String, latexMathTextSize: Float64, latexMathTextColor: UInt32, latexMathBackGroupColor: UInt32, latexMathColorFormat: Int64, resPath: String): TeXParseResult {
+    var latexOpt: ?LaTeX = None
+    var rOpt: ?Render = None
+    var g2Opt: ?Graphic2D = None
     try {
-        var latex = LaTeX(resPath)
+        let latex = LaTeX(resPath)
+        latexOpt = latex
         let latexMathTextNewString = latexStrCallback(latexMathTextString)
-        var r = latex.parseWithError(latexMathTextNewString, getLatexmathWidth(latexMathTextNewString), Float32(latexMathTextSize), Float32(10.0), latexMathTextColor)
-        var g2 = Graphic2D(r, latexMathColorFormatEnum(latexMathColorFormat))
+        let r = latex.parseWithError(latexMathTextNewString, getLatexmathWidth(latexMathTextNewString), Float32(latexMathTextSize), Float32(10.0), latexMathTextColor)
+        rOpt = r
+        let g2 = Graphic2D(r, latexMathColorFormatEnum(latexMathColorFormat))
+        g2Opt = g2
         r.draw(g2, latexMathBackGroupColor)
         let arr = r.toBitmap(g2)
-        latex.release()
-        r.finalize()
-        unsafe {
-            if (g2.getG2().isNotNull()) {
-                LibC.free(g2.getG2())
-            }
-        }
         return TeXParseResult.ok(arr)
     } catch (e: TeXParseException) {
         return TeXParseResult.fail(e.formula, e.resultCode, e.message)
     } catch (e: Exception) {
         return TeXParseResult.fail(latexMathTextString, TeXResultCode.UnknownError, e.message)
+    } finally {
+        if (let Some(g2) <- g2Opt) {
+            g2.release()
+        }
+        if (let Some(r) <- rOpt) {
+            r.finalize()
+        }
+        if (let Some(latex) <- latexOpt) {
+            latex.release()
+        }
     }
 }
 

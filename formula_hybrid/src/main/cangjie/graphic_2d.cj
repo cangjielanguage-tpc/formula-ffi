@@ -39,12 +39,7 @@ public class Graphic2D {
             case COLOR_FORMAT_RGB_565 => RGB_565
             case COLOR_FORMAT_BGRA_8888 => BGRA_8888
         }
-        unsafe {
-            g2 = initGraphics2D_ffi(this.w, this.h, this.cf)
-            if (g2.isNull()) {
-                throw Exception("Failed to initialize Graphics2D: initGraphics2D_ffi returned null")
-            }
-        }
+        g2 = unsafe { initGraphics2D_ffi(this.w, this.h, this.cf) }
     }
 
     public func getG2(): CPointer<UInt8> {
@@ -54,4 +49,9 @@ public class Graphic2D {
     public func getColorFormat(): Int32 {
         return cf
     }
+
+    public func release(): Unit {
+        unsafe { destroyGraphics2D_ffi(g2) }
+    }
+
 }
