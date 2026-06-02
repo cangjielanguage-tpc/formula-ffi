@@ -21,21 +21,22 @@ class Texify {
             return ""
         }
 
-        var res: String = ""
+        let sb = StringBuilder()
         var cee: Bool = false
 
         for (i in 0..input.size) {
             var inputi = input[i]
             if (inputi is PVString && let Some(v) <- (inputi as PVString)) {
-                res += v.getValue()
+                sb.append(v.getValue())
             } else if (inputi is PVObject && let Some(v) <- (inputi as PVObject)) {
-                res += go2(v)
+                sb.append(go2(v))
                 if (v.getType() == "1st-level escape") {
                     cee = true
                 }
             }
         }
 
+        var res = sb.toString()
         if (!isInner && !cee && res.size > 0) {
             res = "{" + res + "}"
         }
@@ -79,7 +80,7 @@ class Texify {
 
             match (buf.getType()) {
                 case "chemfive" =>
-                    res = ""
+                    let sb = StringBuilder()
                     var a: String = goInner(buf.getList("a").getItems())
                     var b: String = goInner(buf.getList("b").getItems())
                     var p: String = goInner(buf.getList("p").getItems())
@@ -91,56 +92,57 @@ class Texify {
                         if (Regex("^[+-]").matches(a)) {
                             a = "{" + a + "}"
                         }
-                        res += a + "\\,"
+                        sb.append(a + "\\,")
                     }
 
                     if (b != "" || p != "") {
-                        res += "{\\vphantom{X}}"
-                        res += "^{\\hphantom{" + b + "}}_{\\hphantom{" + p + "}}"
-                        res += "{\\vphantom{X}}"
-                        res += "^{\\smash[t]{\\vphantom{2}}\\llap{" + b + "}}"
-                        res += "_{\\vphantom{2}\\llap{\\smash[t]{" + p + "}}}"
+                        sb.append("{\\vphantom{X}}")
+                        sb.append("^{\\hphantom{" + b + "}}_{\\hphantom{" + p + "}}")
+                        sb.append("{\\vphantom{X}}")
+                        sb.append("^{\\smash[t]{\\vphantom{2}}\\llap{" + b + "}}")
+                        sb.append("_{\\vphantom{2}\\llap{\\smash[t]{" + p + "}}}")
                     }
 
                     if (o != "") {
                         if (Regex("^[+-]").matches(o)) {
                             o = "{" + o + "}"
                         }
-                        res += o
+                        sb.append(o)
                     }
 
                     // 根据 dType 处理上下标
                     if (buf.getString("dType") != "") {
                         if (buf.getString("dType") == "kv") {
                             if (d != "" || q != "") {
-                                res += "{\\vphantom{X}}"
+                                sb.append("{\\vphantom{X}}")
                             }
                             if (d != "") {
-                                res += "^{" + d + "}"
+                                sb.append("^{" + d + "}")
                             }
                             if (q != "") {
-                                res += "_{\\smash[t]{" + q + "}}"
+                                sb.append("_{\\smash[t]{" + q + "}}")
                             }
                         } else if (buf.getString("dType") == "oxidation") {
                             if (d != "") {
-                                res += "{\\vphantom{X}}"
-                                res += "^{" + d + "}"
+                                sb.append("{\\vphantom{X}}")
+                                sb.append("^{" + d + "}")
                             }
                             if (q != "") {
-                                res += "{\\vphantom{X}}"
-                                res += "_{\\smash[t]{" + q + "}}"
+                                sb.append("{\\vphantom{X}}")
+                                sb.append("_{\\smash[t]{" + q + "}}")
                             }
                         }
                     } else {
                         if (q != "") {
-                            res += "{\\vphantom{X}}"
-                            res += "_{\\smash[t]{" + q + "}}"
+                            sb.append("{\\vphantom{X}}")
+                            sb.append("_{\\smash[t]{" + q + "}}")
                         }
                         if (d != "") {
-                            res += "{\\vphantom{X}}"
-                            res += "^{" + d + "}"
+                            sb.append("{\\vphantom{X}}")
+                            sb.append("^{" + d + "}")
                         }
                     }
+                    res = sb.toString()
 
                 case "rm" =>
                     // 普通文本
@@ -275,7 +277,7 @@ class Texify {
      * @return 替换后的字符串
      */
     private func replaceCeOnly(input: String): String {
-        var res = ""
+        let sb = StringBuilder()
         var i: Int64 = 0
 
         while (i < input.size) {
@@ -284,7 +286,7 @@ class Texify {
                 case Some(idx) =>
                     // 普通文本追加到结果里
                     if (idx > i) {
-                        res += input[i..idx]
+                        sb.append(input[i..idx])
                     }
 
                     // 从 idx 开始解析 \ce{ ... }
@@ -308,7 +310,7 @@ class Texify {
 
                     // 括号不匹配，原样输出
                     if (level != 0) {
-                        res += "\\ce{"
+                        sb.append("\\ce{")
                         i = start
                         continue
                     }
@@ -323,19 +325,19 @@ class Texify {
                     var latex = texify.go(inner, isInner: true)
 
                     // 替换到结果
-                    res += latex
+                    sb.append(latex)
 
                     // 移动指针到 '}' 后面
                     i = j
 
                 case None =>
                     // 没找到 \ce{，剩余部分直接追加
-                    res += input[i..input.size]
+                    sb.append(input[i..input.size])
                     break
             }
         }
 
-        return res
+        return sb.toString()
     }
 
     /**
