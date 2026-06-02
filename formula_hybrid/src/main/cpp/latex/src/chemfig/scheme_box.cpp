@@ -310,7 +310,7 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, "chemfig", "line %{public}d: toAnchor before positioning=(%{public}.2f,%{public}.2f)", __LINE__, toAnchor.x, toAnchor.y);
                 
                 toL.x = toPos.x - toL.width * 0.5f;
-                toL.y = fromPos.y - toL.boxDepth;
+                toL.y = toPos.y - (toL.boxDepth - toL.boxHeight) * 0.5f;
                 toL.positioned = true;
                 calculateCompoundAnchors(toL);
                 
