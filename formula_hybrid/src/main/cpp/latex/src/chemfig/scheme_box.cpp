@@ -558,9 +558,7 @@ void SchemeBox::calculateLayout(TeXEnvironment& env) {
                 for (int j = subInfo.startCompound; j <= subInfo.endCompound; j++) {
                     auto& cl = _compoundLayouts[j];
                     cl.x += offsetX;
-                    if (!cl.positioned) {
-                        cl.y += offsetY;
-                    }
+                    cl.y += offsetY;
                     calculateCompoundAnchors(cl);
                 }
                 
