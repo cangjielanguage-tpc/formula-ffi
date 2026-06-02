@@ -75,15 +75,13 @@ public class LaTeX {
     public func parse(ltx: String, width: Int32, textSize: Float32, lineSpace: Float32, foreground: UInt32): Render {
         unsafe {
             var processedLtx = ltx
-            var subSringArr : Array<String> = ["aligned", "align", "flalign", "gather", "eqnarray", "multline", "equation"]
+            var subStringArr : Array<String> = ["aligned", "align", "flalign", "gather", "eqnarray", "multline", "equation"]
             var inputTag: String = ""
-            var findRet = findSubstring(ltx, subSringArr)
-            Hilog.info(0x12, "formula","---- findRet: ${findRet}")
+            var findRet = findSubstring(ltx, subStringArr)
             if(findRet == 1) {
                 var inputStr: CString = LibC.mallocCString(ltx)
                 inputStr = formula_xingTag(inputStr)
                 inputTag = inputStr.toString()
-                Hilog.info(0x12, "formula","---- ${inputTag}")
                 LibC.free(inputStr)
                 if (inputTag.contains("\\ce{") || inputTag.contains("\\pu{")) {
                     processedLtx = Mhchem().process(inputTag)
@@ -94,7 +92,6 @@ public class LaTeX {
                 var inputStr: CString = LibC.mallocCString(ltx)
                 inputStr = formula_tag(inputStr)
                 inputTag = inputStr.toString()
-                Hilog.info(0x12, "formula","---- ${inputTag}")
                 LibC.free(inputStr)
                 if (inputTag.contains("\\ce{") || inputTag.contains("\\pu{")) {
                     processedLtx = Mhchem().process(inputTag)

@@ -36,27 +36,14 @@ foreign {
     func destroyGraphics2D_ffi(bitmap: CPointer<UInt8>): Unit
 }
 
-func findSubstring(targetString:String, subSringArr:Array<String>): Int32 {
-    unsafe {
-        var t : CString = LibC.mallocCString(targetString)
-
-        for(i in subSringArr) {
-            var s : CString = LibC.mallocCString(i)
-            var ret = formula_string_find(t, s)
-
-            if (ret == 1) {
-                LibC.free(t)
-                LibC.free(s)
-                return 1
-            } else if (ret == 2) {
-                LibC.free(t)
-                LibC.free(s)
-                return 2
-            }
-            LibC.free(s)
+func findSubstring(targetString: String, subStringArr: Array<String>): Int32 {
+    for (sub in subStringArr) {
+        if (targetString.contains(sub + "*")) {
+            return 1
         }
-
-        LibC.free(t)
-        return 0;
+        if (targetString.contains(sub)) {
+            return 2
+        }
     }
+    return 0
 }

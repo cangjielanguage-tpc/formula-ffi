@@ -89,6 +89,9 @@ private:
     OH_Drawing_Brush *_brush;
     OH_Drawing_TextStyle *_txtStyle;
     OH_Drawing_TypographyStyle *_typoStyle;
+    OH_Drawing_FontCollection *_sharedFontCollection;
+    string _currentFontFile;
+    string _currentFontFamily;
 
     void renderRect(float x, float y, float w, float h);
     void renderRoundRect(float x, float y, float w, float h, float rx, float ry);
