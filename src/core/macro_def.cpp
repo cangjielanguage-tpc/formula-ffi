@@ -334,9 +334,13 @@ map<wstring, MacroInfo*> MacroInfo::_commands = {
     mac(1, macro_bcancel, "bcancel"),
     mac(1, macro_xcancel, "xcancel"),
     mac(2, macro_cancelto, "cancelto"),
-    mac(1, macro_unicode, "unicode")
+    mac(1, macro_unicode, "unicode"),
+	mac(1, macro_chemfig, "chemfig"),
+    mac(2, macro_charge, "charge"),
+	mac(1, macro_scheme, "scheme"),
+	mac(1, macro_setchemfig, "setchemfig"),
+    
 #ifdef GRAPHICS_DEBUG
-        ,
     mac(0, macro_debug, "debug"),
     mac(0, macro_undebug, "undebug")
 #endif  // GRAPHICS_DEBUG

@@ -3,6 +3,9 @@
 
 #include "atom/atom_basic.h"
 #include "atom/atom_impl.h"
+#include "chemfig/chemfig_atom.h"
+#include "chemfig/scheme_atom.h"
+#include "chemfig/scheme_config.h"
 #include "common.h"
 #include "core/core.h"
 #include "core/formula.h"
@@ -10,6 +13,8 @@
 #include "core/parser.h"
 #include "fonts/alphabet.h"
 #include "graphic/graphic.h"
+#include <cmath>
+
 using namespace std;
 using namespace tex;
 
@@ -1665,6 +1670,81 @@ inline macro(insertBreakMark) {
     return sptr<Atom>(new BreakMarkAtom());
 }
 
+inline macro(charge) {
+    if (args.size() < 2) {
+        throw ex_parse("\\charge requires two arguments!");
+    }
+    
+    const wstring& chargeSpec = args[1];
+    const wstring& atom = args[2];
+    
+    sptr<Atom> atomContent = TeXFormula(tp, atom)._root;
+    RowAtom* result = new RowAtom(atomContent);
+    
+    size_t start = 0;
+    size_t end = chargeSpec.find(L',');
+    
+    while (start < chargeSpec.length()) {
+        wstring pair = chargeSpec.substr(start, end - start);
+        
+        size_t colonPos = pair.find(L'=');
+        if (colonPos == wstring::npos) {
+            throw ex_parse("Invalid \\charge specification: missing colon!");
+        }
+        
+        wstring angleStr = pair.substr(0, colonPos);
+        wstring mark = pair.substr(colonPos + 1);
+        
+        float angleDeg = 0;
+        try {
+            angleDeg = std::stof(angleStr);
+        } catch (...) {
+            throw ex_parse("Invalid angle in \\charge!");
+        }
+        
+        float angleRad = angleDeg * M_PI / 180.0;
+        float radius = 0.55f;
+        float xOffset = - (radius - radius * std::cos(angleRad));
+        float yOffset = radius * std::sin(angleRad);
+
+        sptr<Atom> markContent = nullptr;
+        
+        if (mark == L"\"") {
+            markContent = sptr<Atom>(new RectAtom(0.15f, 0.5f));
+        } else {
+            markContent = TeXFormula(tp, mark)._root;
+        }
+        
+        bool needsRotation = false;
+        if (mark == L"\\." || mark == L"\\:" || mark == L":" || mark == L"|" || mark == L"\"" || 
+            mark.find(L'·') != wstring::npos || mark.find(L'\u00A8') != wstring::npos ||
+            mark.find(L'\u22C5') != wstring::npos || mark.find(L'\u22EF') != wstring::npos) {
+            needsRotation = true;
+        }
+        
+        if (needsRotation) {
+            sptr<Atom> rotatedMark = sptr<Atom>(new RotateAtom(markContent, angleDeg, L"origin=cc"));
+            markContent = rotatedMark;
+        }
+        
+        VRowAtom* vrow = new VRowAtom(markContent);
+        vrow->setRaise(UNIT_EM, -yOffset);
+        
+        RowAtom* hrow = new RowAtom(sptr<Atom>(new SpaceAtom(UNIT_EM, xOffset, 0, 0)));
+        hrow->add(sptr<Atom>(vrow));
+        
+        sptr<Atom> lap = sptr<Atom>(new LapedAtom(sptr<Atom>(hrow), 'r'));
+        result->add(lap);
+        
+        if (end == wstring::npos) break;
+        start = end + 1;
+        while (start < chargeSpec.length() && chargeSpec[start] == L' ') start++;
+        end = chargeSpec.find(L',', start);
+    }
+    
+    return sptr<Atom>(result);
+}
+
 /**************************************** limits macros *******************************************/
 
 inline sptr<Atom> _macro_typelimits(_out_ TeXParser& tp, _out_ vector<wstring>& args, int type) {
@@ -2069,6 +2149,37 @@ inline macro(GeoGebra) {
 
 inline macro(dynamic) {
     return nullptr;
+}
+
+inline macro(chemfig) {
+    try {
+        return sptr<Atom>(new ChemfigAtom(args[1]));
+    } catch (const ex_parse&) {
+        throw;
+    } catch (const std::exception& e) {
+        throw ex_parse(std::string("Chemfig error: ") + e.what());
+    }
+}
+
+inline macro(scheme) {
+    try {
+        return sptr<Atom>(new SchemeAtom(args[1]));
+    } catch (const ex_parse&) {
+        throw;
+    } catch (const std::exception& e) {
+        throw ex_parse(std::string("Scheme error: ") + e.what());
+    }
+}
+
+inline macro(setchemfig) {
+    const std::wstring& kv = args[1];
+    size_t eqPos = kv.find(L'=');
+    if (eqPos != std::wstring::npos) {
+        std::wstring key = kv.substr(0, eqPos);
+        std::wstring value = kv.substr(eqPos + 1);
+        SchemeConfig::instance().set(key, value);
+    }
+    return sptr<Atom>(new SpaceAtom(0));
 }
 
 }  // namespace tex
