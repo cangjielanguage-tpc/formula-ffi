@@ -3,9 +3,9 @@
 </div>
 
 <p align="center">
-<img alt="" src="https://img.shields.io/badge/release-v1.3.0-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/release-v2.0.0-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/build-pass-brightgreen" style="display: inline-block;" />
-<img alt="" src="https://img.shields.io/badge/cjc-v1.0.5-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/cjc-v1.1.3-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-NA-red" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/project-open-brightgreen" style="display: inline-block;" />
 </p>
@@ -180,16 +180,19 @@ struct Index0 {
 ## 约束与限制
 
     在下述版本验证通过：    
+    在下述版本验证通过：    
 | 编号 | 依赖构建工具                           | 版本号       |
-|----|----------------------------------|-----------|
-| 1  | **DevEco Studio**                | 5.1.1.851 |
-| 2  | **cjc**                          | v1.0.5    |
+|----|----------------------------------------------|-----------|
+| 1  | **DevEco Studio**                            | 6.1.1.280 |
+| 2  | **cjc**                                      | v1.1.3    |
+| 3  | **DevEco Studio-Cangjie Plugin 6.1.1 Beta1** | 6.1.1.280 |
+| 4  | **compatibility-sdk-6.1.1.280**              | 6.1.1.280 |
 
-formula依赖三方库： 
+formula依赖三方库：
 
 | 编号 | 依赖三方库         | 版本号      |
 |----|---------------|----------|
-| 1  | stdx          | v1.0.1.1 |
+| 1  | stdx          | v1.1.3.1 |
 
 三方库静态链接和动态链接区别
 
