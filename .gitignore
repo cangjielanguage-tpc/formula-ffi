@@ -37,3 +37,5 @@ oh_modules
 oh-package-lock.json5
 log.txt
 /stdx_bin
+*.lock
+*.clone-done
