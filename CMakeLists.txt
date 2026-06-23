@@ -48,6 +48,10 @@ endif()
 
 
 # compile options
+option(CHEMICAL_SYMBOLS "If enable chemical symbols" OFF)
+if(CHEMICAL_SYMBOLS)
+    add_definitions(-DCHEMICAL_SYMBOLS)
+endif()
 
 option(HAVE_LOG "If enable log" ON)
 if(HAVE_LOG)
@@ -65,4 +69,5 @@ if(MEM_CHECK)
 endif()
 
 add_executable(LaTeX ${SRC})
+
 target_link_libraries(LaTeX ${LINK_LIBS})

@@ -927,6 +927,40 @@ public:
     }
 };
 
+class FilledRectBox : public Box {
+public:
+    FilledRectBox(float width, float height, float depth) {
+        _width = width;
+        _height = height;
+        _depth = depth;
+    }
+
+    void draw(Graphics2D& g2, float x, float y) override {
+        g2.fillRect(x, y - _height, _width, _height + _depth);
+    }
+
+    int getLastFontId() override {
+        return 0;
+    }
+};
+
+class RectBox : public Box {
+public:
+    RectBox(float width, float height, float depth) {
+        _width = width;
+        _height = height;
+        _depth = depth;
+    }
+
+    void draw(Graphics2D& g2, float x, float y) override {
+        g2.drawRect(x, y - _height, _width, _height + _depth);
+    }
+
+    int getLastFontId() override {
+        return 0;
+    }
+};
+
 }  // namespace tex
 
 #endif  // BOX_H_INCLUDED
