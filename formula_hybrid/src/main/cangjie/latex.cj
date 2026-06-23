@@ -79,20 +79,30 @@ public class LaTeX {
             var inputTag: String = ""
             var findRet = findSubstring(ltx, subStringArr)
             if(findRet == 1) {
-                var inputStr: CString = LibC.mallocCString(ltx)
-                inputStr = formula_xingTag(inputStr)
+                let origStr = LibC.mallocCString(ltx)
+                var inputStr = formula_xingTag(origStr)
+                if (inputStr.isNull()) {
+                    LibC.free(origStr)
+                    throw Exception("formula_xingTag: malloc failed, returned null")
+                }
                 inputTag = inputStr.toString()
                 LibC.free(inputStr)
+                LibC.free(origStr)
                 if (inputTag.contains("\\ce{") || inputTag.contains("\\pu{")) {
                     processedLtx = Mhchem().process(inputTag)
                 } else {
                     processedLtx = inputTag
                 }
             } else if(findRet == 2) {
-                var inputStr: CString = LibC.mallocCString(ltx)
-                inputStr = formula_tag(inputStr)
+                let origStr = LibC.mallocCString(ltx)
+                var inputStr = formula_tag(origStr)
+                if (inputStr.isNull()) {
+                    LibC.free(origStr)
+                    throw Exception("formula_tag: malloc failed, returned null")
+                }
                 inputTag = inputStr.toString()
                 LibC.free(inputStr)
+                LibC.free(origStr)
                 if (inputTag.contains("\\ce{") || inputTag.contains("\\pu{")) {
                     processedLtx = Mhchem().process(inputTag)
                 } else {
@@ -103,7 +113,6 @@ public class LaTeX {
                     processedLtx = Mhchem().process(ltx)
                 }
             }
-
             var cstr = LibC.mallocCString(processedLtx)
             var ptr = LaTeX_parse(cstr, width, textSize, lineSpace, foreground)
             if (ptr.isNull()) {

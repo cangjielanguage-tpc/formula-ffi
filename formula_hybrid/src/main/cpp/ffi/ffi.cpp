@@ -4,6 +4,7 @@
 // Node APIs are not fully supported. To solve the compilation error of the interface cannot be found,
 // please include "napi/native_api.h".
 #include "ffi.h"
+#include <cstdlib>
 #include <unistd.h>
 #include <hilog/log.h>
 
@@ -135,9 +136,7 @@ char* formula_tag(char* dStr) {
         ++pos;
     }
     
-    char* taggedStr = new char[fstr.length() + 1];
-    strcpy(taggedStr, fstr.c_str());
-    return taggedStr;
+    return strdup(fstr.c_str()); // NOLINT(cppcoreguidelines-pro-type-vararg, cppcoreguidelines-avoid-c-arrays)
 }
 
 char* formula_xingTag(char* dStr) {    
@@ -240,7 +239,5 @@ char* formula_xingTag(char* dStr) {
         ++pos;
     }
     
-    char* taggedStr = new char[fstr.length() + 1];
-    strcpy(taggedStr, fstr.c_str());
-    return taggedStr;
+    return strdup(fstr.c_str()); // NOLINT(cppcoreguidelines-pro-type-vararg, cppcoreguidelines-avoid-c-arrays)
 }
