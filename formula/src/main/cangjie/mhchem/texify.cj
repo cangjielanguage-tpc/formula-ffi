@@ -9,7 +9,7 @@ class Texify {
      * 将 ParserValue 列表整体转换为 LaTeX 字符串。
      *
      * 遍历输入列表，如果是 PVString，直接取值；
-     * 如果是 PVObject，则调用 _go2() 转换。
+     * 如果是 PVObject，则调用 go2() 转换。
      * 对于非内部调用的化学式，如果未遇到 1st-level escape，则在结果外层加上 {}。
      *
      * @param input 输入 ParserValue 列表
@@ -21,21 +21,22 @@ class Texify {
             return ""
         }
 
-        var res: String = ""
+        let sb = StringBuilder()
         var cee: Bool = false
 
         for (i in 0..input.size) {
             var inputi = input[i]
             if (inputi is PVString && let Some(v) <- (inputi as PVString)) {
-                res += v.getValue()
+                sb.append(v.getValue())
             } else if (inputi is PVObject && let Some(v) <- (inputi as PVObject)) {
-                res += _go2(v)
+                sb.append(go2(v))
                 if (v.getType() == "1st-level escape") {
                     cee = true
                 }
             }
         }
 
+        var res = sb.toString()
         if (!isInner && !cee && res.size > 0) {
             res = "{" + res + "}"
         }
@@ -49,7 +50,7 @@ class Texify {
      * @param input 输入 ParserValue 列表
      * @return 转换后的 LaTeX 字符串
      */
-    private func _goInner(input: ArrayList<ParserValue>): String {
+    private func goInner(input: ArrayList<ParserValue>): String {
         if (input.size == 0) {
             return ""
         }
@@ -66,7 +67,7 @@ class Texify {
      * @param buffer 输入的 PVObject
      * @return 转换后的 LaTeX 字符串
      */
-    private func _go2(buffer: ParserValue): String {
+    private func go2(buffer: ParserValue): String {
         var res: String = ""
 
         if (buffer is PVObject && let Some(buf) <- (buffer as PVObject)) {
@@ -79,68 +80,69 @@ class Texify {
 
             match (buf.getType()) {
                 case "chemfive" =>
-                    res = ""
-                    var a: String = _goInner(buf.getList("a").getItems())
-                    var b: String = _goInner(buf.getList("b").getItems())
-                    var p: String = _goInner(buf.getList("p").getItems())
-                    var o: String = _goInner(buf.getList("o").getItems())
-                    var q: String = _goInner(buf.getList("q").getItems())
-                    var d: String = _goInner(buf.getList("d").getItems())
+                    let sb = StringBuilder()
+                    var a: String = goInner(buf.getList("a").getItems())
+                    var b: String = goInner(buf.getList("b").getItems())
+                    var p: String = goInner(buf.getList("p").getItems())
+                    var o: String = goInner(buf.getList("o").getItems())
+                    var q: String = goInner(buf.getList("q").getItems())
+                    var d: String = goInner(buf.getList("d").getItems())
 
                     if (a != "") {
                         if (Regex("^[+-]").matches(a)) {
                             a = "{" + a + "}"
                         }
-                        res += a + "\\,"
+                        sb.append(a + "\\,")
                     }
 
                     if (b != "" || p != "") {
-                        res += "{\\vphantom{X}}"
-                        res += "^{\\hphantom{" + b + "}}_{\\hphantom{" + p + "}}"
-                        res += "{\\vphantom{X}}"
-                        res += "^{\\smash[t]{\\vphantom{2}}\\llap{" + b + "}}"
-                        res += "_{\\vphantom{2}\\llap{\\smash[t]{" + p + "}}}"
+                        sb.append("{\\vphantom{X}}")
+                        sb.append("^{\\hphantom{" + b + "}}_{\\hphantom{" + p + "}}")
+                        sb.append("{\\vphantom{X}}")
+                        sb.append("^{\\smash[t]{\\vphantom{2}}\\llap{" + b + "}}")
+                        sb.append("_{\\vphantom{2}\\llap{\\smash[t]{" + p + "}}}")
                     }
 
                     if (o != "") {
                         if (Regex("^[+-]").matches(o)) {
                             o = "{" + o + "}"
                         }
-                        res += o
+                        sb.append(o)
                     }
 
                     // 根据 dType 处理上下标
                     if (buf.getString("dType") != "") {
                         if (buf.getString("dType") == "kv") {
                             if (d != "" || q != "") {
-                                res += "{\\vphantom{X}}"
+                                sb.append("{\\vphantom{X}}")
                             }
                             if (d != "") {
-                                res += "^{" + d + "}"
+                                sb.append("^{" + d + "}")
                             }
                             if (q != "") {
-                                res += "_{\\smash[t]{" + q + "}}"
+                                sb.append("_{\\smash[t]{" + q + "}}")
                             }
                         } else if (buf.getString("dType") == "oxidation") {
                             if (d != "") {
-                                res += "{\\vphantom{X}}"
-                                res += "^{" + d + "}"
+                                sb.append("{\\vphantom{X}}")
+                                sb.append("^{" + d + "}")
                             }
                             if (q != "") {
-                                res += "{\\vphantom{X}}"
-                                res += "_{\\smash[t]{" + q + "}}"
+                                sb.append("{\\vphantom{X}}")
+                                sb.append("_{\\smash[t]{" + q + "}}")
                             }
                         }
                     } else {
                         if (q != "") {
-                            res += "{\\vphantom{X}}"
-                            res += "_{\\smash[t]{" + q + "}}"
+                            sb.append("{\\vphantom{X}}")
+                            sb.append("_{\\smash[t]{" + q + "}}")
                         }
                         if (d != "") {
-                            res += "{\\vphantom{X}}"
-                            res += "^{" + d + "}"
+                            sb.append("{\\vphantom{X}}")
+                            sb.append("^{" + d + "}")
                         }
                     }
+                    res = sb.toString()
 
                 case "rm" =>
                     // 普通文本
@@ -165,15 +167,15 @@ class Texify {
                     }
 
                 case "state of aggregation" =>
-                // 对标res = "\\mskip2mu " + _goInner(p1Arr)
-                res = "\\hspace{2mu}" + _goInner(p1Arr)
+                // 对标res = "\\mskip2mu " + goInner(p1Arr)
+                res = "\\hspace{2mu}" + goInner(p1Arr)
                 case "state of aggregation subscript" =>
-                // 对标res = "\\mskip1mu " + _goInner(p1Arr)
-                res = "\\hspace{1mu}" + _goInner(p1Arr)
+                // 对标res = "\\mskip1mu " + goInner(p1Arr)
+                res = "\\hspace{1mu}" + goInner(p1Arr)
                 case "bond" =>
                 res = getBond(kind_)
                 if (res == "") {
-                    println("[Texify-_go2] mhchem Error. Unknown bond type (${kind_})")
+                    println("[Texify-go2] mhchem Error. Unknown bond type (${kind_})")
 		    return res
                 }
                 case "frac" =>
@@ -181,21 +183,21 @@ class Texify {
                       // 对标res = "\\mathchoice{\\textstyle" + c + "}{" + c + "}{" + c + "}{" + c + "}"
                       res = "{\\textstyle" + c + "}"
                 case "pu-frac" =>
-                    var d = "\\frac{" + _goInner(p1Arr) + "}{" + _goInner(p2Arr) + "}"
+                    var d = "\\frac{" + goInner(p1Arr) + "}{" + goInner(p2Arr) + "}"
                       // 对标res = "\\mathchoice{\\textstyle" + d + "}{" + d + "}{" + d + "}{" + d + "}"
                       res = "{\\textstyle" + d + "}"
                 case "tex-math" => res = replaceCeOnly(p1)
-                case "frac-ce" => res = "\\frac{" + _goInner(p1Arr) + "}{" + _goInner(p2Arr) + "}"
-                case "overset" => res = "\\overset{" + _goInner(p1Arr) + "}{" + _goInner(p2Arr) + "}"
-                case "underset" => res = "\\underset{" + _goInner(p1Arr) + "}{" + _goInner(p2Arr) + "}"
-                case "underbrace" => res = "\\underbrace{" + _goInner(p1Arr) + "}{" + _goInner(p2Arr) + "}"
-                case "color" => res = "{\\color{" + buf.getString("color1") + "}{" + _goInner(
+                case "frac-ce" => res = "\\frac{" + goInner(p1Arr) + "}{" + goInner(p2Arr) + "}"
+                case "overset" => res = "\\overset{" + goInner(p1Arr) + "}{" + goInner(p2Arr) + "}"
+                case "underset" => res = "\\underset{" + goInner(p1Arr) + "}{" + goInner(p2Arr) + "}"
+                case "underbrace" => res = "\\underbrace{" + goInner(p1Arr) + "}{" + goInner(p2Arr) + "}"
+                case "color" => res = "{\\color{" + buf.getString("color1") + "}{" + goInner(
                     buf.getList("color2").getItems()) + "}}"
                 case "color0" => res = "\\color{" + buf.getString("color") + "}"
                 case "arrow" =>
                     // 处理箭头和上下标
-                    var rd: String = _goInner(buf.getList("rd").getItems())
-                    var rq: String = _goInner(buf.getList("rq").getItems())
+                    var rd: String = goInner(buf.getList("rd").getItems())
+                    var rq: String = goInner(buf.getList("rq").getItems())
                     var arrow = getArrow(r)
                     if (rd != "" || rq != "") {
                         if (r == "<=>" || r == "<=>>" || r == "<<=>" || r == "<-->") {
@@ -257,7 +259,7 @@ class Texify {
                 case "ellipsis" => res = "\\ldots "
                 case "/" => res = "/"
                 case " / " => res = "\\,/\\,"
-                case _ => println("[Texify-_go2] mhchem bug T. Please report.") // Missing texify rule or unknown MhchemParser output
+                case _ => println("[Texify-go2] mhchem bug T. Please report.") // Missing texify rule or unknown MhchemParser output
             }
         }
 
@@ -275,7 +277,7 @@ class Texify {
      * @return 替换后的字符串
      */
     private func replaceCeOnly(input: String): String {
-        var res = ""
+        let sb = StringBuilder()
         var i: Int64 = 0
 
         while (i < input.size) {
@@ -284,7 +286,7 @@ class Texify {
                 case Some(idx) =>
                     // 普通文本追加到结果里
                     if (idx > i) {
-                        res += input[i..idx]
+                        sb.append(input[i..idx])
                     }
 
                     // 从 idx 开始解析 \ce{ ... }
@@ -308,7 +310,7 @@ class Texify {
 
                     // 括号不匹配，原样输出
                     if (level != 0) {
-                        res += "\\ce{"
+                        sb.append("\\ce{")
                         i = start
                         continue
                     }
@@ -323,19 +325,19 @@ class Texify {
                     var latex = texify.go(inner, isInner: true)
 
                     // 替换到结果
-                    res += latex
+                    sb.append(latex)
 
                     // 移动指针到 '}' 后面
                     i = j
 
                 case None =>
                     // 没找到 \ce{，剩余部分直接追加
-                    res += input[i..input.size]
+                    sb.append(input[i..input.size])
                     break
             }
         }
 
-        return res
+        return sb.toString()
     }
 
     /**

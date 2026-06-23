@@ -5,7 +5,10 @@ internal import ohos.ability.Want
 internal import ohos.ability.UIAbility
 internal import ohos.ability.LaunchParam
 internal import ohos.ability.LaunchReason
+internal import ohos.ability.AbilityContext
 internal import ohos.window.WindowStage
+
+var globalContext: Option<AbilityContext> = Option<AbilityContext>.None
 
 class MainAbility <: UIAbility {
     public init() {
@@ -15,6 +18,7 @@ class MainAbility <: UIAbility {
 
     public override func onCreate(want: Want, launchParam: LaunchParam): Unit {
         AppLog.info("MainAbility OnCreated.${want.abilityName}")
+        globalContext = this.context
         match (launchParam.launchReason) {
             case LaunchReason.START_ABILITY => AppLog.info("START_ABILITY")
             case _ => ()

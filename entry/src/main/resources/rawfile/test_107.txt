@@ -1,0 +1,5 @@
+\begin{aligned*}
+    a + b = c \\
+    d + e + f + g = h \\
+    e + f + g = x
+\end{aligned*}

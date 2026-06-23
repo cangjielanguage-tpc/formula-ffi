@@ -1,0 +1,1 @@
+\bbox[orange,4pt]{\alpha + \beta = \gamma}

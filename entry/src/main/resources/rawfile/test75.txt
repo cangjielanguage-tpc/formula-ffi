@@ -1,0 +1,4 @@
+\begin{array}{c}
+\oiint_A f \\
+\oiint_B g
+\end{array}

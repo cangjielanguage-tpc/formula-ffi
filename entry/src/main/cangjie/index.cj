@@ -7,85 +7,151 @@ import ohos.state_macro_manage.*
 import ohos.image.PixelMap
 import ohos.image.ImageSource
 import ohos.image.createImageSource
+import ohos.resource_manager.ResourceManager
+import std.collection.ArrayList
 import formula.*
+
+class FormulaItem {
+    var fileName: String = ""
+    var formulaText: String = ""
+    var pixelMap: Option<PixelMap> = Option<PixelMap>.None
+    var width: Int32 = 0
+    var height: Int32 = 0
+    var loaded: Bool = false
+    var errorMessage: String = ""
+    var resultCode: TeXResultCode = TeXResultCode.UnknownError
+}
+
+func getLatexmathWidth(strLatexMath: String): Int32 {
+    if (strLatexMath.contains("aligned") || strLatexMath.contains("align") || 
+        strLatexMath.contains("flalign") || strLatexMath.contains("gather") || 
+        strLatexMath.contains("multline") || strLatexMath.contains("eqnarray") || 
+        strLatexMath.contains("equation")) {
+        Int32(10)
+    } else {
+        Int32(2000)
+    }
+}
 
 @Entry
 @Component
 class EntryView {
-    let array: Array<String> = [
-        ##"
-        \sideset{^\backprime}{'}\sum_{x=1}^{\infty} x\sideset{a_1^2}{}\sum_{x=1}^\infty x_0
-        \\
-        \sideset{_\text{left bottom}'''}{_{\text{right bottom}}'''}\sum_{\text{quite long text}}^\infty x
-        \\
-        \sideset{}{'}
-        \sum_{n<k,\;\text{$n$ odd}} nE_n
-        \\
-        \sideset{}{'}
-        \sum^{n<k,\;\text{$n$ odd}} nE_n
-        \\
-        M_x''' M'''_x M^{'''}_x M_x{'''} M^{\prime\backprime}
-        "##,
-        ##"\ce{H2O} \ce{Sb2O3} \ce{H+} \ce{CrO4^2-} \ce{[AgCl2]-} \ce{Y^99+} \ce{Y^{99+}}"##,
-        ##"\ce{^{227}_{90}Th+} \ce{^227_90Th+} \ce{^{0}_{-1}n^{-}} \ce{^0_-1n-}"##,
-        ##"\ce{H{}^3HO} \ce{H^3HO}"##,
-        ##"\ce{A -> B} \ce{A <- B} \ce{A <-> B}"##,
-        ##"\ce{SO4^2- + Ba^2+ -> BaSO4 v}"##,
-        ##"\ce{A v B (v) -> B ^ B (^)}"##,
-        ##"\ce{$K = \frac{[\ce{Hg^2+}][\ce{Hg}]}{[\ce{Hg2^2+}]}$}"##,
-        ##"\ce{$K = \ce{\frac{[Hg^2+][Hg]}{[Hg2^2+]}}$}"##,
-        ##"\ce{Hg^2+ ->[I-] $\underset{\mathrm{red}}{\ce{HgI2}}$ ->[I-]$\underset{\mathrm{red}}{\ce{[Hg^{II}I4]^2-}}$}"##,
-        ##"\ce{2H2O} \ce{0.5 H2O} \ce{1/2H2O} \ce{(1/2)H2O} \ce{$n$ H2O}"##,
-        ##"\ce{A <--> B} \ce{A <=> B} \ce{A <=>> B} \ce{A <<=> B}"##,
-        ##"\ce{A ->[H2O] B} \ce{A ->[{上方文字}][{下方文字}] B}"##,
-        ##"\ce{Zn^2+ <=>[+ 2OH-][+ 2H+] $\underset{\text{amphoteres Hydroxid}}{\ce{Zn(OH)2 v}}$ <=>[+2OH-][+ 2H+] $\underset{\text{Hydroxozikat}}{\ce{[Zn(OH)4]^2-}}$}"##
-    ]
+    @State
+    var formulaItems: Array<FormulaItem> = []
+    @State
+    var rendering: Bool = false
 
-    @State
-    var count = 0
-    @State
-    var imagePixelMap: Option<PixelMap> = Option<PixelMap>.None
-    @State
-    var loaded: Bool = false
-    @State
-    var width: Int32 = 0
-    @State
-    var height: Int32 = 0
+    public override func aboutToAppear(): Unit {
+        rendering = true
+        renderAllFormulas()
+        rendering = false
+    }
+
+    func renderAllFormulas(): Unit {
+        var items = ArrayList<FormulaItem>()
+        let contextOpt = globalContext
+        if (let Some(context) <- contextOpt) {
+            let resMgr = context.resourceManager
+            let files = resMgr.getRawFileList("")
+            if (files.size == 0) { return }
+            for (i in 0..files.size-1) {
+                let fileName = files[i]
+                if (!fileName.endsWith(".txt")) {
+                    continue
+                }
+                var item = FormulaItem()
+                item.fileName = fileName
+                var latexOpt: ?LaTeX = None
+                var rOpt: ?Render = None
+                var g2Opt: ?Graphic2D = None
+                try {
+                    let content = resMgr.getRawFileContent(fileName)
+                    let str = String.fromUtf8(content)
+                    item.formulaText = str
+                    let latex = LaTeX("/data/storage/el1/bundle/entry/resources/resfile/res")
+                    latexOpt = latex
+                    var r = latex.parse(str, 2000, 15.0, 10.0, 0xFF000000)
+                    rOpt = r
+                    var g2 = Graphic2D(r, COLOR_FORMAT_RGB_565)
+                    g2Opt = g2
+                    r.draw(g2, 0xFFFFFFFF)
+                    var arr = r.toBitmap(g2)
+                    let imageSourceApi: ImageSource = createImageSource(arr)
+                    let pixelMap: Option<PixelMap> = imageSourceApi.createPixelMap()
+                    if (let Some(p) <- pixelMap) {
+                        item.width = p.getImageInfo().size.width
+                        item.height = p.getImageInfo().size.height
+                        item.pixelMap = p
+                        item.loaded = true
+                    }
+                } catch (e: TeXParseException) {
+                    AppLog.error("Failed to render ${fileName}: ${e.resultCode.toString()} - ${e.message}")
+                    item.errorMessage = "${e.resultCode.toString()}: ${e.message}"
+                    item.resultCode = e.resultCode
+                } catch (e: Exception) {
+                    AppLog.error("Failed to render ${fileName}: ${e.message}")
+                    item.errorMessage = e.message
+                } finally {
+                    if (let Some(g2) <- g2Opt) {
+                        g2.release()
+                    }
+                    if (let Some(r) <- rOpt) {
+                        r.finalize()
+                    }
+                    if (let Some(latex) <- latexOpt) {
+                        latex.release()
+                    }
+                }
+                items.add(item)
+            }
+        }
+        formulaItems = items.toArray()
+    }
+
     func build() {
         Row {
             Column(10) {
-                if (loaded) {
-                    Image(imagePixelMap.getOrThrow())
-                        .height(Int64(height))
-                        .width(Int64(width))
+                if (rendering) {
+                    Text("Rendering...")
+                        .fontSize(18)
+                        .margin(top: 50)
+                } else if (formulaItems.size > 0) {
+                    Scroll() {
+                        Column(10) {
+                            ForEach(
+                                formulaItems,
+                                itemGeneratorFunc: { item: FormulaItem, index: Int64 =>
+                                    Column(5) {
+                                        Text(item.fileName)
+                                            .fontSize(14)
+                                            .fontColor(0xFF666666)
+                                        if (item.loaded) {
+                                            Image(item.pixelMap.getOrThrow())
+                                                .height(Int64(item.height))
+                                                .width(Int64(item.width))
+                                        } else {
+                                            Text(item.formulaText)
+                                                .fontSize(12)
+                                                .fontColor(0xFFFF0000)
+                                            if (item.errorMessage.size > 0) {
+                                                Text("Error: ${item.errorMessage}")
+                                                    .fontSize(10)
+                                                    .fontColor(0xFFFF6666)
+                                            }
+                                        }
+                                    }.width(100.percent).padding(10)
+                                },
+                                keyGeneratorFunc: { item: FormulaItem, index: Int64 =>
+                                    item.fileName
+                                }
+                            )
+                        }.width(100.percent)
+                    }.width(100.percent).layoutWeight(1)
+                } else {
+                    Text("No files found")
+                        .fontSize(18)
+                        .margin(top: 50)
                 }
-                Button("test")
-                    .width(90.percent)
-                    .height(50)
-                    .shape(ShapeType.Normal)
-                    .onClick {
-                        evt => spawn {
-                            var latex = LaTeX("/data/storage/el1/bundle/entry/resources/resfile/res")
-                            var str = array[count]
-                            var r = latex.parse(str, 2000, 15.0, 10.0, 0xFF000000)
-                            var g2 = Graphic2D(r, COLOR_FORMAT_RGB_565)
-                            r.draw(g2, 0xFFFFFFFF)
-                            var arr = r.toBitmap(g2)
-                            let imageSourceApi: ImageSource = createImageSource(arr)
-                            let pixelMap: Option<PixelMap> = imageSourceApi.createPixelMap()
-                            if (let Some(p) <- pixelMap) {
-                                width = p.getImageInfo().size.width
-                                height = p.getImageInfo().size.height
-                                imagePixelMap = p
-                                loaded = true
-                            }
-                            if (count < array.size - 1) {
-                                count++
-                            } else {
-                                count = 0
-                            }
-                        }
-                    }
             }.width(100.percent)
         }.height(100.percent)
     }

@@ -74,8 +74,43 @@ public class LaTeX {
     public func parse(ltx: String, width: Int32, textSize: Float32, lineSpace: Float32, foreground: UInt32): Render {
         unsafe {
             var processedLtx = ltx
-            if (ltx.contains("\\ce{") || ltx.contains("\\pu{")) {
-                processedLtx = Mhchem().process(ltx)
+            var subStringArr : Array<String> = ["aligned", "align", "flalign", "gather", "eqnarray", "multline", "equation"]
+            var inputTag: String = ""
+            var findRet = findSubstring(ltx, subStringArr)
+            if(findRet == 1) {
+                let origStr = LibC.mallocCString(ltx)
+                var inputStr = formula_xingTag(origStr)
+                if (inputStr.isNull()) {
+                    LibC.free(origStr)
+                    throw Exception("formula_xingTag: malloc failed, returned null")
+                }
+                inputTag = inputStr.toString()
+                LibC.free(inputStr)
+                LibC.free(origStr)
+                if (inputTag.contains("\\ce{") || inputTag.contains("\\pu{")) {
+                    processedLtx = Mhchem().process(inputTag)
+                } else {
+                    processedLtx = inputTag
+                }
+            } else if(findRet == 2) {
+                let origStr = LibC.mallocCString(ltx)
+                var inputStr = formula_tag(origStr)
+                if (inputStr.isNull()) {
+                    LibC.free(origStr)
+                    throw Exception("formula_tag: malloc failed, returned null")
+                }
+                inputTag = inputStr.toString()
+                LibC.free(inputStr)
+                LibC.free(origStr)
+                if (inputTag.contains("\\ce{") || inputTag.contains("\\pu{")) {
+                    processedLtx = Mhchem().process(inputTag)
+                } else {
+                    processedLtx = inputTag
+                }
+            } else if(findRet == 0) {
+                if (ltx.contains("\\ce{") || ltx.contains("\\pu{")) {
+                    processedLtx = Mhchem().process(ltx)
+                }
             }
             var cstr = LibC.mallocCString(processedLtx)
             var ptr = LaTeX_parse(cstr, width, textSize, lineSpace, foreground)

@@ -1,0 +1,4 @@
+\begin{aligned}
+\ce{2NO + O_2 &-> 2NO_2} \\
+\ce{3NO_2 + H_2O &-> 2HNO_3 + NO}
+\end{aligned}

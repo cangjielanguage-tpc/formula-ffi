@@ -1,0 +1,4 @@
+\begin{cases}
+\texttt{a = (\textasciitilde a \& b \& x) | (a \& \textasciitilde b \& \textasciitilde x)} \\
+\texttt{b = \textasciitilde a \& (b\^ x)}
+\end{cases}

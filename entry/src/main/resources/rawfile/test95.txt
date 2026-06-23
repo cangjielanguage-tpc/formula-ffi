@@ -1,0 +1,1 @@
+\frac{\unicode{8751} f(x) dx}{\unicode{x220f} x_i}

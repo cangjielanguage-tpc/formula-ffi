@@ -49,4 +49,13 @@ public class Graphic2D {
     public func getColorFormat(): Int32 {
         return cf
     }
+
+    public func release(): Unit {
+        if (g2.isNull()) {
+            return
+        }
+        unsafe { destroyGraphics2D_ffi(g2) }
+        g2 = unsafe { CPointer<UInt8>() }
+    }
+
 }

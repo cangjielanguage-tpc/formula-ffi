@@ -30,12 +30,17 @@ include_directories("latex/src" "latex" "latex/src/xml")
 
 # compile options
 
+option(CHEMICAL_SYMBOLS "If enable chemical symbols" ON)
+if(CHEMICAL_SYMBOLS)
+    add_compile_definitions(CHEMICAL_SYMBOLS)
+endif()
+
 add_compile_definitions(__OHOS__)
 add_link_options(-static-libstdc++ -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export.map)
 
 add_library(latex SHARED ${SRC})
 
-target_link_libraries(latex native_drawing)
+target_link_libraries(latex native_drawing libhilog_ndk.z.so)
 
 #only in Release type use strip
 if(CMAKE_BUILD_TYPE)

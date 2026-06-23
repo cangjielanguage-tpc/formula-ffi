@@ -33,7 +33,7 @@ protected class Mhchem {
 
     func processTopLevel(unprocessed: String): String {
         let chars: Array<Rune> = unprocessed.toRuneArray()
-        var result = ""
+        let sb = StringBuilder()
         var i: Int64 = 0
         var ceDepth: Int64 = 0
         var puDepth: Int64 = 0
@@ -58,7 +58,7 @@ protected class Mhchem {
                         let innerStr = String(innerRunes)
                         var parsed = Texify().go(MhchemParser().go(innerStr))
                         parsed = processNestedPu(parsed)
-                        result += escape(parsed)
+                        sb.append(escape(parsed))
                         i = j
                         continue
                     }
@@ -88,7 +88,7 @@ protected class Mhchem {
                         let innerStr = String(innerRunes)
                         var parsed = Texify().go(MhchemParser().go(innerStr, stateMachine: "pu"))
                         parsed = processNestedPu(parsed)
-                        result += escape(parsed)
+                        sb.append(escape(parsed))
                         i = j
                         continue
                     }
@@ -102,10 +102,10 @@ protected class Mhchem {
             if (puDepth > 0 && chars[i] == r'}') {
                 puDepth -= 1
             }
-            result += String(chars[i])
+            sb.append(chars[i])
             i += 1
         }
-        return result
+        return sb.toString()
     }
 
     func processNestedPu(input: String): String {
@@ -122,7 +122,7 @@ protected class Mhchem {
     func escape(input: String): String {
         let escapeSet: Array<Rune> = [r'$']
         let chars = input.toRuneArray()
-        var result = ""
+        let sb = StringBuilder()
         var i: Int64 = 0
         while (i < chars.size) {
             let current = chars[i]
@@ -134,12 +134,12 @@ protected class Mhchem {
                     j -= 1
                 }
                 if (backslashCount % 2 == 0) {
-                    result += "\\"
+                    sb.append(r'\\')
                 }
             }
-            result += String(current)
+            sb.append(current)
             i += 1
         }
-        return result
+        return sb.toString()
     }
 }

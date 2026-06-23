@@ -1,0 +1,4 @@
+\begin{aligned}
+\ce{Na2S + S &<=> Na2S2} \\
+\ce{Na2S + 3S &<=> Na2S4}
+\end{aligned}

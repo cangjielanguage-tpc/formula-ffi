@@ -4,6 +4,89 @@ package formula.mhchem
  * 用于解析化学式和相关化学表达式,并可生成对应的 LaTeX 表达式。
  */
 class MhchemParser {
+    private static let REGEX_NEWLINE: Regex = Regex("\n")
+    private static let REGEX_DASH: Regex = Regex("\u{2212}|\u{2013}|\u{2014}|\u{2010}")
+    private static let REGEX_ELLIPSIS: Regex = Regex("\u{2026}")
+    
+    private static let REGEX_EMPTY: Regex = Regex("^$")
+    private static let REGEX_ELSE: Regex = Regex("^.")
+    private static let REGEX_ELSE2: Regex = Regex("^.")
+    private static let REGEX_SPACE: Regex = Regex("^\\s")
+    private static let REGEX_SPACE_A: Regex = Regex("^\\s(?=[A-Z\\\\$])")
+    private static let REGEX_SPACE_DOLLAR: Regex = Regex("^\\s$")
+    private static let REGEX_AZ: Regex = Regex("^[a-z]")
+    private static let REGEX_X: Regex = Regex("^x")
+    private static let REGEX_X_DOLLAR: Regex = Regex("^x$")
+    private static let REGEX_I_DOLLAR: Regex = Regex("^i$")
+    private static let REGEX_LETTERS: Regex = Regex("^(?:[a-zA-Z\u{03B1}-\u{03C9}\u{0391}-\u{03A9}?@]|(?:\\\\(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega)(?:\\s+|\\{\\}|(?![a-zA-Z]))))+")
+    private static let REGEX_GREEK: Regex = Regex("^\\\\(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega)(?:\\s+|\\{\\}|(?![a-zA-Z]))")
+    private static let REGEX_ONE_LOWER_LATIN: Regex = Regex("^(?:([a-z])(?:$|[^a-zA-Z]))$")
+    private static let REGEX_DOLLAR_ONE_LOWER_LATIN: Regex = Regex("^\\$(?:([a-z])(?:$|[^a-zA-Z]))\\$$")
+    private static let REGEX_ONE_LOWER_GREEK: Regex = Regex("^(?:\\$?[\u{03B1}-\u{03C9}]\\$?|\\$?\\\\(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)\\s*\\$?)(?:\\s+|\\{\\}|(?![a-zA-Z]))$")
+    private static let REGEX_DIGITS: Regex = Regex("^[0-9]+")
+    private static let REGEX_NUM9: Regex = Regex("^[+\\-]?(?:[0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+))")
+    private static let REGEX_NUM9_NO_MISSING0: Regex = Regex("^[+\\-]?[0-9]+(?:[.,][0-9]+)?")
+    private static let REGEX_STATE_AGGREGATION: Regex = Regex("^_\\{(\\([a-z]{1,3}\\))\\}")
+    private static let REGEX_BRACKET_OPEN: Regex = Regex("^(?:\\\\\\{|\\[|\\()")
+    private static let REGEX_BRACKET_CLOSE: Regex = Regex("^(?:\\)|\\]|\\\\\\})")
+    private static let REGEX_COMMA_SPACE: Regex = Regex("^[,;]\\s*")
+    private static let REGEX_COMMA: Regex = Regex("^[,;]")
+    private static let REGEX_DOT: Regex = Regex("^[.]")
+    private static let REGEX_DOT_SPACE: Regex = Regex("^(\\.|⋅|·|•)\\s*")
+    private static let REGEX_ELLIPSIS_MATCH: Regex = Regex("^\\.\\.\\.(?=$|[^.])")
+    private static let REGEX_STAR_SPACE: Regex = Regex("^([*])\\s*")
+    private static let REGEX_POWER_A: Regex = Regex("^\\^([0-9]+|[^\\\\_])")
+    private static let REGEX_POWER_X: Regex = Regex("^\\^(\\\\[a-zA-Z]+)\\s*")
+    private static let REGEX_POWER_MINUS1: Regex = Regex("^\\^(-?\\d+)")
+    private static let REGEX_QUOTE: Regex = Regex("^'")
+    private static let REGEX_SUBSCRIPT9: Regex = Regex("^_([+\\-]?[0-9]+|[^\\\\])")
+    private static let REGEX_SUBSCRIPT_X: Regex = Regex("^_(\\\\[a-zA-Z]+)\\s*")
+    private static let REGEX_POWER_SUBSCRIPT: Regex = Regex("^(?:\\^(?=_)|\\_(?=\\^)|[\\^_]$)")
+    private static let REGEX_EMPTY_BRACE: Regex = Regex("^\\{\\}")
+    private static let REGEX_COMPARE: Regex = Regex("^[=<>]")
+    private static let REGEX_HASH: Regex = Regex("^(#|≡)")
+    private static let REGEX_PLUS: Regex = Regex("^\\+")
+    private static let REGEX_MINUS_DOLLAR: Regex = Regex("^-(?=[\\s_},;\\]/]|$|\\([a-z]+\\))")
+    private static let REGEX_MINUS9: Regex = Regex("^-(?=[0-9])")
+    private static let REGEX_ORBITAL_OVERLAP: Regex = Regex("^-(?=(?:[spd]|sp)(?:$|[\\s,;\\)\\]\\}]))")
+    private static let REGEX_MINUS: Regex = Regex("^-")
+    private static let REGEX_PM_OPERATOR: Regex = Regex("^(?:\\\\pm|\\$\\\\pm\\$|\\+-|\\+\\/\\-)")
+    private static let REGEX_OPERATOR: Regex = Regex("^(?:\\+|(?:[\\-=<>]|<<|>>|\\\\approx|\\$\\\\approx\\$)(?=\\s|$|-?[0-9]))")
+    private static let REGEX_ARROW_UP_DOWN: Regex = Regex("^(?:v|\\(v\\)|\\^|\\(\\^\\))(?=$|[\\s,;\\)\\]\\}])")
+    private static let REGEX_ARROW: Regex = Regex("^(?:<->|<-->|->|<-|<=>>|<<=>|<=>|→|⟶|⇌)")
+    private static let REGEX_CMT: Regex = Regex("^[CMT](?=\\[)")
+    private static let REGEX_ESCAPE: Regex = Regex("^(&|\\\\\\\\|\\\\hline)\\s*")
+    private static let REGEX_BACKSLASH_COMMA: Regex = Regex("^(?:\\\\[,\\ ;:])")
+    private static let REGEX_BACKSLASH_CA: Regex = Regex("^\\\\ca(?:\\s+|(?![a-zA-Z]))")
+    private static let REGEX_BACKSLASH_X: Regex = Regex("^(?:\\\\[a-zA-Z]+\\s*|\\\\[_&{}%])")
+    private static let REGEX_ORBITAL: Regex = Regex("^(?:[0-9]{1,2}[spdfgh]|[0-9]{0,2}sp)(?=$|[^a-zA-Z])")
+    private static let REGEX_OTHERS: Regex = Regex("^[\\/~|]")
+    private static let REGEX_OXIDATION: Regex = Regex("^(?:[+-][IVX]+|\\\\pm\\s*0|\\$\\\\pm\\$\\s*0)$")
+    private static let REGEX_D_OXIDATION: Regex = Regex("^(?:[+-]?\\s?[IVX]+|\\\\pm\\s*0|\\$\\\\pm\\$\\s*0)$")
+    private static let REGEX_ROMAN_NUMERAL: Regex = Regex("^[IVX]+")
+    private static let REGEX_FRACTION: Regex = Regex("^[+\\-]?(?:[0-9]+|\\$[a-z]\\$|[a-z])\\/[0-9]+(?:\\$[a-z]\\$|[a-z])?$")
+    private static let REGEX_KV_LETTERS: Regex = Regex("^(?:[A-Z][a-z]{0,2}|i)(?=,)")
+    private static let REGEX_UPRIGHT_ENTITIES: Regex = Regex("^(?:pH|pOH|pC|pK|iPr|iBu)(?=$|[^a-zA-Z])")
+    private static let REGEX_SLASH: Regex = Regex("^\\s*(\\/)\\s*")
+    private static let REGEX_DOUBLE_SLASH: Regex = Regex("^\\s*(\\/\\/)\\s*")
+    private static let REGEX_STAR: Regex = Regex("^\\s*[*.]\\s*")
+    
+    private static let REGEX_STATE_OF_AGGREGATION: Regex = Regex("^\\([a-z]{1,3}(?=[\\),])")
+    private static let REGEX_END_OF_PHRASE: Regex = Regex("^($|[\\s,;\\)\\]\\}])")
+    private static let REGEX_CRYSAL_SYSTEM: Regex = Regex("^(?:\\((?:\\ca\\s?)?\\$[amothc]\\$\\))")
+    
+    private static let REGEX_FORMULA_CHECK: Regex = Regex("^\\([a-z]+\\)$")
+    private static let REGEX_FORMULA: Regex = Regex("^(?:[a-z]|(?:[0-9\\ \\+\\-\\,\\.\\(\\)]+[a-z])+[0-9\\ \\+\\-\\,\\.\\(\\)]*|(?:[a-z][0-9\\ \\+\\-\\,\\.\\(\\)]+)+[a-z]?)$")
+    
+    private static let REGEX_AMOUNT: Regex = Regex("^(?:(?:(?:\\([+\\-]?[0-9]+\\/[0-9]+\\)|[+\\-]?(?:[0-9]+|\\$[a-z]\\$|[a-z])\\/[0-9]+|[+\\-]?[0-9]+[.,][0-9]+|[+\\-]?\\.[0-9]+|[+\\-]?[0-9]+)(?:[a-z](?=\\s*[A-Z]))?)|[+\\-]?[a-z](?=\\s*[A-Z])|\\+(?!\\s))")
+    
+    private static let REGEX_PAREN_EXPR: Regex = Regex("^\\$\\([0-9a-z+-]+\\)\\$")
+    private static let REGEX_NUM_LETTER: Regex = Regex("^\\$[0-9]*[a-z][0-9a-z+-]*\\$")
+    private static let REGEX_SYMBOL: Regex = Regex("^\\$[+-]\\$")
+    
+    private static let REGEX_NUM_EXP1: Regex = Regex("^(\\+\\-|\\+\\/\\-|\\+|\\-|\\\\pm\\s?)?([0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+))?(\\((?:[0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+))\\))?(?:(?:([eE])|\\s*(\\*|x|\\\\times|\u{00D7})\\s*10\\^)([+\\-]?[0-9]+|\\{[+\\-]?[0-9]+\\}))?")
+    private static let REGEX_NUM_EXP2: Regex = Regex("^(\\+\\-|\\+\\/\\-|\\+|\\-|\\pm\\s?)?([0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+)?)\\^([+\\-]?[0-9]+|\\{[+\\-]?[0-9]+\\})")
+
     /**
      * mhchem 解析主循环。
      *
@@ -21,15 +104,13 @@ class MhchemParser {
             return ArrayList<ParserValue>()
         }
 
-        // 创建空对象，用来存储解析过程中的临时信息
         var buffer: Buffer = Buffer()
         buffer.parenthesisLevel = 0
         var state: String = "0"
 
-        // 清理输入字符串
-        input = Regex("\n").replaceAll(input, " ")
-        input = Regex("\u{2212}|\u{2013}|\u{2014}|\u{2010}").replaceAll(input, "-")
-        input = Regex("\u{2026}").replaceAll(input, "...")
+        input = REGEX_NEWLINE.replaceAll(input, " ")
+        input = REGEX_DASH.replaceAll(input, "-")
+        input = REGEX_ELLIPSIS.replaceAll(input, "...")
 
         var lastInput: String = ""
         var watchdog: Int32 = 10
@@ -53,7 +134,7 @@ class MhchemParser {
             }
 
             for (i in 0..t.size) {
-                var matchs: Option<Match> = match_(t[i].pattern, input)
+                var matchs: Option<Match> = matchRegex(t[i].pattern, input)
                 if (let Some(matches) <- matchs) {
                     var task = t[i].task
                     for (iA in 0..task.action_.size) {
@@ -161,10 +242,10 @@ class MhchemParser {
                     }
 
                 case '- after o/d' =>
-                    var c1 = match_('orbital', buffer.o.getOrDefault({=> ""}))
-                    var c2 = match_('one lowercase greek letter $', buffer.o.getOrDefault({=> ""}))
-                    var c3 = match_('one lowercase latin letter $', buffer.o.getOrDefault({=> ""}))
-                    var c4 = match_('$one lowercase latin letter$ $', buffer.o.getOrDefault({=> ""}))
+                    var c1 = matchRegex('orbital', buffer.o.getOrDefault({=> ""}))
+                    var c2 = matchRegex('one lowercase greek letter $', buffer.o.getOrDefault({=> ""}))
+                    var c3 = matchRegex('one lowercase latin letter $', buffer.o.getOrDefault({=> ""}))
+                    var c4 = matchRegex('$one lowercase latin letter$ $', buffer.o.getOrDefault({=> ""}))
 
                     var c1remainder = ""
                     if (let Some(v) <- c1) {
@@ -190,7 +271,7 @@ class MhchemParser {
                                 isAfterD = optionBool
                             }
                         }
-                        c1 = match_('digits', buffer.d.getOrDefault({=> ""}))
+                        c1 = matchRegex('digits', buffer.d.getOrDefault({=> ""}))
                         if (isAfterD && c1.isSome()) {
                             concatArray(ret.getItems(), mhchemParserActions("d=", buffer, mList: ArrayList<String>([m])))
                             concatArray(ret.getItems(), machineActions("ce", "output", buffer: buffer))
@@ -273,7 +354,7 @@ class MhchemParser {
                                 buffer.p = Option<String>.None
                             } else {
                                 if (buffer.o.isSome() && buffer.dType == 'kv' &&
-                                    match_('d-oxidation$', buffer.d.getOrDefault({=> ""})).isSome()) {
+                                    matchRegex('d-oxidation$', buffer.d.getOrDefault({=> ""})).isSome()) {
                                     buffer.dType = 'oxidation'
                                 } else if (buffer.o.isSome() && buffer.dType == 'kv' && buffer.q.isNone()) {
                                     buffer.dType = Option<String>.None
@@ -506,7 +587,7 @@ class MhchemParser {
 
                 case 'output' =>
                     var ret = PVList()
-                    var md = match_('{(...)}', buffer.d.getOrDefault({=> ""}))
+                    var md = matchRegex('{(...)}', buffer.d.getOrDefault({=> ""}))
                     var mdremainder = ""
                     if (let Some(v) <- md) {
                         mdremainder = v.remainder
@@ -518,7 +599,7 @@ class MhchemParser {
                             }
                         }
                     }
-                    var mq = match_('{(...)}', buffer.q.getOrDefault({=> ""}))
+                    var mq = matchRegex('{(...)}', buffer.q.getOrDefault({=> ""}))
                     var mqremainder = ""
                     if (let Some(v) <- mq) {
                         mqremainder = v.remainder
@@ -567,7 +648,7 @@ class MhchemParser {
                 case 'output' =>
                     var ret = PVList()
                     if (buffer.rm != "") {
-                        var mrm = match_('{(...)}', buffer.rm)
+                        var mrm = matchRegex('{(...)}', buffer.rm)
                         var mrmremainder = ""
                         if (let Some(v) <- mrm) {
                             mrmremainder = v.remainder
@@ -760,82 +841,82 @@ class MhchemParser {
      * @param input 待匹配的字符串
      * @return 匹配结果和剩余字符串，如果未匹配则返回 None
      */
-    private func match_(pattern: String, input: String): Option<Match> {
-        var value = ""
+    private func matchRegex(pattern: String, input: String): Option<Match> {
         if (pattern == "") {
-            println("[MhchemParser-match_] mhchem bug P. Please report")
+            println("[MhchemParser-matchRegex] mhchem bug P. Please report")
             return Option<Match>.None
         }
+        
+        var regex: Regex = REGEX_EMPTY
         match (pattern) {
-            case 'empty' => value = "^$"
-            case 'else' => value = "^."
-            case 'else2' => value = "^."
-            case 'space' => value = "^\\s"
-            case 'space A' => value = "^\\s(?=[A-Z\\\\$])"
-            case 'space$' => value = "^\\s$"
-            case 'a-z' => value = "^[a-z]"
-            case 'x' => value = "^x"
-            case 'x$' => value = "^x$"
-            case 'i$' => value = "^i$"
-            case 'letters' => value = "^(?:[a-zA-Z\u{03B1}-\u{03C9}\u{0391}-\u{03A9}?@]|(?:\\\\(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega)(?:\\s+|\\{\\}|(?![a-zA-Z]))))+"
-            case '\\greek' => value = "^\\\\(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega)(?:\\s+|\\{\\}|(?![a-zA-Z]))"
-            case 'one lowercase latin letter $' => value = "^(?:([a-z])(?:$|[^a-zA-Z]))$"
-            case '$one lowercase latin letter$ $' => value = "^\\$(?:([a-z])(?:$|[^a-zA-Z]))\\$$"
-            case 'one lowercase greek letter $' => value = "^(?:\\$?[\u{03B1}-\u{03C9}]\\$?|\\$?\\\\(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)\\s*\\$?)(?:\\s+|\\{\\}|(?![a-zA-Z]))$"
-            case 'digits' => value = "^[0-9]+"
-            case '-9.,9' => value = "^[+\\-]?(?:[0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+))"
-            case '-9.,9 no missing 0' => value = "^[+\\-]?[0-9]+(?:[.,][0-9]+)?"
-            case '_{(state of aggregation)}$' => value = "^_\\{(\\([a-z]{1,3}\\))\\}"
-            case '{[(' => value = "^(?:\\\\\\{|\\[|\\()"
-            case ')]}' => value = "^(?:\\)|\\]|\\\\\\})"
-            case ', ' => value = "^[,;]\\s*"
-            case ',' => value = "^[,;]"
-            case '.' => value = "^[.]"
-            case '. ' => value = "^(\\.|⋅|·|•)\\s*" // 对标/^([.\u22C5\u00B7\u2022])\s*/
-            case '...' => value = "^\\.\\.\\.(?=$|[^.])"
-            case '* ' => value = "^([*])\\s*"
-            case '^a' => value = "^\\^([0-9]+|[^\\\\_])"
-            case '^\\x' => value = "^\\^(\\\\[a-zA-Z]+)\\s*"
-            case '^(-1)' => value = "^\\^(-?\\d+)"
-            case '\'' => value = "^'"
-            case '_9' => value = "^_([+\\-]?[0-9]+|[^\\\\])"
-            case '_\\x' => value = "^_(\\\\[a-zA-Z]+)\\s*"
-            case '^_' => value = "^(?:\\^(?=_)|\\_(?=\\^)|[\\^_]$)"
-            case '{}' => value = "^\\{\\}"
-            case '=<>' => value = "^[=<>]"
-            case '#' => value = "^(#|≡)" // 对标/^[#\u2261]/
-            case '+' => value = "^\\+"
-            case '-$' => value = "^-(?=[\\s_},;\\]/]|$|\\([a-z]+\\))" // -space -, -; -] -/ -$ -state-of-aggregation
-            case '-9' => value = "^-(?=[0-9])"
-            case '- orbital overlap' => value = "^-(?=(?:[spd]|sp)(?:$|[\\s,;\\)\\]\\}]))"
-            case '-' => value = "^-"
-            case 'pm-operator' => value = "^(?:\\\\pm|\\$\\\\pm\\$|\\+-|\\+\\/\\-)"
-            case 'operator' => value = "^(?:\\+|(?:[\\-=<>]|<<|>>|\\\\approx|\\$\\\\approx\\$)(?=\\s|$|-?[0-9]))"
-            case 'arrowUpDown' => value = "^(?:v|\\(v\\)|\\^|\\(\\^\\))(?=$|[\\s,;\\)\\]\\}])"
-            case '->' => value = "^(?:<->|<-->|->|<-|<=>>|<<=>|<=>|→|⟶|⇌)" // |→|⟶|⇌ 对应|[\u{2192}\u{27F6}\u{21CC}]
-            case 'CMT' => value = "^[CMT](?=\\[)"
-            case '1st-level escape' => value = "^(&|\\\\\\\\|\\\\hline)\\s*"
-            case '\\,' => value = "^(?:\\\\[,\\ ;:])" // \\x - but output no space before
-            case '\\ca' => value = "^\\\\ca(?:\\s+|(?![a-zA-Z]))"
-            case '\\x' => value = "^(?:\\\\[a-zA-Z]+\\s*|\\\\[_&{}%])"
-            case 'orbital' => value = "^(?:[0-9]{1,2}[spdfgh]|[0-9]{0,2}sp)(?=$|[^a-zA-Z])" // only those with numbers in front, because the others will be formatted correctly anyway
-            case 'others' => value = "^[\\/~|]"
-            case 'oxidation$' => value = "^(?:[+-][IVX]+|\\\\pm\\s*0|\\$\\\\pm\\$\\s*0)$"
-            case 'd-oxidation$' => value = "^(?:[+-]?\\s?[IVX]+|\\\\pm\\s*0|\\$\\\\pm\\$\\s*0)$" // 0 could be oxidation or charge
-            case 'roman numeral' => value = "^[IVX]+"
-            case '1/2$' => value = "^[+\\-]?(?:[0-9]+|\\$[a-z]\\$|[a-z])\\/[0-9]+(?:\\$[a-z]\\$|[a-z])?$"
-            case '(KV letters),' => value = "^(?:[A-Z][a-z]{0,2}|i)(?=,)"
-            case 'uprightEntities' => value = "^(?:pH|pOH|pC|pK|iPr|iBu)(?=$|[^a-zA-Z])"
-            case '/' => value = "^\\s*(\\/)\\s*"
-            case '//' => value = "^\\s*(\\/\\/)\\s*"
-            case '*' => value = "^\\s*[*.]\\s*"
-            case _ => return patternsFunc(pattern, input) // 如果是方法
+            case 'empty' => regex = REGEX_EMPTY
+            case 'else' => regex = REGEX_ELSE
+            case 'else2' => regex = REGEX_ELSE2
+            case 'space' => regex = REGEX_SPACE
+            case 'space A' => regex = REGEX_SPACE_A
+            case 'space$' => regex = REGEX_SPACE_DOLLAR
+            case 'a-z' => regex = REGEX_AZ
+            case 'x' => regex = REGEX_X
+            case 'x$' => regex = REGEX_X_DOLLAR
+            case 'i$' => regex = REGEX_I_DOLLAR
+            case 'letters' => regex = REGEX_LETTERS
+            case '\\greek' => regex = REGEX_GREEK
+            case 'one lowercase latin letter $' => regex = REGEX_ONE_LOWER_LATIN
+            case '$one lowercase latin letter$ $' => regex = REGEX_DOLLAR_ONE_LOWER_LATIN
+            case 'one lowercase greek letter $' => regex = REGEX_ONE_LOWER_GREEK
+            case 'digits' => regex = REGEX_DIGITS
+            case '-9.,9' => regex = REGEX_NUM9
+            case '-9.,9 no missing 0' => regex = REGEX_NUM9_NO_MISSING0
+            case '_{(state of aggregation)}$' => regex = REGEX_STATE_AGGREGATION
+            case '{[(' => regex = REGEX_BRACKET_OPEN
+            case ')]}' => regex = REGEX_BRACKET_CLOSE
+            case ', ' => regex = REGEX_COMMA_SPACE
+            case ',' => regex = REGEX_COMMA
+            case '.' => regex = REGEX_DOT
+            case '. ' => regex = REGEX_DOT_SPACE
+            case '...' => regex = REGEX_ELLIPSIS_MATCH
+            case '* ' => regex = REGEX_STAR_SPACE
+            case '^a' => regex = REGEX_POWER_A
+            case '^\\x' => regex = REGEX_POWER_X
+            case '^(-1)' => regex = REGEX_POWER_MINUS1
+            case '\'' => regex = REGEX_QUOTE
+            case '_9' => regex = REGEX_SUBSCRIPT9
+            case '_\\x' => regex = REGEX_SUBSCRIPT_X
+            case '^_' => regex = REGEX_POWER_SUBSCRIPT
+            case '{}' => regex = REGEX_EMPTY_BRACE
+            case '=<>' => regex = REGEX_COMPARE
+            case '#' => regex = REGEX_HASH
+            case '+' => regex = REGEX_PLUS
+            case '-$' => regex = REGEX_MINUS_DOLLAR
+            case '-9' => regex = REGEX_MINUS9
+            case '- orbital overlap' => regex = REGEX_ORBITAL_OVERLAP
+            case '-' => regex = REGEX_MINUS
+            case 'pm-operator' => regex = REGEX_PM_OPERATOR
+            case 'operator' => regex = REGEX_OPERATOR
+            case 'arrowUpDown' => regex = REGEX_ARROW_UP_DOWN
+            case '->' => regex = REGEX_ARROW
+            case 'CMT' => regex = REGEX_CMT
+            case '1st-level escape' => regex = REGEX_ESCAPE
+            case '\\,' => regex = REGEX_BACKSLASH_COMMA
+            case '\\ca' => regex = REGEX_BACKSLASH_CA
+            case '\\x' => regex = REGEX_BACKSLASH_X
+            case 'orbital' => regex = REGEX_ORBITAL
+            case 'others' => regex = REGEX_OTHERS
+            case 'oxidation$' => regex = REGEX_OXIDATION
+            case 'd-oxidation$' => regex = REGEX_D_OXIDATION
+            case 'roman numeral' => regex = REGEX_ROMAN_NUMERAL
+            case '1/2$' => regex = REGEX_FRACTION
+            case '(KV letters),' => regex = REGEX_KV_LETTERS
+            case 'uprightEntities' => regex = REGEX_UPRIGHT_ENTITIES
+            case '/' => regex = REGEX_SLASH
+            case '//' => regex = REGEX_DOUBLE_SLASH
+            case '*' => regex = REGEX_STAR
+            case _ => return patternsFunc(pattern, input)
         }
-
-        var r = Regex(value, [RegexFlag.Unicode])
+        
         var match_: ArrayList<String> = ArrayList<String>()
 
-        match (r.find(input, group: true)) {
+        match (regex.find(input, group: true)) {
             case Some(md) =>
                 // 统一用 rune 处理
                 var runes = input.toRuneArray()
@@ -937,32 +1018,32 @@ class MhchemParser {
     private func patternsFunc(pattern: String, input: String): Option<Match> {
         var match_: ArrayList<String> = ArrayList<String>()
         var remainder: String = ""
+        
+        // 函数内部缓存：只转换一次，避免重复转换
+        let runes = input.toRuneArray()
+        
         match (pattern) {
             case '(-)(9.,9)(e)(99)' =>
                 var remainder = input
-                let r = Regex("^(\\+\\-|\\+\\/\\-|\\+|\\-|\\\\pm\\s?)?([0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+))?(\\((?:[0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+))\\))?(?:(?:([eE])|\\s*(\\*|x|\\\\times|\u{00D7})\\s*10\\^)([+\\-]?[0-9]+|\\{[+\\-]?[0-9]+\\}))?")
-                match (r.find(input, group: true)) {
+                match (REGEX_NUM_EXP1.find(input, group: true)) {
                     case Some(md) =>
                         // 捕获组索引从 1 开始
                         for (i in 1..md.groupCount() + 1) {
                             match_.add(md.matchString(i))
                         }
-                        // 安全处理 remainder，按 rune 切片
-                        let runes = input.toRuneArray()
+                        // 使用缓存的 runes，避免重复转换
                         let matchRunes = md.matchString().toRuneArray()
                         remainder = String(runes[matchRunes.size..runes.size])
                         return Match(match_, remainder)
                     case None => return Option<Match>.None
                 }
             case '(-)(9)^(-9)' =>
-                let r = Regex(
-                    "^(\\+\\-|\\+\\/\\-|\\+|\\-|\\pm\\s?)?([0-9]+(?:[,.][0-9]+)?|[0-9]*(?:\\.[0-9]+)?)\\^([+\\-]?[0-9]+|\\{[+\\-]?[0-9]+\\})")
-                match (r.find(input, group: true)) {
+                match (REGEX_NUM_EXP2.find(input, group: true)) {
                     case Some(md) =>
                         for (i in 1..md.groupCount() + 1) {
                             match_.add(md.matchString(i))
                         }
-                        let runes = input.toRuneArray()
+                        // 使用缓存的 runes，避免重复转换
                         let matchRunes = md.matchString().toRuneArray()
                         remainder = String(runes[matchRunes.size..runes.size])
 
@@ -971,18 +1052,17 @@ class MhchemParser {
                 }
 
             case 'state of aggregation $' =>
-                var a = findObserveGroups(input, "", "^\\([a-z]{1,3}(?=[\\),])", true, ")", "", false) // (aq), (aq,$\infty$), (aq, sat)
+                var a = findObserveGroups(input, "", REGEX_STATE_OF_AGGREGATION, ")", "", false)
 
-                if (let Some(v) <- a && Regex("^($|[\\s,;\\)\\]\\}])").matches(v.remainder)) {
-                    return a // AND end of 'phrase'
+                if (let Some(v) <- a && REGEX_END_OF_PHRASE.matches(v.remainder)) {
+                    return a
                 }
 
-                let r = Regex("^(?:\\((?:\\ca\\s?)?\\$[amothc]\\$\\))") // OR crystal system ($o$) (\ca$c$)
-                match (r.find(input, group: true)) {
+                match (REGEX_CRYSAL_SYSTEM.find(input, group: true)) {
                     case Some(md) =>
                         match_.add(md.matchString(0))
 
-                        let runes = input.toRuneArray()
+                        // 使用缓存的 runes，避免重复转换
                         let matchRunes = md.matchString().toRuneArray()
                         remainder = String(runes[matchRunes.size..runes.size])
 
@@ -1029,15 +1109,11 @@ class MhchemParser {
                 return amount(input)
             case 'amount2' => return amount(input)
             case 'formula$' =>
-                if (Regex("^\\([a-z]+\\)$").matches(input)) {
-                    // state of aggregation = no formula
+                if (REGEX_FORMULA_CHECK.matches(input)) {
                     return Option<Match>.None
                 }
 
-                let r = Regex(
-                    "^(?:[a-z]|(?:[0-9\\ \\+\\-\\,\\.\\(\\)]+[a-z])+[0-9\\ \\+\\-\\,\\.\\(\\)]*|(?:[a-z][0-9\\ \\+\\-\\,\\.\\(\\)]+)+[a-z]?)$")
-
-                match (r.find(input, group: true)) {
+                match (REGEX_FORMULA.find(input, group: true)) {
                     case Some(md) =>
                         match_.add(md.matchString(0))
 
@@ -1063,15 +1139,15 @@ class MhchemParser {
     private func amount(input: String): Option<Match> {
         var match_: ArrayList<String> = ArrayList<String>()
         var remainder: String = ""
+        
+        // 函数内部缓存：只转换一次，避免重复转换
+        let runes = input.toRuneArray()
 
-        // 正则匹配常规数值
-        let r = Regex(
-            "^(?:(?:(?:\\([+\\-]?[0-9]+\\/[0-9]+\\)|[+\\-]?(?:[0-9]+|\\$[a-z]\\$|[a-z])\\/[0-9]+|[+\\-]?[0-9]+[.,][0-9]+|[+\\-]?\\.[0-9]+|[+\\-]?[0-9]+)(?:[a-z](?=\\s*[A-Z]))?)|[+\\-]?[a-z](?=\\s*[A-Z])|\\+(?!\\s))")
-        match (r.find(input, group: true)) {
+        match (REGEX_AMOUNT.find(input, group: true)) {
             case Some(md) =>
                 match_.add(md.matchString(0))
 
-                let runes = input.toRuneArray()
+                // 使用缓存的 runes，避免重复转换
                 let matchRunes = md.matchString(0).toRuneArray()
                 remainder = String(runes[matchRunes.size..runes.size])
 
@@ -1083,14 +1159,12 @@ class MhchemParser {
         var a = findObserveGroups(input, "", "$", false, "$", "", false)
 
         if (let Some(v) <- a) {
-            // 2.1 括号表达式，例如 $(2n+1)$
-            let r1 = Regex("^\\$\\([0-9a-z+-]+\\)\\$")
-            match (r1.find(v.match_[0], group: true)) {
+            match (REGEX_PAREN_EXPR.find(v.match_[0], group: true)) {
                 case Some(md) =>
                     let m = md.matchString(0)
                     match_.add(m)
 
-                    let runes = input.toRuneArray()
+                    // 使用缓存的 runes，避免重复转换
                     let matchRunes = m.toRuneArray()
                     remainder = String(runes[matchRunes.size..runes.size])
 
@@ -1098,14 +1172,12 @@ class MhchemParser {
                 case None => ()
             }
 
-            // 2.2 数字+字母组合，例如 $n$, $2n$, $2n-1$
-            let r2 = Regex("^\\$[0-9]*[a-z][0-9a-z+-]*\\$")
-            match (r2.find(v.match_[0], group: true)) {
+            match (REGEX_NUM_LETTER.find(v.match_[0], group: true)) {
                 case Some(md) =>
                     let m = md.matchString(0)
                     match_.add(m)
 
-                    let runes = input.toRuneArray()
+                    // 使用缓存的 runes，避免重复转换
                     let matchRunes = m.toRuneArray()
                     remainder = String(runes[matchRunes.size..runes.size])
 
@@ -1113,14 +1185,12 @@ class MhchemParser {
                 case None => ()
             }
 
-            // 2.3 单纯符号，例如 $+$, $-$
-            let r3 = Regex("^\\$[+-]\\$")
-            match (r3.find(v.match_[0], group: true)) {
+            match (REGEX_SYMBOL.find(v.match_[0], group: true)) {
                 case Some(md) =>
                     let m = md.matchString(0)
                     match_.add(m)
 
-                    let runes = input.toRuneArray()
+                    // 使用缓存的 runes，避免重复转换
                     let matchRunes = m.toRuneArray()
                     remainder = String(runes[matchRunes.size..runes.size])
 
@@ -1163,7 +1233,7 @@ class MhchemParser {
         var remainder: String = ""
         var input = source
 
-        var matchResult = _match(input, begExcl, false)
+        var matchResult = matchPattern(input, begExcl, false)
         if (matchResult.isNone()) {
             return Option<Match>.None
         }
@@ -1171,7 +1241,7 @@ class MhchemParser {
         if (let Some(v) <- matchResult) {
             input = input[v.size..input.size]
         }
-        matchResult = _match(input, begIncl, isBegInclRegExp)
+        matchResult = matchPattern(input, begIncl, isBegInclRegExp)
 
         if (matchResult.isNone()) {
             return Option<Match>.None
@@ -1190,7 +1260,7 @@ class MhchemParser {
             matchLength = v.size
         }
 
-        var value = _findObserveGroups(input, matchLength, end, isRegExp)
+        var value = findObserveGroupsInternal(input, matchLength, end, isRegExp)
 
         if (let Some(e) <- value) {
             var endMatch: Int64 = 0
@@ -1252,21 +1322,144 @@ class MhchemParser {
      * @param isRegExp 是否使用正则匹配
      * @return 匹配结果字符串，如果未匹配则返回 None
      */
-    private func _match(input: String, pattern: String, isRegExp: Bool): Option<String> {
+    private func matchPattern(input: String, pattern: String, isRegExp: Bool): Option<String> {
         if (isRegExp) {
-            // 正则类型
             var regex = Regex(pattern)
             match (regex.find(input)) {
                 case Some(md) => return md.matchString(0)
                 case None => return Option<String>.None
             }
         } else {
-            //字符串类型
             if (input.indexOf(pattern) != 0) {
                 return Option<String>.None
             }
             return pattern
         }
+    }
+
+    private func matchPattern(input: String, regex: Regex): Option<String> {
+        match (regex.find(input)) {
+            case Some(md) => return md.matchString(0)
+            case None => return Option<String>.None
+        }
+    }
+
+    private func findObserveGroups(source: String, begExcl: String, regexBegIncl: Regex,
+        endIncl: String, endExcl: String, isEndExclRegExp: Bool, beg2Excl!: String = "", beg2Incl!: String = "",
+        end2Incl!: String = "", end2Excl!: String = "", combine!: Bool = false): Option<Match> {
+        var match_: ArrayList<String> = ArrayList<String>()
+        var remainder: String = ""
+        var input = source
+
+        var matchResult = matchPattern(input, begExcl, false)
+        if (matchResult.isNone()) {
+            return Option<Match>.None
+        }
+
+        if (let Some(v) <- matchResult) {
+            input = input[v.size..input.size]
+        }
+        matchResult = matchPattern(input, regexBegIncl)
+
+        if (matchResult.isNone()) {
+            return Option<Match>.None
+        }
+
+        var end = ""
+        var isRegExp = false
+        if (endIncl != "") {
+            end = endIncl
+        } else {
+            end = endExcl
+            isRegExp = isEndExclRegExp
+        }
+        var matchLength = 0
+        if (let Some(v) <- matchResult) {
+            matchLength = v.size
+        }
+
+        var value = findObserveGroupsInternal(input, matchLength, end, isRegExp)
+
+        if (let Some(e) <- value) {
+            var endMatch: Int64 = 0
+            if (endIncl != "") {
+                endMatch = e.endMatchEnd
+            } else {
+                endMatch = e.endMatchBegin
+            }
+
+            let runes = input.toRuneArray()
+            var match1 = String(runes[0..endMatch])
+            var rest = String(runes[e.endMatchEnd..runes.size])
+
+            if (beg2Excl == "" && beg2Incl == "") {
+                match_.add(match1)
+                remainder = rest
+                return Match(match_, remainder)
+            }
+
+            input = rest
+            matchResult = matchPattern(input, beg2Excl, false)
+            if (matchResult.isNone()) {
+                match_.add(match1)
+                remainder = rest
+                return Match(match_, remainder)
+            }
+
+            if (let Some(v) <- matchResult) {
+                input = input[v.size..input.size]
+            }
+
+            matchResult = matchPattern(input, beg2Incl, false)
+            if (matchResult.isNone()) {
+                match_.add(match1)
+                remainder = rest
+                return Match(match_, remainder)
+            }
+
+            var end2 = ""
+            var isRegExp2 = false
+            if (end2Incl != "") {
+                end2 = end2Incl
+            } else {
+                end2 = end2Excl
+                isRegExp2 = true
+            }
+
+            var matchLength2 = 0
+            if (let Some(v) <- matchResult) {
+                matchLength2 = v.size
+            }
+
+            var value2 = findObserveGroupsInternal(input, matchLength2, end2, isRegExp2)
+
+            if (let Some(e2) <- value2) {
+                var endMatch2: Int64 = 0
+                if (end2Incl != "") {
+                    endMatch2 = e2.endMatchEnd
+                } else {
+                    endMatch2 = e2.endMatchBegin
+                }
+
+                let runes2 = input.toRuneArray()
+                var match2 = String(runes2[0..endMatch2])
+                var rest2 = String(runes2[e2.endMatchEnd..runes2.size])
+
+                if (combine) {
+                    match_.add(match1 + match2)
+                    remainder = rest2
+                } else {
+                    match_.add(match1)
+                    match_.add(match2)
+                    remainder = rest2
+                }
+                return Match(match_, remainder)
+            }
+            match_.add(match1)
+            remainder = rest
+        }
+
+        return Match(match_, remainder)
     }
 
     /**
@@ -1284,7 +1477,7 @@ class MhchemParser {
      * @param isRegExp endChars 是否为正则
      * @return 匹配的起止位置 MatchPosition，如果未找到或嵌套不匹配返回 None
      */
-    private func _findObserveGroups(
+    private func findObserveGroupsInternal(
         input: String,
         index: Int64,
         endChars: String,
@@ -1297,7 +1490,7 @@ class MhchemParser {
         while (i < runes.size) {
             let a = String([runes[i]])
             let rest = String(runes[i..runes.size])
-            let m = _match(rest, endChars, isRegExp)
+            let m = matchPattern(rest, endChars, isRegExp)
 
             if (m.isSome() && braces == 0 && let Some(v) <- m) {
                 return MatchPosition(i, i + v.size)
@@ -1305,7 +1498,7 @@ class MhchemParser {
                 braces++
             } else if (a == "}") {
                 if (braces == 0) {
-                    println("[MhchemParser-_findObserveGroups] Extra close brace or missing open brace")
+                    println("[MhchemParser-findObserveGroupsInternal] Extra close brace or missing open brace")
                     return Option<MatchPosition>.None
                 } else {
                     braces--
