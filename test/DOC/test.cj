@@ -1,7 +1,7 @@
 // EXEC: cjc %import-path %L %l %f
 // EXEC: ./main
 
-import formula.*
+import formula_markdown.*
 import std.fs.*
 
 main(): Int64 {

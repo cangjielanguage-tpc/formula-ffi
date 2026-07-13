@@ -2,7 +2,7 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
 
-package formula
+package formula_markdown
 
 public enum ColorFormat {
     | COLOR_FORMAT_RGB_565 | COLOR_FORMAT_BGRA_8888

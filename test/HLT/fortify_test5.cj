@@ -1,7 +1,7 @@
-// 3rd_party_lib:formula/target/release/formula
-//3rd_party_lib_ohos:formula\target\aarch64-linux-ohos\release\formula
+// 3rd_party_lib:formula/target/release/formula_markdown
+//3rd_party_lib_ohos:formula\target\aarch64-linux-ohos\release\formula_markdown
 // sources_file:..\..\lib\liblatex.so
-import formula.*
+import formula_markdown.*
 import std.unittest.*
 import std.collection.*
 import std.fs.*

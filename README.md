@@ -120,7 +120,7 @@ formula
 示例代码如下：
 
 ```cangjie
-import formula.*
+import formula_markdown.*
 import std.fs.*
 
 main(): Int64 {

@@ -169,7 +169,7 @@ public class Render {
 test.cj
 
 ```
-import formula.*
+import formula_markdown.*
 import std.fs.*
 
 main(): Int64 {
@@ -207,7 +207,7 @@ M_x''' M'''_x M^{'''}_x M_x{'''} M^{\prime\backprime}
 编译运行：
 
 ```
-cjc --import-path target/aarch64-linux-ohos/release -Ltarget/aarch64-linux-ohos/release/formula -Llib -lnative_drawing  -llatex -lformula_formula test.cj -o main
+cjc --import-path target/aarch64-linux-ohos/release -Ltarget/aarch64-linux-ohos/release/formula_markdown -Llib -lnative_drawing  -llatex -lformula_formula test.cj -o main
 ```
 
 运行结果如下：

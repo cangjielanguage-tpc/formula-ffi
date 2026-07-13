@@ -23,7 +23,7 @@
   compile-option = ""
   description = "nothing here"
   link-option = ""
-  name = "formula"
+  name = "formula_markdown"
   output-type = "dynamic"
   src-dir = "src"
   target-dir = ""
