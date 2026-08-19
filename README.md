@@ -3,9 +3,9 @@
 </div>
 
 <p align="center">
-<img alt="" src="https://img.shields.io/badge/release-v1.3.2-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/release-v2.0.2-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/build-pass-brightgreen" style="display: inline-block;" />
-<img alt="" src="https://img.shields.io/badge/cjc-v1.0.5-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/cjc-v1.1.3-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-NA-red" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/project-open-brightgreen" style="display: inline-block;" />
 </p>
@@ -18,11 +18,11 @@ formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化�
 
 - 🚀 特性1
 
-  提供生成解析数学公式和化学公式接口
+  提供生成解析数学公式和化学公式接口，支持 `parseWithError` 方法返回详细错误码和错误信息
 
 - 🚀 特性2
 
-  提供生成bitmap接口
+  提供生成bitmap接口，支持 RGB_565 和 BGRA_8888 两种像素格式
 
 - 💪 特性3
 
@@ -36,16 +36,18 @@ formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化�
 formula
 ├─ doc                                                   # 文档目录
 │  ├─ assets
-│  ├─ design.md
 │  └─ feature_api.md
 ├─ entry                                                 # 示例代码文件夹
+│  └─ src\main\resources\rawfile                         # 测试公式文件
 ├─ formula                                               # formula库
-│  ├─ src\main\resources\resfile\res                     # 字体资源      
+│  ├─ src\main\resources\resfile\res                     # 字体资源
 │  ├─ src\main\cangjie                                   # 仓颉侧核心代码
 │  │             └─ mhchem                               # 化学公式模块
-│  └─ cpp\ffi                                            # 仓颉ffi核心代码
+│  └─ src\main\cpp\ffi                                   # 仓颉ffi核心代码
+├─ scripts                                               # 构建脚本
+│  └─ pre_stdx_install.mjs                               # stdx依赖下载脚本
 ├─ README.md
-└─ test                                                  # 测试目录 
+└─ test                                                  # 测试目录
    ├─ HLT
    └─ LLT
 
@@ -161,23 +163,49 @@ class EntryView {
 }
 ```
 
+#### 使用 parseWithError 进行错误处理示例
+
+```cangjie
+import formula.*
+
+func renderWithError(ltx: String): Unit {
+    var latex = LaTeX("/data/storage/el1/bundle/entry/resources/resfile/res")
+    try {
+        var r = latex.parseWithError(ltx, 2000, 15.0, 10.0, 0xFF000000)
+        var g2 = Graphic2D(r, COLOR_FORMAT_BGRA_8888)
+        r.draw(g2, 0xFFFFFFFF)
+        var arr = r.toBitmap(g2)
+        // 使用 arr ...
+        g2.release()
+        r.finalize()
+    } catch (e: TeXParseException) {
+        // e.formula    - 出错的公式文本
+        // e.resultCode - 错误码（TeXResultCode）
+        // e.message    - 错误信息
+        println("解析失败: ${e.resultCode.toString()} - ${e.message}")
+    } finally {
+        latex.release()
+    }
+}
+```
+
 执行结果如下：
 
 ![test](./doc/assets/test.jpg)
 
 ## 约束与限制
 
-    在下述版本验证通过：    
+    在下述版本验证通过：
 | 编号 | 依赖构建工具                           | 版本号       |
 |----|----------------------------------|-----------|
-| 1  | **DevEco Studio**                | 5.1.1.851 |
-| 2  | **cjc**                          | v1.0.5    |
+| 1  | **DevEco Studio**                | 6.1.1     |
+| 2  | **cjc**                          | v1.1.3    |
 
 formula依赖三方库：
 
 | 编号 | 依赖三方库         | 版本号      |
 |----|---------------|----------|
-| 1  | stdx          | v1.0.1.1 |
+| 1  | stdx          | v1.1.3.1 |
 
 三方库静态链接和动态链接区别
 
@@ -195,14 +223,14 @@ formula依赖三方库：
 [target]
   [target.aarch64-linux-ohos]
   	  ...
-      path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "../stdx_bin/linux_ohos_aarch64_llvm/static/stdx" ]
+      path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "../stdx_bin/linux_ohos_aarch64_cjnative/static/stdx" ]
       [target.aarch64-linux-ohos.bin-dependencies.package-option]
   [target.x86_64-linux-ohos]
       ...
-      path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "../stdx_bin/linux_ohos_x86_64_llvm/static/stdx" ]
+      path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "../stdx_bin/linux_ohos_x86_64_cjnative/static/stdx" ]
   [target.x86_64-unknown-windows-gnu]
     [target.x86_64-unknown-windows-gnu.bin-dependencies]
-      path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "../stdx_bin/windows_x86_64_llvm/static/stdx" ]
+      path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "../stdx_bin/windows_x86_64_cjnative/static/stdx" ]
       [target.x86_64-unknown-windows-gnu.bin-dependencies.package-option]
 ```
 
@@ -212,14 +240,14 @@ formula依赖三方库：
 [target]
   [target.aarch64-linux-ohos]
       ...
-      path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "../stdx_bin/linux_ohos_aarch64_llvm/dynamic/stdx" ]
+      path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "../stdx_bin/linux_ohos_aarch64_cjnative/dynamic/stdx" ]
       [target.aarch64-linux-ohos.bin-dependencies.package-option]
   [target.x86_64-linux-ohos]
       ...
-      path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "../stdx_bin/linux_ohos_x86_64_llvm/dynamic/stdx" ]
+      path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "../stdx_bin/linux_ohos_x86_64_cjnative/dynamic/stdx" ]
   [target.x86_64-unknown-windows-gnu]
     [target.x86_64-unknown-windows-gnu.bin-dependencies]
-      path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "../stdx_bin/windows_x86_64_llvm/dynamic/stdx" ]
+      path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "../stdx_bin/windows_x86_64_cjnative/dynamic/stdx" ]
       [target.x86_64-unknown-windows-gnu.bin-dependencies.package-option]
 ```
 

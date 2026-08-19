@@ -7,113 +7,99 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
-const ARM64_ZIP_URL = 'https://gitcode.com/Cangjie/cangjie-stdx-bin/releases/download/v1.0.1.1/cangjie-stdx-ohos-aarch64-1.0.1.1.zip';
-const ARM64_ZIP_TEMP_PATH = path.join(PROJECT_ROOT, 'cangjie-stdx-ohos-aarch64-1.0.1.1.zip');
+// stdx configuration for download
+const ARM64_ZIP_URL = 'https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.1.3.1/cangjie-stdx-ohos-aarch64-1.1.3.1.zip';
+const ARM64_ZIP_FILENAME = 'cangjie-stdx-ohos-aarch64-1.1.3.1.zip';
+const ARM64_ZIP_TEMP_PATH = path.join(PROJECT_ROOT, ARM64_ZIP_FILENAME);
 
-const X64_ZIP_URL = 'https://gitcode.com/Cangjie/cangjie-stdx-bin/releases/download/v1.0.1.1/cangjie-stdx-ohos-x64-1.0.1.1.zip';
-const X64_ZIP_TEMP_PATH = path.join(PROJECT_ROOT, 'cangjie-stdx-linux-x64-1.0.1.1.zip');
+const X64_ZIP_URL = 'https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.1.3.1/cangjie-stdx-ohos-x64-1.1.3.1.zip';
+const X64_ZIP_FILENAME = 'cangjie-stdx-linux-x64-1.1.3.1.zip';
+const X64_ZIP_TEMP_PATH = path.join(PROJECT_ROOT, X64_ZIP_FILENAME);
 
-function persistEnvVar(name, value) {
-    if (process.platform === 'win32') {
-        try {
-            execSync(`setx ${name} "${value}"`, { stdio: 'ignore' });
-            console.log(`Persisted ${name}=${value} to user environment`);
-        } catch (e) {
-            console.warn(`Failed to persist ${name} to user environment: ${e.message}`);
-        }
-    }
-}
+const EXTRACT_PATH = path.join(PROJECT_ROOT, 'stdx_bin');
 
-function resolveCangjieStdxPath() {
-    let stdxPath = process.env.CANGJIE_STDX_PATH;
-    if (stdxPath) {
-        console.log(`Using CANGJIE_STDX_PATH: ${stdxPath}`);
-        return stdxPath;
-    }
+// Download and extract stdx bin file
+if (!fs.existsSync(EXTRACT_PATH)) {
+  console.log(`Downloading required files...`);
+  try {
+      // Create directory if it doesn't exist
+      fs.mkdirSync(EXTRACT_PATH, { recursive: true });
 
-    const devecoHome = process.env.DEVECO_CANGJIE_HOME;
-    if (devecoHome) {
-        console.log(`DEVECO_CANGJIE_HOME found: ${devecoHome}`);
-        console.log(`Setting CANGJIE_STDX_PATH to ${devecoHome}`);
-        process.env.CANGJIE_STDX_PATH = devecoHome;
-        persistEnvVar('CANGJIE_STDX_PATH', devecoHome);
-        return devecoHome;
-    }
-    return null;
-}
+      // Download ARM64 version
+      console.log(`Downloading ARM64 version...`);
+      execSync(`curl -L -o ${ARM64_ZIP_TEMP_PATH} ${ARM64_ZIP_URL}`, {
+          stdio: 'inherit',
+          cwd: PROJECT_ROOT
+      });
 
-function hasStdxBinaries(basePath) {
-    const arm64Dir = path.join(basePath, 'linux_ohos_aarch64_llvm');
-    const x64Dir = path.join(basePath, 'linux_ohos_x86_64_llvm');
-    return fs.existsSync(arm64Dir) && fs.existsSync(x64Dir);
-}
+      // Check if file exists and has content
+      if (fs.existsSync(ARM64_ZIP_TEMP_PATH)) {
+          const stats = fs.statSync(ARM64_ZIP_TEMP_PATH);
+          if (stats.size === 0) {
+              console.error(`ARM64 ZIP file is empty, download failed`);
+              fs.unlinkSync(ARM64_ZIP_TEMP_PATH);
+              process.exit(1);
+          }
+      } else {
+          console.error(`ARM64 ZIP file not found`);
+          process.exit(1);
+      }
 
-function downloadAndExtract(label, zipUrl, tempPath, extractPath) {
-    console.log(`Downloading ${label} version...`);
-    execSync(`curl -L -o ${tempPath} ${zipUrl}`, {
-        stdio: 'inherit',
-        cwd: PROJECT_ROOT
-    });
+      // Extract ARM64 version
+      console.log(`Extracting ARM64 version...`);
+      execSync(`tar -xf ${ARM64_ZIP_TEMP_PATH} -C ${EXTRACT_PATH}`, {
+          stdio: 'inherit',
+          cwd: PROJECT_ROOT
+      });
 
-    if (fs.existsSync(tempPath)) {
-        if (fs.statSync(tempPath).size === 0) {
-            console.error(`${label} ZIP file is empty, download failed`);
-            fs.unlinkSync(tempPath);
-            process.exit(1);
-        }
-    } else {
-        console.error(`${label} ZIP file not found`);
-        process.exit(1);
-    }
+      // Clean up ARM64 temp file
+      fs.unlinkSync(ARM64_ZIP_TEMP_PATH);
 
-    try {
-        console.log(`Extracting ${label} version...`);
-        if (process.platform === 'win32') {
-            execSync(`powershell -Command "Expand-Archive -Path '${tempPath}' -DestinationPath '${extractPath}' -Force"`, {
-                stdio: 'inherit',
-                cwd: PROJECT_ROOT
-            });
-        } else {
-            execSync(`unzip -o ${tempPath} -d ${extractPath}`, {
-                stdio: 'inherit',
-                cwd: PROJECT_ROOT
-            });
-        }
-    } finally {
-        if (fs.existsSync(tempPath)) {
-            fs.unlinkSync(tempPath);
-        }
-    }
-}
+      // Download X64 version if on Windows
+      if (process.platform === 'win32') {
+          console.log(`Downloading X64 version...`);
+          execSync(`curl -L -o ${X64_ZIP_TEMP_PATH} ${X64_ZIP_URL}`, {
+              stdio: 'inherit',
+              cwd: PROJECT_ROOT
+          });
 
-const STDX_PATH = resolveCangjieStdxPath();
-const EXTRACT_PATH = STDX_PATH || path.join(PROJECT_ROOT, 'stdx_bin');
+          // Check if file exists and has content
+          if (fs.existsSync(X64_ZIP_TEMP_PATH)) {
+              const stats = fs.statSync(X64_ZIP_TEMP_PATH);
+              if (stats.size === 0) {
+                  console.error(`X64 ZIP file is empty, download failed`);
+                  fs.unlinkSync(X64_ZIP_TEMP_PATH);
+                  process.exit(1);
+              }
+          } else {
+              console.error(`X64 ZIP file not found`);
+              process.exit(1);
+          }
 
-if (STDX_PATH && hasStdxBinaries(STDX_PATH)) {
-    console.log(`CANGJIE_STDX_PATH binaries already exist at ${STDX_PATH}, skipping download.`);
+          // Extract X64 version
+          console.log(`Extracting X64 version...`);
+          execSync(`tar -xf ${X64_ZIP_TEMP_PATH} -C ${EXTRACT_PATH}`, {
+              stdio: 'inherit',
+              cwd: PROJECT_ROOT
+          });
+
+          // Clean up X64 temp file
+          fs.unlinkSync(X64_ZIP_TEMP_PATH);
+      }
+
+      console.log(`All files downloaded and extracted successfully`);
+
+  } catch (error) {
+      console.error(`Download or extraction failed: ${error.message}`);
+      // Clean up if partially downloaded
+      if (fs.existsSync(ARM64_ZIP_TEMP_PATH)) {
+          fs.unlinkSync(ARM64_ZIP_TEMP_PATH);
+      }
+      if (fs.existsSync(X64_ZIP_TEMP_PATH)) {
+          fs.unlinkSync(X64_ZIP_TEMP_PATH);
+      }
+      process.exit(1);
+  }
 } else {
-    const needsDownload = STDX_PATH ? !hasStdxBinaries(STDX_PATH) : !fs.existsSync(EXTRACT_PATH);
-
-    if (needsDownload) {
-        console.log(`Downloading required files...`);
-        try {
-            fs.mkdirSync(EXTRACT_PATH, { recursive: true });
-
-            downloadAndExtract('ARM64', ARM64_ZIP_URL, ARM64_ZIP_TEMP_PATH, EXTRACT_PATH);
-            downloadAndExtract('X64', X64_ZIP_URL, X64_ZIP_TEMP_PATH, EXTRACT_PATH);
-
-            console.log(`All files downloaded and extracted successfully to ${EXTRACT_PATH}`);
-        } catch (error) {
-            console.error(`Download or extraction failed: ${error.message}`);
-            if (fs.existsSync(ARM64_ZIP_TEMP_PATH)) {
-                fs.unlinkSync(ARM64_ZIP_TEMP_PATH);
-            }
-            if (fs.existsSync(X64_ZIP_TEMP_PATH)) {
-                fs.unlinkSync(X64_ZIP_TEMP_PATH);
-            }
-            process.exit(1);
-        }
-    } else {
-        console.log(`Directory ${EXTRACT_PATH} already exists, skipping.`);
-    }
+  console.log(`Directory ${EXTRACT_PATH} already exists, skipping.`);
 }
