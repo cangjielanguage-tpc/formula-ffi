@@ -1,8 +1,9 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
  */
-package formula
+package formula_hybrid
 
+import formula.*
 import ohos.ark_interop.JSModule
 import ohos.ark_interop.JSCallInfo
 import ohos.ark_interop.JSValue
@@ -23,7 +24,7 @@ func latexStringToImage(runtime: JSContext, callInfo: JSCallInfo): JSValue {
         synchronized(LATEX_REENTRANT_MUTEX) {
             let result = latexStringToImage(value0, value1, UInt32(value2), UInt32(value3), Int64(value4), value5)
             runtime.postJSTask {
-                newScope(runtime) {
+                runtime.newScope() {
                     promise.resolve(runtime.arrayBuffer(result).toJSValue())
                 }
             }
@@ -59,7 +60,7 @@ func latexStringToImageWithError(runtime: JSContext, callInfo: JSCallInfo): JSVa
         }
         let resultCodeNum: Float64 = Float64(data.resultCode)
         runtime.postJSTask {
-            newScope(runtime) {
+            runtime.newScope() {
                 let obj = runtime.object()
                 obj["imageBytes"] = runtime.arrayBuffer(data.imageBytes).toJSValue()
                 obj["formula"] = runtime.string(data.formula).toJSValue()

@@ -7,7 +7,7 @@
       "flattenLibs": true
     },
     "externalNativeOptions": {
-      "path": "./src/main/cpp/CMakeLists.txt",
+      "path": "../formula-ffi/formula/src/main/cpp/CMakeLists.txt",
       "arguments": "--log-level=verbose -DOHOS_STL=c++_shared -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS='-s' -DCMAKE_CXX_FLAGS='-s'",
       "cppFlags": "-fstack-protector-strong",
       "abiFilters": [

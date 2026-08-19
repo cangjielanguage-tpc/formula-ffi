@@ -8,7 +8,7 @@ export declare interface CustomLib {
   latexStringToImageWithError(latexMathTextString: string, latexMathTextSize: number, latexMathTextColor: number, latexMathBackGroupColor: number, latexMathColorFormat: number, resPath: string): Promise<TeXParseResult>
 }
 
-let lib = requireCJLib("libformula.so") as CustomLib
+let lib = requireCJLib("libformula_hybrid.so") as CustomLib
 
 /**
  * 图片格式枚举

@@ -39,3 +39,4 @@ log.txt
 /stdx_bin
 *.lock
 *.clone-done
+formula-ffi

@@ -3,7 +3,7 @@
 </div>
 
 <p align="center">
-<img alt="" src="https://img.shields.io/badge/release-v2.0.0-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/release-v2.0.2-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/build-pass-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjc-v1.1.3-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-NA-red" style="display: inline-block;" />
@@ -23,20 +23,28 @@ formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化�
 ### 源码目录
 
 ```shell
-├─ har
-├─ libs
-└─ src
-   └─ main
-      ├─ cangjie
-      ├─ ets
-      └─ resources
+├─ formula-ffi/              ← git submodule (tag v2.0.2)
+│  └─ formula/               ← base 仓颉核心包（LaTeX/Render/Graphic2D/mhchem/FFI/C++）
+├─ libs/                     ← liblatex.so（从 submodule C++ 源码编译）
+└─ src/main/
+   ├─ cangjie/               ← 互操作代码（interop/public_latex/scope）
+   ├─ ets/                   ← ArkTS 接口层
+   └─ resources/             ← 资源目录（字体通过 junction 共享 base）
 ```
 
-- `har` har包目录
-- `libs` so目录
-- `src main cangjie` 仓颉源码目录
-- `src main ets` ets源码目录
-- `src main resources` 资源目录
+- `formula-ffi` git submodule，提供 base 仓颉核心包（LaTeX 解析/渲染/FFI）和 C++ 源码
+- `libs` liblatex.so 目录，通过 externalNativeOptions 从 submodule C++ 源码编译
+- `src main cangjie` 仓颉互操作源码目录（仅 interop.cj/public_latex.cj/scope.cj）
+- `src main ets` ets 源码目录
+- `src main resources` 资源目录（字体资源通过 junction 共享 base 包）
+
+### 架构说明
+
+hybrid 包通过 git submodule 引入 formula-ffi 仓库（锁定 tag v2.0.2），通过 cjpm path 依赖 base `formula` 包获取核心能力。C++ 源码通过 externalNativeOptions 从 submodule 编译为 liblatex.so。hybrid 仅保留互操作代码：
+
+- `interop.cj` - JS 互操作桥接，注册 `latexStringToImage` / `latexStringToImageWithError` 到 JSModule
+- `public_latex.cj` - 公开 API 封装层，调用 base 包的 `LaTeX`/`Render`/`Graphic2D` 等
+- `scope.cj` - NAPI handle scope 管理
 
 ### 接口说明
 
