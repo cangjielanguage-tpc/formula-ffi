@@ -2,6 +2,12 @@
 
 * 修复spwan异常未捕获问题
 
+## v1.3.1-hybrid
+
+* 增加latexStringToImageWithError接口
+* 修复JsValue内存泄漏
+* 优化代码
+
 ## v1.3.0
 
 * 修复内存泄漏
