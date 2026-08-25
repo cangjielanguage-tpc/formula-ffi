@@ -273,6 +273,10 @@ public:
         return _isPartial;
     }
 
+    inline void setIsPartial(bool p) {
+        _isPartial = p;
+    }
+
     /**
      * Get the number of the current line
      */

@@ -57,7 +57,7 @@ void LaTeX::setDebug(bool debug) {
     TeXFormula::setDEBUG(debug);
 }
 
-TeXRender* LaTeX::parse(const wstring& latex, int width, float textSize, float lineSpace, color fg) {
+TeXRender* LaTeX::parse(const wstring& latex, int width, float textSize, float lineSpace, color fg, bool isPartial) {
     if (_formula == nullptr) {
         throw ex_parse("LaTeX formula object is not initialized. Call LaTeX::init() first.");
     }
@@ -70,6 +70,7 @@ TeXRender* LaTeX::parse(const wstring& latex, int width, float textSize, float l
         lined = false;
     }
     int align = lined ? ALIGN_LEFT : ALIGN_CENTER;
+    _formula->setIsPartial(isPartial);
     _formula->setLaTeX(latex);
     TeXRender* render =
         _builder->setStyle(STYLE_DISPLAY)
@@ -821,7 +822,7 @@ LaTeXParseResult LaTeX::parseWithError(const wstring& latex, int width, float te
     try {
         validateLatexFormula(latex);
         
-        TeXRender* render = parse(latex, width, textSize, lineSpace, fg);
+        TeXRender* render = parse(latex, width, textSize, lineSpace, fg, false);
         result.success = true;
         result.render = render;
         result.errorMessage = "";
