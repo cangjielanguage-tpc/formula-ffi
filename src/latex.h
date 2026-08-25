@@ -68,7 +68,7 @@ public:
      * @param fg
      *      the foreground color
      */
-    static TeXRender* parse(const wstring& tex, int width, float textSize, float lineSpace, color fg);
+    static TeXRender* parse(const wstring& tex, int width, float textSize, float lineSpace, color fg, bool isPartial = true);
 
     static LaTeXParseResult parseWithError(const wstring& tex, int width, float textSize, float lineSpace, color fg);
 

@@ -145,6 +145,8 @@ public:
      */
     void setLaTeX(const wstring& latex) throw(ex_parse);
 
+    void setIsPartial(bool p) { _parser.setIsPartial(p); }
+
     /**
      * Inserts an atom at the end of the current formula.
      */
