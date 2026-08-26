@@ -39,4 +39,5 @@ log.txt
 /stdx_bin
 *.lock
 *.clone-done
+**/BuildProfile.ets
 formula-ffi
