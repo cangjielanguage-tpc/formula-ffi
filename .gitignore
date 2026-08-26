@@ -25,3 +25,4 @@ log.txt
 formula/libs
 formula/src/main/cpp/latex
 *.lock
+**/BuildProfile.ets
