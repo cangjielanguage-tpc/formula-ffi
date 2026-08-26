@@ -40,3 +40,5 @@ log.txt
 *.lock
 *.clone-done
 **/BuildProfile.ets
+formula_hybrid/src/main/resources/resfile
+formula-ffi/formula/libs
