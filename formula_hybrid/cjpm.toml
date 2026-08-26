@@ -13,7 +13,7 @@
 
 [dependencies]
   [dependencies.formula]
-    path = "${cangjie_tpc_formula}"
+    path = "../formula-ffi/formula"
 
 [profile]
   [profile.build]

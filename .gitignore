@@ -40,4 +40,3 @@ log.txt
 *.lock
 *.clone-done
 **/BuildProfile.ets
-formula-ffi
