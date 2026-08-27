@@ -1,4 +1,4 @@
 [submodule "formula-ffi"]
 	path = formula-ffi
 	url = https://gitcode.com/Cangjie-TPC/formula-ffi.git
-	branch = formula-ffi_cangjie-plugin_6.1.1_compatibility
+	branch = formula-ffi_cangjie-plugin-6.1.1_compatibility

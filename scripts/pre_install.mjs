@@ -1,8 +1,7 @@
 // pre_install.mjs - 根项目预处理脚本
-// 1. 初始化 git submodule (formula-ffi)
+// 1. 初始化 git submodule (formula-ffi，含预编译 .so)
 // 2. 触发 stdx 下载 (formula-ffi/scripts/pre_stdx_install.mjs)
 // 3. 复制 formula 的 resfile 资源到 formula_hybrid
-// 4. 同步 C++ 编译产物 (liblatex.so) 到 formula/libs/ (如果已存在)
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -14,8 +13,8 @@ const SUBMODULE_PATH = path.join(PROJECT_ROOT, 'formula-ffi');
 const STDX_SCRIPT = path.join(SUBMODULE_PATH, 'scripts', 'pre_stdx_install.mjs');
 const FORMULA_RES_PATH = path.join(SUBMODULE_PATH, 'formula', 'src', 'main', 'resources', 'resfile');
 const HYBRID_RES_PATH = path.join(PROJECT_ROOT, 'formula_hybrid', 'src', 'main', 'resources', 'resfile');
-const CMAKE_OBJ_PATH = path.join(SUBMODULE_PATH, 'formula', 'build', 'default', 'intermediates', 'cmake', 'default', 'obj');
 const FORMULA_LIBS_PATH = path.join(SUBMODULE_PATH, 'formula', 'libs');
+const ABIS = ['arm64-v8a', 'x86_64'];
 
 // 步骤 1: 检查并初始化 git submodule
 function ensureSubmodule() {
@@ -95,37 +94,21 @@ function copyResources() {
   }
 }
 
-// 步骤 4: 同步 C++ 编译产物到 formula/libs/ (如果构建已运行过)
-function syncNativeLibs() {
-  if (!fs.existsSync(CMAKE_OBJ_PATH)) {
-    console.log('C++ build output not found, skipping native lib sync.');
-    console.log('Note: First build requires full project build to produce liblatex.so.');
-    return;
-  }
-
-  const abis = ['arm64-v8a', 'x86_64'];
-  let copied = false;
-
-  for (const abi of abis) {
-    const srcDir = path.join(CMAKE_OBJ_PATH, abi);
-    const dstDir = path.join(FORMULA_LIBS_PATH, abi);
-
-    if (fs.existsSync(srcDir)) {
-      fs.mkdirSync(dstDir, { recursive: true });
-      fs.cpSync(srcDir, dstDir, { recursive: true, force: true });
-      copied = true;
+// 步骤 4: 检查预编译 .so 是否存在
+function verifyNativeLibs() {
+  for (const abi of ABIS) {
+    const soPath = path.join(FORMULA_LIBS_PATH, abi, 'liblatex.so');
+    if (!fs.existsSync(soPath)) {
+      console.warn(`Warning: liblatex.so not found in formula/libs/${abi}/`);
+      console.warn('Please ensure the submodule is properly initialized with pre-built .so files.');
+      return;
     }
   }
-
-  if (copied) {
-    console.log('Native libs (liblatex.so) synced to formula/libs/.');
-  } else {
-    console.log('No native libs found in build output, skipping.');
-  }
+  console.log('Native libs (liblatex.so) verified in formula/libs/.');
 }
 
 // 执行
 ensureSubmodule();
 downloadStdx();
 copyResources();
-syncNativeLibs();
+verifyNativeLibs();
