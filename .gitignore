@@ -22,7 +22,6 @@ oh_modules
 oh-package-lock.json5
 log.txt
 /stdx_bin
-formula/libs
 formula/src/main/cpp/latex
 *.lock
 **/BuildProfile.ets
