@@ -1,11 +1,12 @@
-## v2.0.2-hybrid
-
-* 重构：通过 git submodule 依赖 formula-ffi (tag v2.0.2) 获取核心能力
-* 包名从 formula 改为 formula_hybrid，输出库名改为 libformula_hybrid.so
-
 ## v2.0.0-hybrid
 
 * 适配升级6.1.1.820
+* 优化代码
+* 支持化学分子结构式和反应式
+
+## v1.3.2-hybrid
+
+* 修复spwan异常未捕获问题
 
 ## v1.3.1-hybrid
 

@@ -3,7 +3,7 @@
 </div>
 
 <p align="center">
-<img alt="" src="https://img.shields.io/badge/release-v2.0.2-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/release-v2.0.0-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/build-pass-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjc-v1.1.3-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-NA-red" style="display: inline-block;" />
@@ -12,18 +12,18 @@
 
 ## 介绍
 
-formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化学公式。
+formula 主要目的是显示用 LaTeX 编写的公式。
 
 ### 特性
 
-* 解析生成数学公式数据
+* 解析生成公式数据
 
 ## 软件架构
 
 ### 源码目录
 
 ```shell
-├─ formula-ffi/              ← git submodule (tag v2.0.2)
+├─ formula-ffi/              ← git submodule
 │  └─ formula/               ← base 仓颉核心包（LaTeX/Render/Graphic2D/mhchem/FFI/C++）
 ├─ libs/                     ← liblatex.so（从 submodule C++ 源码编译）
 └─ src/main/
@@ -40,7 +40,7 @@ formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化�
 
 ### 架构说明
 
-hybrid 包通过 git submodule 引入 formula-ffi 仓库（锁定 tag v2.0.2），通过 cjpm path 依赖 base `formula` 包获取核心能力。C++ 源码通过 externalNativeOptions 从 submodule 编译为 liblatex.so。hybrid 仅保留互操作代码：
+hybrid 包通过 git submodule 引入 formula-ffi 仓库，通过 cjpm path 依赖 base `formula` 包获取核心能力。C++ 源码通过 externalNativeOptions 从 submodule 编译为 liblatex.so。hybrid 仅保留互操作代码：
 
 - `interop.cj` - JS 互操作桥接，注册 `latexStringToImage` / `latexStringToImageWithError` 到 JSModule
 - `public_latex.cj` - 公开 API 封装层，调用 base 包的 `LaTeX`/`Render`/`Graphic2D` 等
