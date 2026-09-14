@@ -1340,16 +1340,32 @@ public:
     TextCircledAtom(const sptr<Atom>& a) : _at(a) {}
 
     sptr<Box> createBox(_out_ TeXEnvironment& env) override {
-        auto circle = SymbolAtom::get("bigcirc")->createBox(env);
-        circle->_shift = -0.07f * SpaceAtom::getFactor(UNIT_EX, env);
-        if (_at == nullptr) {
-            HorizontalBox* hb = new HorizontalBox(circle, circle->_width, ALIGN_CENTER);
-            hb->add(sptr<Box>(new StrutBox(-hb->_width, 0, 0, 0)));
-            hb->add(circle);
-            return sptr<Box>(hb);
+        // 内容盒子；缺失内容时退化为零尺寸 strut
+        sptr<Box> content = (_at == nullptr) ? nullptr : _at->createBox(env);
+        if (content == nullptr) {
+            content = sptr<Box>(new StrutBox(0, 0, 0, 0));
         }
-        auto box = _at->createBox(env);
-        HorizontalBox* hb = new HorizontalBox(box, circle->_width, ALIGN_CENTER);
+
+        // 圆圈尺寸自适应内容（对齐 RaTeX layout_textcircled 的度量逻辑）:
+        // r = max(内容宽, 有效高+深) / 2 + 0.1em，且不小于 0.35em
+        float em = SpaceAtom::getFactor(UNIT_EM, env);
+        float pad = 0.1f * em;
+        float minR = 0.35f * em;
+        // 计入 _shift（如 \raisebox），得到内容墨迹相对基线的有效上沿/下沿
+        float sh = content->_shift;
+        float top = content->_height - sh;
+        float bottom = content->_depth + sh;
+        float r = max(content->_width, top + bottom) / 2.f + pad;
+        if (r < minR) r = minR;
+
+        // 内容垂直中心相对基线的偏移（基线以上为正），圆心与其对齐 → 保持基线语义
+        float c = (top - bottom) / 2.f;
+
+        // 圆盒: width = 2r, 圆心偏移 c（内部推导 height = r + c、depth = r - c，圆内切于盒子）
+        auto circle = sptr<Box>(new CircleBox(r, c, 0.04f));
+
+        // 内容在圆内水平居中，负 kern 回退后叠印圆
+        HorizontalBox* hb = new HorizontalBox(content, r * 2.f, ALIGN_CENTER);
         hb->add(sptr<Box>(new StrutBox(-hb->_width, 0, 0, 0)));
         hb->add(circle);
         return sptr<Box>(hb);
