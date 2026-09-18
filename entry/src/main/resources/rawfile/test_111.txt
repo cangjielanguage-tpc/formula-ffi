@@ -1,0 +1,11 @@
+\textcircled{1} \quad
+\textcircled{12} \quad
+\textcircled{123} \quad
+\textcircled{123567} \quad
+\textcircled{A} \quad
+\textcircled{50} \quad
+\textcircled{12345} \quad
+^{\textcircled{50}} \quad
+^{\textcircled{123}} \quad
+\Large\textcircled{\small 50} \quad
+\textcolor{red}{\textcircled{50}}

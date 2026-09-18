@@ -1,0 +1,4 @@
+\chemnameinit{\chemfig{CH_3}}\schemestart \chemname{\chemfig{CH_3}}{Methyl}\arrow \chemname{\chemfig{CH_2}}{Methylene} \schemestop
+\chemnameinit{\chemfig{*6(-=-=-=)}}\schemestart \chemname{\chemfig{*6(-=-=-=)}}{Benzene}\arrow \chemname{\chemfig{*6(-=-=---)}}{Cyclohexane} \schemestop
+\chemnameinit{\chemfig{*5(-=-=-)}}\schemestart \chemname{\chemfig{*5(-=-=-)}}{Furan}\arrow \chemname{\chemfig{*5(-=-=--)}}{\chemfig{THF}} \schemestop
+\chemnameinit{\chemfig{H_3C-[:-30]CH_3}}\schemestart \chemname{\chemfig{H_3C-[:-30]CH_3}}{Ethane}\arrow \chemname{\chemfig{H_2C=CH_2}}{Ethene} \schemestop
