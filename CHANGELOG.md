@@ -1,10 +1,17 @@
+## v1.4.0-hybrid
+
+* 支持cancel,Unicode,Bbox,NoErrors,NewCommand,Ams,AmsCd扩展
+* 支持chemfig化学分子结构式和反应式
+
 ## v1.3.2-hybrid
 
-* 修复stdx依赖问题
+* 修复spwan异常未捕获问题
 
 ## v1.3.1-hybrid
 
-* 修复stdx静态问题
+* 增加latexStringToImageWithError接口
+* 修复JsValue内存泄漏
+* 优化代码
 
 ## v1.3.0
 

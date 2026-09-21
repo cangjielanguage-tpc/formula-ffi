@@ -3,7 +3,7 @@
 </div>
 
 <p align="center">
-<img alt="" src="https://img.shields.io/badge/release-v1.3.2-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/release-v1.4.0-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/build-pass-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjc-v1.0.5-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-NA-red" style="display: inline-block;" />
@@ -12,11 +12,11 @@
 
 ## 介绍
 
-formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化学公式。
+formula 主要目的是显示用 LaTeX 编写的公式。
 
 ### 特性
 
-* 解析生成数学公式数据
+* 解析生成公式数据
 
 ## 软件架构
 
@@ -44,13 +44,13 @@ formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化�
 
 ```ets
 /*
-* 通过文本参数生成数学公式图片数组数据
+* 通过文本参数生成公式图片数组数据
 *
-* 参数 - latexMathTextString 数学公式文本内容
-* 参数 - latexMathTextSize 数学公式文字大小 - 单位px
-* 参数 - latexMathTextColor 数学公式文字颜色
-* 参数 - latexMathBackGroupColor 数学公式背景颜色
-* 参数 - latexMathColorFormat 数学公式图片格式
+* 参数 - latexMathTextString 公式文本内容
+* 参数 - latexMathTextSize 公式文字大小 - 单位px
+* 参数 - latexMathTextColor 公式文字颜色
+* 参数 - latexMathBackGroupColor 公式背景颜色
+* 参数 - latexMathColorFormat 公式图片格式
 * 参数 - resPath 字体资源路径。 默认"/data/storage/el1/bundle/entry/resources/resfile/res"
 *
 * 返回值 - Promise<ArrayBuffer> 图片数组数据
@@ -88,14 +88,14 @@ interface TeXParseResult {
 }
 
 /*
-* 通过文本参数生成数学公式图片数组数据（带错误信息）
+* 通过文本参数生成公式图片数组数据（带错误信息）
 * 当公式解析失败时，返回详细的错误信息，包括结果码和错误描述
 *
-* 参数 - latexMathTextString 数学公式文本内容
-* 参数 - latexMathTextSize 数学公式文字大小 - 单位px
-* 参数 - latexMathTextColor 数学公式文字颜色
-* 参数 - latexMathBackGroupColor 数学公式背景颜色
-* 参数 - latexMathColorFormat 数学公式图片格式
+* 参数 - latexMathTextString 公式文本内容
+* 参数 - latexMathTextSize 公式文字大小 - 单位px
+* 参数 - latexMathTextColor 公式文字颜色
+* 参数 - latexMathBackGroupColor 公式背景颜色
+* 参数 - latexMathColorFormat 公式图片格式
 * 参数 - resPath 字体资源路径。 默认"/data/storage/el1/bundle/entry/resources/resfile/res"
 *
 * 返回值 - Promise<TeXParseResult> 解析结果对象
@@ -131,7 +131,7 @@ struct Index0 {
 
   async aboutToAppear(): Promise<void> {
     try {
-      // 通过接口解析数学公式获取数学公式图片数组数据
+      // 通过接口解析公式获取公式图片数组数据
       let buf: ArrayBuffer = await latexStringToImage(this.str, fp2px(20), 0xFF000000, 0xFFFFFFFF,
         LatexMathColorFormat.COLOR_FORMAT_BGRA_8888)
       let imageSource = image.createImageSource(buf)
