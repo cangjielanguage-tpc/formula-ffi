@@ -684,6 +684,47 @@ void draw(Graphics2D& g2, float x, float y) override {
 };
 
 /**
+ * CircleBox: 绘制正圆形 Box，用于叠加（如 \textcircled）
+ * 圆心位于盒子的垂直中心（相对基线偏移 (height - depth) / 2），
+ * 直径 = _width，且 height + depth == 2 * r（圆恰好内切于盒子边界）
+ */
+class CircleBox : public Box {
+private:
+    float _r;         // 圆半径
+    float _lineWidth; // 描边线宽（与盒子坐标同单位，随渲染 scale 等比缩放）
+
+public:
+    CircleBox() = delete;
+
+    /**
+     * r             圆半径
+     * centerOffset  圆心相对基线的偏移（基线以上为正），
+     *               内部推导 height = r + centerOffset、depth = r - centerOffset，
+     *               恒满足 height + depth == 2 * r（圆恰好内切于盒子边界）
+     * lineWidth     描边线宽
+     */
+    CircleBox(float r, float centerOffset, float lineWidth)
+        : _r(r), _lineWidth(lineWidth) {
+        _width = r * 2;
+        _height = r + centerOffset;
+        _depth = r - centerOffset;
+    }
+
+    void draw(Graphics2D& g2, float x, float y) override {
+        startDraw(g2, x, y);
+        // drawEllipse 语义: 圆心 cy = y - h/2 + depth/2，传入
+        // (_width, _height, _depth) 后圆心恰为盒子垂直中心
+        g2.drawEllipse(x, y, _width, _height, _r, _r, _lineWidth, _depth);
+        endDraw(g2);
+    }
+
+    // 圆没有字体
+    int getLastFontId() override {
+        return -1;
+    }
+};
+
+/**
  * OiintAtom: 表示语义上的“双积分”符号，内部由2个 ∫ 和一个椭圆叠加构成
  */
 class OiintAtom : public Atom {
