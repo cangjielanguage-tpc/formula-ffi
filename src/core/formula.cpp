@@ -84,7 +84,9 @@ TeXFormula::TeXFormula(const TeXParser& tp, const wstring& s, bool firstpass) th
     if (tp.getIsPartial()) {
         try {
             _parser.parse();
-        } catch (exception& e) {}
+        } catch (exception& e) {
+            if (_root == nullptr) _root = sptr<Atom>(new EmptyAtom());
+        }
     } else {
         _parser.parse();
     }

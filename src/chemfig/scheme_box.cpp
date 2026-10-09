@@ -558,7 +558,10 @@ void SchemeBox::layoutArrows(TeXEnvironment& env) {
             _arrowLayouts.push_back(alayout);
         } else if (elem.first == ELEM_PLUS) {
             if (elem.second < 0 || elem.second >= static_cast<int>(_scheme.pluses.size())) continue;
-            layoutPlusFromOrder(_scheme.pluses[elem.second], _compoundLayouts[_scheme.pluses[elem.second].afterCompound]);
+            // afterCompound 可为 -1（\+ 先于任何化合物），先判界再取实参，避免 vector 越界
+            int afterCompound = _scheme.pluses[elem.second].afterCompound;
+            if (afterCompound < 0 || afterCompound >= static_cast<int>(_compoundLayouts.size())) continue;
+            layoutPlusFromOrder(_scheme.pluses[elem.second], _compoundLayouts[afterCompound]);
         }
     }
 }

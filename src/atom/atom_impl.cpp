@@ -640,6 +640,10 @@ sptr<Box> MultlineAtom::createBox(_out_ TeXEnvironment& env) {
         return MatrixAtom(_ispartial, _column, L"").createBox(env);
 
     VerticalBox* vb = new VerticalBox();
+    // 空行（`\\` 产生的行首 nullptr 占位）替换为 EmptyAtom，避免下方三处
+    // _array[row][0]->_alignment 解引用空指针；空行 _alignment == -1，走默认对齐
+    for (auto& row : _column->_array)
+        if (!row.empty() && row[0] == nullptr) row[0] = sptr<Atom>(new EmptyAtom());
     auto atom = _column->_array[0][0];
     int alignment = _ttype == GATHER ? ALIGN_CENTER : ALIGN_LEFT;
     if (atom->_alignment != -1) alignment = atom->_alignment;
@@ -979,6 +983,7 @@ sptr<Box> LaTeXAtom::createBox(_out_ TeXEnvironment& en) {
     RowAtom* rm = dynamic_cast<RowAtom*>(atom.get());
     if (fontInfos != nullptr)
         TeXFormula::_externalFontMap[UnicodeBlock::BASIC_LATIN] = fontInfos;
+    if (rm == nullptr) throw ex_parse("invalid LaTeX logo structure");
 
     // L
     HorizontalBox* hb = new HorizontalBox(rm->popLastAtom()->createBox(env));

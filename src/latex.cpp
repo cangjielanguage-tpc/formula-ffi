@@ -71,19 +71,26 @@ TeXRender* LaTeX::parse(const wstring& latex, int width, float textSize, float l
     }
     int align = lined ? ALIGN_LEFT : ALIGN_CENTER;
     _formula->setIsPartial(isPartial);
-    _formula->setLaTeX(latex);
-    TeXRender* render =
-        _builder->setStyle(STYLE_DISPLAY)
-            .setTextSize(textSize)
-            .setWidth(UNIT_PIXEL, width, align)
-            .setIsMaxWidth(lined)
-            .setLineSpace(UNIT_PIXEL, lineSpace)
-            .setForeground(fg)
-            .build(*_formula);
-    if (render == nullptr) {
-        throw ex_parse("Failed to build TeXRender from formula");
+    try {
+        _formula->setLaTeX(latex);
+        TeXRender* render =
+            _builder->setStyle(STYLE_DISPLAY)
+                .setTextSize(textSize)
+                .setWidth(UNIT_PIXEL, width, align)
+                .setIsMaxWidth(lined)
+                .setLineSpace(UNIT_PIXEL, lineSpace)
+                .setForeground(fg)
+                .build(*_formula);
+        if (render == nullptr) {
+            throw ex_parse("Failed to build TeXRender from formula");
+        }
+        return render;
+    } catch (ex_parse&) {
+        throw;  // 库内异常按契约原样透传（保留具体子类信息）
+    } catch (exception& e) {
+        // 归一化：std 标准异常（out_of_range/bad_alloc 等）不得穿透 throw(ex_parse) 契约
+        throw ex_parse(e.what());
     }
-    return render;
 }
 
 // 跳过花括号内容，返回跳过后的位置，括号不匹配返回npos

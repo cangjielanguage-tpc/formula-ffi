@@ -671,7 +671,16 @@ sptr<Atom> TeXParser::getArgument() throw(ex_parse) {
         auto atom = processEscape();
         if (_insertion) {
             _insertion = false;
-            return getArgument();
+            // 宏展开递归链深度防护：互相引用的宏（\a->\b->\a）在此通道无限递归栈溢出。
+            // RAII 递减：异常路径（宏体内解析错误）也不泄漏计数，避免跨公式累积误报
+            static thread_local int depth = 0;
+            if (++depth > 256) {
+                --depth;
+                throw ex_parse("recursive macro expansion");
+            }
+            struct DecrementOnExit { int& d; DecrementOnExit(int& x) : d(x) {} ~DecrementOnExit() { --d; } } guard(depth);
+            auto r = getArgument();
+            return r;
         }
         return atom;
     }
@@ -1046,7 +1055,30 @@ void TeXParser::firstpass() throw(ex_parse) {
     _len = _parseString.length();
 }
 
+namespace {
+
+// 解析递归深度计数（线程本地，无需加锁）。
+// parse() 是两条递归通道的必经点：
+//   1. {} 组嵌套：getArgument -> parse() 在同一 parser 实例上重入；
+//   2. 宏参数/$$文字/环境：新建 TeXParser 后调用其 parse()。
+// 超过 MAX_NESTING_DEPTH 抛 ex_parse，把深嵌套导致的栈溢出 SIGSEGV
+// 降级为可捕获异常（partial 模式下进一步降级为空渲染）。
+thread_local int g_texParserDepth = 0;
+
+struct ParseDepthGuard {
+    ParseDepthGuard() {
+        if (++g_texParserDepth > TeXParser::MAX_NESTING_DEPTH) {
+            --g_texParserDepth;
+            throw ex_parse("Formula nesting too deep");
+        }
+    }
+    ~ParseDepthGuard() { --g_texParserDepth; }
+};
+
+}  // namespace
+
 void TeXParser::parse() throw(ex_parse) {
+    ParseDepthGuard _depthGuard;
     if (_len == 0) {
         if (_formula->_root == nullptr && !_arrayMode)
             _formula->add(sptr<Atom>(new EmptyAtom()));
