@@ -136,6 +136,13 @@ private:
 public:
     static bool _isLoading;
 
+    /**
+     * 解析递归深度上限：覆盖 {} 组嵌套（parse() 重入）与宏/$$/环境
+     * （新建 TeXParser）两条递归通道。合法公式嵌套通常 < 20 层，
+     * 128 留有足够余量；超限时抛 ex_parse（partial 模式下降级为空渲染）。
+     */
+    static constexpr int MAX_NESTING_DEPTH = 128;
+
     TeXFormula* _formula;
 
     TeXParser() {

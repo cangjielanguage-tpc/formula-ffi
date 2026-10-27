@@ -1222,7 +1222,7 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
                                 if (!iswdigit(c)) { allDigits = false; break; }
                             }
                             if (allDigits) {
-                                int cIdx = std::stoi(numStr) - 1;
+                                int cIdx = safeStoi(numStr) - 1;
                                 if (cIdx >= 0 && cIdx < scheme.compoundCount()) {
                                     idx = cIdx;
                                     scheme.compoundRefs[refName] = idx;
@@ -1316,7 +1316,7 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
                             if (!iswdigit(c)) { allDigits = false; break; }
                         }
                         if (allDigits) {
-                            int cIdx = std::stoi(numStr) - 1;
+                            int cIdx = safeStoi(numStr) - 1;
                             if (cIdx >= 0 && cIdx < scheme.compoundCount()) {
                                 src.compoundIndex = cIdx;
                                 scheme.compoundRefs[src.compoundRef] = cIdx;
@@ -1338,7 +1338,7 @@ void SchemeParser::resolveReferences(ReactionScheme& scheme) {
                         if (!iswdigit(c)) { allDigits = false; break; }
                     }
                     if (allDigits) {
-                        int cIdx = std::stoi(numStr) - 1;
+                        int cIdx = safeStoi(numStr) - 1;
                         if (cIdx >= 0 && cIdx < scheme.compoundCount()) {
                             merge.target.compoundIndex = cIdx;
                             scheme.compoundRefs[merge.target.compoundRef] = cIdx;
@@ -1434,6 +1434,10 @@ bool SchemeParser::parseContent(const wchar_t* p, ReactionScheme& scheme) {
                     scheme.subschemes.back().rightDelim = delim;
                 }
             } else if (cmd == L"subscheme") {
+                // 递归深度防护：嵌套 \subscheme 超过 128 层直接失败（对齐 chemfig 的 ChemfigDepthGuard）
+                static thread_local int depth = 0;
+                if (depth >= 128) return false;
+                struct DepthGuard { int& d; DepthGuard(int& x) : d(x) { ++d; } ~DepthGuard() { --d; } } dg(depth);
                 std::wstring content = parseBraceContent(p);
                 int startIdx = static_cast<int>(scheme.compounds.size());
                 int arrowStartIdx = static_cast<int>(scheme.arrows.size());

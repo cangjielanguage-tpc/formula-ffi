@@ -1050,6 +1050,7 @@ public:
     ReflectAtom() = delete;
 
     ReflectAtom(const sptr<Atom>& base) : _base(base) {
+        if (base == nullptr) throw ex_parse("empty atom");
         _type = _base->_type;
     }
 
@@ -1075,6 +1076,7 @@ public:
     ResizeAtom() = delete;
 
     ResizeAtom(const sptr<Atom>& base, const string& ws, const string& hs, bool keepAspectRatio) {
+        if (base == nullptr) throw ex_parse("empty atom");
         _type = base->_type;
         _base = base;
         _keep_aspect_ratio = keepAspectRatio;
@@ -1290,6 +1292,7 @@ public:
     StyleAtom() = delete;
 
     StyleAtom(int style, const sptr<Atom>& a) {
+        if (a == nullptr) throw ex_parse("empty atom");
         _style = style;
         _at = a;
         _type = a->_type;

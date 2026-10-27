@@ -131,6 +131,8 @@ void NewCommandMacro::_free_() {
     _instance = nullptr;
     _macrocode.clear();
     _macroreplacement.clear();
+    // 清空全局宏表：防止下次 init 前命中已释放的 InflationMacroInfo（UAF）
+    MacroInfo::_free_();
 }
 
 void MacroInfo::addMacro(const wstring& name, MacroInfo* mac) {
@@ -146,9 +148,16 @@ void MacroInfo::addMacro(const wstring& name, MacroInfo* mac) {
 }
 
 void MacroInfo::_free_() {
-    for (auto i : _commands) {
-        delete i.second;
-        i.second = nullptr;
+    // 只清除 InflationMacroInfo（用户宏 + _init_() 可重注册的内置环境宏），
+    // 其 _macro 指向已 delete 的 NewCommandMacro::_instance（UAF 来源）；
+    // 保留 PredefMacroInfo —— 它仅在进程启动时静态注册一次，清掉后无法恢复
+    for (auto it = _commands.begin(); it != _commands.end();) {
+        if (dynamic_cast<InflationMacroInfo*>(it->second) != nullptr) {
+            delete it->second;
+            it = _commands.erase(it);
+        } else {
+            ++it;
+        }
     }
 }
 

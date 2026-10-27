@@ -12,6 +12,31 @@ namespace {
     using namespace chemfig;
 
     constexpr float ANGLE_INCREMENT = ANGLE_INCREMENT_DEG * CHEM_PI / 180.0f;
+
+    /**
+     * chemfig 递归解析深度上限。
+     * 分支/稠环语法（嵌套 "(" 与 "*"）由 parseChain/parseBranch/parseRing
+     * 互递归下降解析（AST 版对应 parseChainToAST/parseChainElementsToAST/
+     * parseRingToAST）。chemfig 输入是宏参数整体提取，不经过 TeXParser
+     * 的深度配额，深嵌套（如数千层 "(-[1]C("）会直接栈溢出 SIGSEGV。
+     * 上限与 TeXParser::MAX_NESTING_DEPTH 对齐，合法化学结构远达不到。
+     */
+    constexpr int MAX_CHEMFIG_DEPTH = 128;
+
+    // chemfig 递归深度计数（线程本地，无需加锁）。
+    // 超限时抛 ex_parse，沿 ChemfigAtom/SchemeAtom 构造链传播，
+    // 由 TeXFormula/FFI 层 catch 降级为错误返回（partial 模式下为空渲染）。
+    thread_local int g_chemfigDepth = 0;
+
+    struct ChemfigDepthGuard {
+        ChemfigDepthGuard() {
+            if (++g_chemfigDepth > MAX_CHEMFIG_DEPTH) {
+                --g_chemfigDepth;
+                throw ex_parse("Chemfig nesting too deep");
+            }
+        }
+        ~ChemfigDepthGuard() { --g_chemfigDepth; }
+    };
 }
 
 std::wstring ChemfigParser::collectBalanced(const wchar_t*& p, wchar_t open, wchar_t close) {
@@ -203,6 +228,7 @@ bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex) 
 
 bool ChemfigParser::parseRing(const wchar_t*& p, Molecule& mol, int& atomIndex,
                                int sharedFromAtom, int sharedToAtom, BondType* sharedBondTypeOut) {
+    ChemfigDepthGuard _depthGuard;
     if (!match(p, L'*')) return false;
 
     bool hasInnerCircle = match(p, L'*');
@@ -534,6 +560,7 @@ static int addAtomAndBond(Molecule& mol, int fromAtomId, const std::wstring& lab
 
 bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
                                 int prevAtom, float currentAngle) {
+    ChemfigDepthGuard _depthGuard;
     skipWhitespace(p);
     std::wstring firstLabel = parseAtomGroup(p);
 
@@ -657,6 +684,7 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
 
 bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex,
                                  int branchAtom, float branchAngle) {
+    ChemfigDepthGuard _depthGuard;
     int savedLastAtomId = branchAtom;
     float savedLastAngle = branchAngle;
     int lastBranchAtomId = -1;
@@ -1573,6 +1601,7 @@ AstAtomSpec ChemfigParser::parseAtomGroupToAST(const wchar_t*& p) {
 
 bool ChemfigParser::parseChainElementsToAST(const wchar_t*& p, std::vector<AstChainElement>& elements,
                                              int& atomIndex, bool inBranch) {
+    ChemfigDepthGuard _depthGuard;
     while (peek(p) != L'\0') {
         skipWhitespace(p);
         wchar_t ch = peek(p);
@@ -1629,6 +1658,7 @@ bool ChemfigParser::parseChainElementsToAST(const wchar_t*& p, std::vector<AstCh
 }
 
 std::shared_ptr<AstChainNode> ChemfigParser::parseChainToAST(const wchar_t*& p, int& atomIndex, bool inBranch) {
+    ChemfigDepthGuard _depthGuard;
     auto chain = std::make_shared<AstChainNode>();
     skipWhitespace(p);
     chain->initialAtom = parseAtomGroupToAST(p);
@@ -1654,6 +1684,7 @@ std::shared_ptr<AstChainNode> ChemfigParser::parseChainToAST(const wchar_t*& p, 
 
 std::shared_ptr<AstRingNode> ChemfigParser::parseRingToAST(const wchar_t*& p, int& atomIndex,
                                                              int sharedFromAtom, int sharedToAtom) {
+    ChemfigDepthGuard _depthGuard;
     if (!match(p, L'*')) return nullptr;
 
     auto ring = std::make_shared<AstRingNode>();
