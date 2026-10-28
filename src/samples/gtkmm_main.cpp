@@ -266,7 +266,12 @@ public:
     float _maxWidth = 720.f;
 
     void generateSingle(const wstring& code, const string& file) {
-        auto r = LaTeX::parse(code, _maxWidth, _textSize, _textSize / 3.f, _foreground);
+        LaTeXParseResult result = LaTeX::parseWithError(code, _maxWidth, _textSize, _textSize / 3.f, _foreground);
+        if (!result.success) {  // [F5 fix] headless boundary guard, no crash on bad input
+            __print(ANSI_COLOR_RED "Parse error: %s\n" ANSI_RESET, result.errorMessage.c_str());
+            return;
+        }
+        TeXRender* r = result.render;
         const float w = r->getWidth() + _padding * 2;
         const float h = r->getHeight() + _padding * 2;
         auto surface = Cairo::SvgSurface::create(file, w, h);
@@ -278,6 +283,7 @@ public:
         }
         r->draw(g2, _padding, _padding);
         delete r;
+        result.render = nullptr;  // avoid double free: ~LaTeXParseResult() deletes render
     }
 
     int runBatch() {

@@ -331,6 +331,9 @@ macro(newcommand) {
         throw ex_parse("Invalid name for the command '" + wide2utf8(newcmd.c_str()));
 
     if (!args[3].empty()) valueof(args[3], nbArgs);
+    if (nbArgs < 0 || nbArgs > 9)  // [Bug #7 fix] TeX spec: at most #1~#9
+        throw ex_parse("Invalid number of arguments (" + std::to_string(nbArgs)
+            + ") for the command '" + wide2utf8(newcmd.c_str()) + "'");
 
     if (args[4].empty()) {
         NewCommandMacro::addNewCommand(newcmd.substr(1), args[2], nbArgs);
@@ -348,7 +351,10 @@ macro(renewcommand) {
         throw ex_parse("Invalid name for the command: " + wide2utf8(newcmd.c_str()));
 
     if (!args[3].empty()) valueof(args[3], nbArgs);
-    
+    if (nbArgs < 0 || nbArgs > 9)  // [Bug #7 fix] TeX spec: at most #1~#9
+        throw ex_parse("Invalid number of arguments (" + std::to_string(nbArgs)
+            + ") for the command '" + wide2utf8(newcmd.c_str()) + "'");
+
         // Handle special case: \renewcommand{\CancelColor}{\color{blue}}
     if (newcmd == L"CancelColor") {
         // Parse the color from args[2] (e.g., "\color{blue}" or just "blue")
@@ -476,10 +482,19 @@ macro(romannumeral) {
     string letters[] = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
     string roman = "";
 
-    int num;
+    int num = 0;  // [F8 fix] valueof() leaves val untouched on parse failure;
+                  // uninitialized num fed the roman-numeral loop with garbage
+                  // (hang / huge alloc / UB on \Roman without a valid arg)
     string x;
     wide2utf8(args[1].c_str(), x);
     valueof(trim(x), num);
+    // [F9 fix] Roman numeral semantic domain is [1, 3999]; anything larger expands
+    // unbounded (L ~ N/1000 chars of 'M') and drives O(L^2) cost through the
+    // cairo/pixman render pipeline (multi-hour hang on N > 1e7).
+    // Out-of-domain input is rejected at parse time (KaTeX maxExpand-style
+    // explicit failure), caught by the FFI layer as ex_tex.
+    if (num < 1 || num > 3999)
+        throw ex_invalid_state("Roman numeral out of range [1,3999]");
     for (int i = 0; i < 13; i++) {
         while (num >= numbers[i]) {
             roman += letters[i];
