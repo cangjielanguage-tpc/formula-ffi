@@ -1,11 +1,22 @@
 {
   "name": "@cangjie-tpc/formula",
-  "version": "1.0.3",
-  "description": "formula 主要目的是显示用 LaTeX 编写的数学公式.",
+  "version": "1.4.1",
+  "description": "formula 主要目的是显示用 LaTeX 编写的公式。",
   "main": "",
-  "author": "cangjie-tpc",
-  "types": "./Index.d.ets",
+  "author": {
+    "name": "cangjie-tpc",
+    "email": "cangjie@huawei.com"
+  },
   "license": "MIT",
+  "repository": "https://gitcode.com/Cangjie-TPC/formula-ffi/tree/formula-ffi_cangjie-plugin-6.1.1_compatibility",
+  "homepage": "https://gitcode.com/Cangjie-TPC",
+  "keywords": [
+    "formula",
+    "仓颉",
+    "OpenHarmony",
+    "HarmonyOS",
+    "Latex"
+  ],
   "dependencies": {
   }
 }

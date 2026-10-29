@@ -3,7 +3,7 @@
 </div>
 
 <p align="center">
-<img alt="" src="https://img.shields.io/badge/release-v2.0.2-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/release-v1.4.1-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/build-pass-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjc-v1.1.3-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-NA-red" style="display: inline-block;" />
@@ -16,53 +16,73 @@ formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化�
 
 ### 特性
 
-- 🚀 特性1
+- 🚀 公式解析
 
-  提供生成解析数学公式和化学公式接口，支持 `parseWithError` 方法返回详细错误码和错误信息
+  提供解析数学公式和化学公式接口，支持 `parseWithError` 方法返回详细错误码和错误信息
 
-- 🚀 特性2
+- 🚀 位图输出
 
-  提供生成bitmap接口，支持 RGB_565 和 BGRA_8888 两种像素格式
+  提供生成 bitmap 接口，支持 RGB_565 和 BGRA_8888 两种像素格式
 
-- 💪 特性3
+- 💪 图片资源
 
   提供生成图片资源接口
 
 ## 软件架构
 
+整体分三层：`formula/src/main/cangjie` 提供仓颉对外接口（LaTeX 解析、Render/Graphic2D 渲染封装、mhchem 化学公式扩展）；经 FFI 调用 `formula/src/main/cpp/ffi` C++ 桥接层；底层链接上游 latex C++ 渲染库（`formula/src/main/cpp/latex` 源码树由 `cpp/cmake/clone-repo.cmake` 在构建时克隆，编译产物 `liblatex.so` 预置于 `formula/libs` 下按 ABI 存放）。
+
 ### 源码目录
 
 ```shell
-formula
-├─ doc                                                   # 文档目录
-│  ├─ assets
-│  └─ feature_api.md
-├─ entry                                                 # 示例代码文件夹
-│  └─ src\main\resources\rawfile                         # 测试公式文件
-├─ formula                                               # formula库
-│  ├─ src\main\resources\resfile\res                     # 字体资源
-│  ├─ src\main\cangjie                                   # 仓颉侧核心代码
-│  │             └─ mhchem                               # 化学公式模块
-│  └─ src\main\cpp\ffi                                   # 仓颉ffi核心代码
-├─ scripts                                               # 构建脚本
-│  └─ pre_stdx_install.mjs                               # stdx依赖下载脚本
-├─ README.md
-└─ test                                                  # 测试目录
-   ├─ HLT
-   └─ LLT
-
+formula-ffi
+├─ AppScope                                                # 应用级配置
+├─ doc                                                     # 文档目录
+│  ├─ assets                                               # 示例效果图
+│  └─ feature_api.md                                      # 接口说明文档
+├─ entry                                                   # 示例应用模块
+│  └─ src\main
+│     ├─ cangjie                                           # 示例页面代码
+│     └─ resources\rawfile                                 # 测试公式文件
+├─ formula                                                 # formula 库模块
+│  ├─ libs                                                 # 预编译 liblatex.so（按 ABI 存放，供 ffi.c.latex 链接）
+│  │  ├─ arm64-v8a
+│  │  └─ x86_64
+│  └─ src\main
+│     ├─ cangjie                                           # 仓颉侧核心代码
+│     │  ├─ mhchem                                         # 化学公式模块
+│     │  ├─ latex.cj                                       # LaTeX 解析入口封装
+│     │  ├─ render.cj                                      # Render 渲染接口封装
+│     │  ├─ graphic_2d.cj                                  # Graphic2D 与像素格式封装
+│     │  └─ ffi.cj                                         # FFI 声明
+│     ├─ cpp                                               # C++ 侧代码
+│     │  ├─ cmake\clone-repo.cmake                         # latex 上游源码克隆脚本
+│     │  ├─ ffi                                            # FFI 桥接层（latex_ffi/render_ffi/graphic_ohos 等）
+│     │  └─ latex                                          # 上游 latex C++ 源码树（构建时克隆）
+│     └─ resources\resfile\res                             # 渲染资源（字体、符号映射等）
+├─ hvigor                                                 # 构建工具配置
+├─ scripts
+│  └─ pre_stdx_install.mjs                                 # stdx 依赖下载脚本（preInstall 钩子）
+├─ test                                                    # 测试目录
+│  ├─ DOC
+│  ├─ HLT
+│  └─ LLT
+├─ build-profile.json5                                     # 工程构建配置
+├─ oh-package.json5                                        # 工程依赖与 hooks 配置
+├─ CHANGELOG.md
+├─ LICENSE
+└─ README.md
 ```
 
 ### 接口说明
 
-主要类和函数接口说明详见 [API](./doc/feature_api.md)
+主要类和函数接口说明详见 [API](../doc/feature_api.md)
 
 ## 使用说明
 
 ### 编译构建
 
-直接编译运行DevEco Studio
-
+使用 DevEco Studio 打开工程根目录，依赖同步阶段 preInstall 钩子（`scripts/pre_stdx_install.mjs`）会自动下载 stdx 预编译库到工程根的 `stdx_bin/` 目录，随后直接编译运行 `entry` 模块即可。
 
 ### 功能示例
 
@@ -191,11 +211,12 @@ func renderWithError(ltx: String): Unit {
 
 执行结果如下：
 
-![test](./doc/assets/test.jpg)
+![test](../doc/assets/test.jpg)
 
 ## 约束与限制
 
-    在下述版本验证通过：
+在下述版本验证通过：
+
 | 编号 | 依赖构建工具                           | 版本号       |
 |----|----------------------------------|-----------|
 | 1  | **DevEco Studio**                | 6.1.1     |
@@ -222,7 +243,7 @@ formula依赖三方库：
 ```
 [target]
   [target.aarch64-linux-ohos]
-  	  ...
+      ...
       path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "../stdx_bin/linux_ohos_aarch64_cjnative/static/stdx" ]
       [target.aarch64-linux-ohos.bin-dependencies.package-option]
   [target.x86_64-linux-ohos]
@@ -256,6 +277,7 @@ formula依赖三方库：
 2. unicode扩展支持的字符范围请参考[U1D400](https://www.unicode.org/charts/PDF/U1D400.pdf)。
 
 3. NewCommand扩展包仅支持\def,\newenvironment,\renewenvironment
+
 ## 开源协议
 
 本项目基于 [MIT License](./LICENSE)，请自由的享受和参与开源。
