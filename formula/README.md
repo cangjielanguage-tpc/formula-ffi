@@ -3,7 +3,7 @@
 </div>
 
 <p align="center">
-<img alt="" src="https://img.shields.io/badge/release-v1.4.1-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/release-v2.0.0-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/build-pass-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjc-v1.1.3-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-NA-red" style="display: inline-block;" />
@@ -12,13 +12,13 @@
 
 ## 介绍
 
-formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化学公式。
+formula 主要目的是显示用 LaTeX 编写的公式。
 
 ### 特性
 
 - 🚀 公式解析
 
-  提供解析数学公式和化学公式接口，支持 `parseWithError` 方法返回详细错误码和错误信息
+  提供解析 LaTeX 公式接口，支持 `parseWithError` 方法返回详细错误码和错误信息
 
 - 🚀 位图输出
 
@@ -30,7 +30,7 @@ formula 主要目的是显示用 LaTeX 编写的数学公式。支持显示化�
 
 ## 软件架构
 
-整体分三层：`formula/src/main/cangjie` 提供仓颉对外接口（LaTeX 解析、Render/Graphic2D 渲染封装、mhchem 化学公式扩展）；经 FFI 调用 `formula/src/main/cpp/ffi` C++ 桥接层；底层链接上游 latex C++ 渲染库（`formula/src/main/cpp/latex` 源码树由 `cpp/cmake/clone-repo.cmake` 在构建时克隆，编译产物 `liblatex.so` 预置于 `formula/libs` 下按 ABI 存放）。
+整体分三层：`formula/src/main/cangjie` 提供仓颉对外接口（LaTeX 解析、Render/Graphic2D 渲染封装、mhchem 语法扩展）；经 FFI 调用 `formula/src/main/cpp/ffi` C++ 桥接层；底层链接上游 latex C++ 渲染库（`formula/src/main/cpp/latex` 源码树由 `cpp/cmake/clone-repo.cmake` 在构建时克隆，编译产物 `liblatex.so` 预置于 `formula/libs` 下按 ABI 存放）。
 
 ### 源码目录
 
@@ -50,7 +50,7 @@ formula-ffi
 │  │  └─ x86_64
 │  └─ src\main
 │     ├─ cangjie                                           # 仓颉侧核心代码
-│     │  ├─ mhchem                                         # 化学公式模块
+│     │  ├─ mhchem                                         # mhchem 语法扩展
 │     │  ├─ latex.cj                                       # LaTeX 解析入口封装
 │     │  ├─ render.cj                                      # Render 渲染接口封装
 │     │  ├─ graphic_2d.cj                                  # Graphic2D 与像素格式封装
@@ -82,7 +82,7 @@ formula-ffi
 
 ### 编译构建
 
-使用 DevEco Studio 打开工程根目录，依赖同步阶段 preInstall 钩子（`scripts/pre_stdx_install.mjs`）会自动下载 stdx 预编译库到工程根的 `stdx_bin/` 目录，随后直接编译运行 `entry` 模块即可。
+使用 DevEco Studio 打开工程根目录，依赖同步阶段 preInstall 钩子（`scripts/pre_stdx_install.mjs`）会自动下载 stdx 预编译库到 `formula/stdx_bin/` 目录，随后直接编译运行 `entry` 模块即可。
 
 ### 功能示例
 
@@ -244,14 +244,14 @@ formula依赖三方库：
 [target]
   [target.aarch64-linux-ohos]
       ...
-      path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "../stdx_bin/linux_ohos_aarch64_cjnative/static/stdx" ]
+      path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "./stdx_bin/linux_ohos_aarch64_cjnative/static/stdx" ]
       [target.aarch64-linux-ohos.bin-dependencies.package-option]
   [target.x86_64-linux-ohos]
       ...
-      path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "../stdx_bin/linux_ohos_x86_64_cjnative/static/stdx" ]
+      path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "./stdx_bin/linux_ohos_x86_64_cjnative/static/stdx" ]
   [target.x86_64-unknown-windows-gnu]
     [target.x86_64-unknown-windows-gnu.bin-dependencies]
-      path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "../stdx_bin/windows_x86_64_cjnative/static/stdx" ]
+      path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "./stdx_bin/windows_x86_64_cjnative/static/stdx" ]
       [target.x86_64-unknown-windows-gnu.bin-dependencies.package-option]
 ```
 
@@ -261,14 +261,14 @@ formula依赖三方库：
 [target]
   [target.aarch64-linux-ohos]
       ...
-      path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "../stdx_bin/linux_ohos_aarch64_cjnative/dynamic/stdx" ]
+      path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "./stdx_bin/linux_ohos_aarch64_cjnative/dynamic/stdx" ]
       [target.aarch64-linux-ohos.bin-dependencies.package-option]
   [target.x86_64-linux-ohos]
       ...
-      path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "../stdx_bin/linux_ohos_x86_64_cjnative/dynamic/stdx" ]
+      path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "./stdx_bin/linux_ohos_x86_64_cjnative/dynamic/stdx" ]
   [target.x86_64-unknown-windows-gnu]
     [target.x86_64-unknown-windows-gnu.bin-dependencies]
-      path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "../stdx_bin/windows_x86_64_cjnative/dynamic/stdx" ]
+      path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "./stdx_bin/windows_x86_64_cjnative/dynamic/stdx" ]
       [target.x86_64-unknown-windows-gnu.bin-dependencies.package-option]
 ```
 

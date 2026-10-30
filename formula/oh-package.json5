@@ -1,6 +1,6 @@
 {
   "name": "@cangjie-tpc/formula",
-  "version": "1.4.1",
+  "version": "2.0.0",
   "description": "formula 主要目的是显示用 LaTeX 编写的公式。",
   "main": "",
   "author": {

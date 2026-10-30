@@ -16,7 +16,7 @@ const X64_ZIP_URL = 'https://gitcode.com/Cangjie/cangjie_stdx/releases/download/
 const X64_ZIP_FILENAME = 'cangjie-stdx-linux-x64-1.1.3.1.zip';
 const X64_ZIP_TEMP_PATH = path.join(PROJECT_ROOT, X64_ZIP_FILENAME);
 
-const EXTRACT_PATH = path.join(PROJECT_ROOT, 'stdx_bin');
+const EXTRACT_PATH = path.join(PROJECT_ROOT, 'formula', 'stdx_bin');
 
 // Download and extract stdx bin file
 if (!fs.existsSync(EXTRACT_PATH)) {

@@ -2,7 +2,7 @@
 
 ## 介绍
 
-formula 主要目的是显示用 LaTeX 编写的数学公式。参考地址：https://github.com/NanoMichael/MicroTeX
+formula 主要目的是显示用 LaTeX 编写的公式。参考地址：https://github.com/NanoMichael/MicroTeX
 
 ## formula
 
@@ -163,9 +163,9 @@ public class LaTeX {
     public func release(): Unit
 
     /*
-    * 解析数学公式
+    * 解析 LaTeX 公式
     *
-    * 参数 - ltx 数学公式字符串
+    * 参数 - ltx LaTeX 公式字符串
     * 参数 - width 画布宽度（预设宽度）
     * 参数 - textSize 字体大小
     * 参数 - lineSpace 行距
@@ -176,12 +176,12 @@ public class LaTeX {
     public func parse(ltx: String, width: Int32, textSize: Float32, lineSpace: Float32, foreground: UInt32): Render
 
     /*
-    * 解析数学公式（带错误处理）
+    * 解析 LaTeX 公式（带错误处理）
     *
     * 解析失败时抛出 TeXParseException 异常，包含错误码和错误信息。
     * 参数不合法（width <= 0, textSize <= 0, lineSpace < 0）时也会抛出异常。
     *
-    * 参数 - ltx 数学公式字符串
+    * 参数 - ltx LaTeX 公式字符串
     * 参数 - width 画布宽度（预设宽度），必须大于0
     * 参数 - textSize 字体大小，必须大于0
     * 参数 - lineSpace 行距，必须大于等于0
