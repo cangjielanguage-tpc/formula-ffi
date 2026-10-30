@@ -41,3 +41,4 @@ log.txt
 *.clone-done
 **/BuildProfile.ets
 formula_hybrid/src/main/resources/resfile
+formula_hybrid/har/

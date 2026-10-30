@@ -1,5 +1,5 @@
 <div align="center">
-<h1>formula</h1>
+<h1>formula_hybrid</h1>
 </div>
 
 <p align="center">
@@ -12,108 +12,65 @@
 
 ## 介绍
 
-formula 主要目的是显示用 LaTeX 编写的公式。
+formula_hybrid 工程是 formula 的 Hybrid（ArkTS 混合开发）形态，主要目的是在 ArkTS 应用中显示用 LaTeX 编写的公式。
 
 ### 特性
 
-* 解析生成公式数据
+- 🚀 公式解析
+
+  提供解析 LaTeX 公式接口，支持 `latexStringToImageWithError` 方法返回详细错误码和错误信息
+
+- 🚀 位图输出
+
+  提供生成图片数据接口，支持 RGB_565 和 BGRA_8888 两种像素格式
 
 ## 软件架构
+
+工程包含 `formula_hybrid` 库模块与 `entry` 示例应用模块，`entry` 通过本地源码模块（`file:../formula_hybrid`）依赖 formula_hybrid，formula_hybrid 通过预编译 base 包 `formula_hybrid/har/formula.har`（`@cangjie-tpc/formula`，提供 LaTeX 解析/渲染核心能力）获取底层能力。formula_hybrid 自身仅保留仓颉互操作层，经 JSModule 把仓颉接口注册到 `libformula_hybrid.so`，ArkTS 侧通过 `requireCJLib` 加载；接口调用在后台线程异步执行，仓颉侧异常已兜底（记录日志并 `promise.reject`），JS 侧可通过 `catch` 捕获；`entry` 演示在 ArkTS 页面中调用接口渲染公式图片。
 
 ### 源码目录
 
 ```shell
-├─ formula-ffi/              ← git submodule
-│  └─ formula/               ← base 仓颉核心包（LaTeX/Render/Graphic2D/mhchem/FFI/C++）
-├─ libs/                     ← liblatex.so（从 submodule C++ 源码编译）
-└─ src/main/
-   ├─ cangjie/               ← 互操作代码（interop/public_latex/scope）
-   ├─ ets/                   ← ArkTS 接口层
-   └─ resources/             ← 资源目录（字体通过 junction 共享 base）
+formula-ffi_hybrid
+├─ AppScope                                         # 应用级配置
+├─ doc                                              # 文档目录
+│  ├─ assets                                        # 示例效果图
+│  └─ feature_api.md                                # 接口说明文档
+├─ entry                                            # 示例应用模块
+│  └─ src\main
+│     ├─ ets
+│     │  ├─ entryability                            # Ability
+│     │  └─ pages                                   # 示例页面（Index、Index0~Index14 等）
+│     └─ resources\rawfile                          # 测试公式文件（test00~test111）
+├─ formula_hybrid                                   # formula_hybrid 库模块（详见模块 README）
+│  ├─ example                                       # 互操作调用示例
+│  ├─ har
+│  │  └─ formula.har                                # 预编译 base 包（pre-install 钩子自动下载，不入库）
+│  ├─ src\main
+│  │  ├─ cangjie                                    # 仓颉互操作层（loader/interop/public_latex/scope）
+│  │  ├─ ets\components\MainPage.ets                # ArkTS 接口声明与导出
+│  │  └─ resources\base                             # 模块资源
+│  └─ Index.ets / cjpm.toml / build-profile.json5 / oh-package.json5
+├─ hvigor                                           # 构建工具配置
+├─ scripts
+│  └─ pre_har_install.mjs                           # pre-install 钩子：formula.har 缺失时自动下载
+├─ build-profile.json5                              # 工程构建配置
+├─ oh-package.json5                                 # 工程依赖配置
+├─ CHANGELOG.md / LICENSE / README.OpenSource
+└─ README.md
 ```
-
-- `formula-ffi` git submodule，提供 base 仓颉核心包（LaTeX 解析/渲染/FFI）和 C++ 源码
-- `libs` liblatex.so 目录，通过 externalNativeOptions 从 submodule C++ 源码编译
-- `src main cangjie` 仓颉互操作源码目录（仅 interop.cj/public_latex.cj/scope.cj）
-- `src main ets` ets 源码目录
-- `src main resources` 资源目录（字体资源通过 junction 共享 base 包）
-
-### 架构说明
-
-hybrid 包通过 git submodule 引入 formula-ffi 仓库，通过 cjpm path 依赖 base `formula` 包获取核心能力。C++ 源码通过 externalNativeOptions 从 submodule 编译为 liblatex.so。hybrid 仅保留互操作代码：
-
-- `interop.cj` - JS 互操作桥接，注册 `latexStringToImage` / `latexStringToImageWithError` 到 JSModule
-- `public_latex.cj` - 公开 API 封装层，调用 base 包的 `LaTeX`/`Render`/`Graphic2D` 等
-- `scope.cj` - NAPI handle scope 管理
 
 ### 接口说明
 
-主要类和函数接口说明
-
-```ets
-/*
-* 通过文本参数生成数学公式图片数组数据
-*
-* 参数 - latexMathTextString 数学公式文本内容
-* 参数 - latexMathTextSize 数学公式文字大小 - 单位px
-* 参数 - latexMathTextColor 数学公式文字颜色
-* 参数 - latexMathBackGroupColor 数学公式背景颜色
-* 参数 - latexMathColorFormat 数学公式图片格式
-* 参数 - resPath 字体资源路径。 默认"/data/storage/el1/bundle/entry/resources/resfile/res"
-*
-* 返回值 - Promise<ArrayBuffer> 图片数组数据
-*/
-latexStringToImage(latexMathTextString: string, latexMathTextSize: number, latexMathTextColor: number, latexMathBackGroupColor: number, latexMathColorFormat: LatexMathColorFormat, resPath?: string): Promise<ArrayBuffer>
-
-/**
- * 图片格式枚举
- */
-enum LatexMathColorFormat {
-  COLOR_FORMAT_RGB_565, // RGB_565
-  COLOR_FORMAT_BGRA_8888 // BGRA_8888
-}
-
-/**
- * TeX解析结果码枚举
- */
-enum TeXResultCode {
-  Success = 0,              // 解析成功
-  SyntaxError = 1,          // 语法错误
-  InvalidMatrixError = 2,   // 无效矩阵错误
-  InvalidDelimiterError = 3, // 无效分隔符错误
-  TeXError = 4,             // TeX错误
-  UnknownError = 99         // 未知错误
-}
-
-/**
- * TeX解析结果接口
- */
-interface TeXParseResult {
-  imageBytes: ArrayBuffer   // 图片字节数组（成功时有效）
-  formula: string           // 原始公式文本
-  resultCode: TeXResultCode // 结果码（Success表示成功）
-  errorMessage: string      // 错误信息
-}
-
-/*
-* 通过文本参数生成数学公式图片数组数据（带错误信息）
-* 当公式解析失败时，返回详细的错误信息，包括结果码和错误描述
-*
-* 参数 - latexMathTextString 数学公式文本内容
-* 参数 - latexMathTextSize 数学公式文字大小 - 单位px
-* 参数 - latexMathTextColor 数学公式文字颜色
-* 参数 - latexMathBackGroupColor 数学公式背景颜色
-* 参数 - latexMathColorFormat 数学公式图片格式
-* 参数 - resPath 字体资源路径。 默认"/data/storage/el1/bundle/entry/resources/resfile/res"
-*
-* 返回值 - Promise<TeXParseResult> 解析结果对象
-*          - 成功时：resultCode=Success, imageBytes包含图片数据
-*          - 失败时：resultCode为错误码, imageBytes为空, errorMessage包含错误详情
-*/
-latexStringToImageWithError(latexMathTextString: string, latexMathTextSize: number, latexMathTextColor: number, latexMathBackGroupColor: number, latexMathColorFormat: LatexMathColorFormat, resPath?: string): Promise<TeXParseResult>
-```
+主要类和函数接口说明详见 [API](./doc/feature_api.md)
 
 ## 使用说明
+
+### 编译构建
+
+使用 DevEco Studio 打开工程根目录，执行依赖同步（`ohpm install`）后直接编译运行 `entry` 模块即可。若 `formula_hybrid/har/formula.har` 不存在，工程 pre-install 钩子（`scripts/pre_har_install.mjs`）会自动从 Cangjie-TPC release 下载。
+
+依赖链为 `entry` → `@cangjie-tpc/formula_hybrid`（源码模块 `file:../formula_hybrid`）→ `@cangjie-tpc/formula`（`formula_hybrid/har/formula.har`）。`entry` 与 `formula_hybrid` 的 build-profile.json5 均已配置 `nativeLib.filter.select`，排除 formula.har 内携带的仓颉 runtime 库（`libs/*/runtime/**`），保证打包产物中 runtime 库由仓颉构建插件按 SDK 版本唯一注入；由于当前 formula.har 仍携带 runtime 库，该配置在 HAR 依赖形态下必须保留，不可删除。
 
 ### ohpm安装使用
 
@@ -124,6 +81,8 @@ ohpm install @cangjie-tpc/formula_hybrid
 ### 功能示例
 
 #### 解析LaTeX公式
+
+示例代码位于 `entry/src/main/ets/pages/Index0.ets`：
 
 ```ets
 import { LatexMathColorFormat, latexStringToImage } from '@cangjie-tpc/formula_hybrid';
@@ -139,7 +98,7 @@ struct Index0 {
 
   async aboutToAppear(): Promise<void> {
     try {
-      // 通过接口解析数学公式获取数学公式图片数组数据
+      // 通过接口解析 LaTeX 公式获取公式图片数组数据
       let buf: ArrayBuffer = await latexStringToImage(this.str, fp2px(20), 0xFF000000, 0xFFFFFFFF,
         LatexMathColorFormat.COLOR_FORMAT_BGRA_8888)
       let imageSource = image.createImageSource(buf)
@@ -177,17 +136,16 @@ struct Index0 {
 
 #### 执行结果如下
 
-数学公式效果：
+LaTeX 公式效果：
 
-![img1](https://raw.gitcode.com/Cangjie-TPC/formula-ffi/raw/formula-ffi_hybrid_cangjie-plugin_5.1.1/doc/assets/img.png)
+![img1](./doc/assets/img.png)
 
-化学公式效果：
-
-![img1](https://raw.gitcode.com/Cangjie-TPC/formula-ffi/raw/formula-ffi_hybrid_cangjie-plugin_5.1.1/doc/assets/img.jpg)
+![img1](./doc/assets/img.jpg)
 
 ## 约束与限制
 
-    在下述版本验证通过：    
+在下述版本验证通过：
+
 | 编号 | 依赖构建工具                           | 版本号       |
 |----|----------------------------------------------|-----------|
 | 1  | **DevEco Studio**                            | 6.1.1.280 |
@@ -195,7 +153,7 @@ struct Index0 {
 | 3  | **DevEco Studio-Cangjie Plugin 6.1.1 Beta1** | 6.1.1.280 |
 | 4  | **compatibility-sdk-6.1.1.280**              | 6.1.1.280 |
 
-formula依赖三方库：
+formula（base 包）依赖三方库：
 
 | 编号 | 依赖三方库         | 版本号      |
 |----|---------------|----------|
@@ -211,39 +169,17 @@ formula依赖三方库：
 
   **缺点**：由于stdx版本之前存在不兼容，因此三方库和hap包依赖的stdx版本不一致情况下，存在运行crash情况。
 
-当前三方库默认通过静态链接方式，如果有动态链接需求可以通过修改库代码中的cjpm.toml文件链接到stdx动态链接库目录，
+formula_hybrid 自身的 cjpm.toml 不直接链接 stdx，而是链接 base 包的预编译 cjbins：
 
-```
-[target]
-  [target.aarch64-linux-ohos]
-  	  ...
-      path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "../stdx_bin/linux_ohos_aarch64_llvm/static/stdx" ]
-      [target.aarch64-linux-ohos.bin-dependencies.package-option]
-  [target.x86_64-linux-ohos]
-      ...
-      path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "../stdx_bin/linux_ohos_x86_64_llvm/static/stdx" ]
-  [target.x86_64-unknown-windows-gnu]
-    [target.x86_64-unknown-windows-gnu.bin-dependencies]
-      path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "../stdx_bin/windows_x86_64_llvm/static/stdx" ]
-      [target.x86_64-unknown-windows-gnu.bin-dependencies.package-option]
+```toml
+[target.aarch64-linux-ohos.bin-dependencies]
+  path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "${cangjie_tpc_formula}/libs/arm64-v8a/cjbins/formula" ]
+
+[target.x86_64-linux-ohos.bin-dependencies]
+  path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "${cangjie_tpc_formula}/libs/x86_64/cjbins/formula" ]
 ```
 
-修改如下：
-
-```
-[target]
-  [target.aarch64-linux-ohos]
-      ...
-      path-option = [ "${AARCH64_LIBS}", "${AARCH64_MACRO_LIBS}", "${AARCH64_KIT_LIBS}", "../stdx_bin/linux_ohos_aarch64_llvm/dynamic/stdx" ]
-      [target.aarch64-linux-ohos.bin-dependencies.package-option]
-  [target.x86_64-linux-ohos]
-      ...
-      path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}", "../stdx_bin/linux_ohos_x86_64_llvm/dynamic/stdx" ]
-  [target.x86_64-unknown-windows-gnu]
-    [target.x86_64-unknown-windows-gnu.bin-dependencies]
-      path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "../stdx_bin/windows_x86_64_llvm/dynamic/stdx" ]
-      [target.x86_64-unknown-windows-gnu.bin-dependencies.package-option]
-```
+stdx 的静态/动态链接方式在构建 base 包（formula.har）时确定，如有动态链接需求，请修改 formula-ffi 仓 `formula/cjpm.toml` 的 stdx 链接目录并重新构建 har，详见 formula-ffi 仓 README。
 
 1. `resPath`默认参数`"/data/storage/el1/bundle/entry/resources/resfile/res"`，如果修改`entry`命名，需要改成对应的`"/data/storage/el1/bundle/xxxx/resources/resfile/res"`。
 
@@ -253,7 +189,7 @@ formula依赖三方库：
 
 ## 开源协议
 
-本项目基于 [License](https://gitcode.com/Cangjie-TPC/formula-ffi/blob/formula-ffi_hybrid_cangjie-plugin_5.1.1/LICENSE)，请自由的享受和参与开源。
+本项目基于 [MIT License](./LICENSE)，请自由的享受和参与开源。
 
 ## 参与贡献
 

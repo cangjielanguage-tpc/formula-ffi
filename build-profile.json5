@@ -41,10 +41,6 @@
     {
       "name": "formula_hybrid",
       "srcPath": "./formula_hybrid"
-    },
-    {
-      "name": "formula",
-      "srcPath": "./formula-ffi/formula"
     }
   ]
 }

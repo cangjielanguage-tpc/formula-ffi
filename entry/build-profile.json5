@@ -1,6 +1,18 @@
 {
   "apiType": "stageMode",
   "buildOption": {
+    "nativeLib": {
+      "filter": {
+        "select": [
+          {
+            "package": "@cangjie-tpc/formula",
+            "excludePattern": [
+              "**/runtime/**"
+            ]
+          }
+        ]
+      }
+    }
   },
   "buildOptionSet": [
     {

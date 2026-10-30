@@ -3,7 +3,10 @@
   "version": "2.0.0",
   "description": "formula 主要目的是显示用 LaTeX 编写的公式。",
   "main": "Index.ets",
-  "author": "cangjie-tpc",
+  "author": {
+    "name": "cangjie-tpc",
+    "email": "cangjie@huawei.com"
+  },
   "license": "MIT",
   "repository": "https://gitcode.com/Cangjie-TPC/formula-ffi/tree/formula-ffi_hybrid_cangjie-plugin-6.1.1_compatibility",
   "homepage": "https://gitcode.com/Cangjie-TPC",
@@ -15,6 +18,7 @@
     "Latex"
   ],
   "dependencies": {
+    "@cangjie-tpc/formula": "file:./har/formula.har",
     "libark_interop_loader.so": "file:./src/main/cangjie/loader"
   }
 }

@@ -8,6 +8,6 @@
     "@ohos/hamock": "1.0.0"
   },
   "hooks": {
-    "preInstall": "node ./scripts/pre_install.mjs"
+    "preInstall": "node ./scripts/pre_har_install.mjs"
   }
 }
