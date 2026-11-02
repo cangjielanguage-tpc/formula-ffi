@@ -1149,11 +1149,11 @@ public:
     }
 
     int getLeftType() const override {
-        return _base->getLeftType();
+        return _base != nullptr ? _base->getLeftType() : TYPE_ORDINARY;
     }
 
     int getRightType() const override {
-        return _base->getRightType();
+        return _base != nullptr ? _base->getRightType() : TYPE_ORDINARY;
     }
 
     sptr<Box> createBox(_out_ TeXEnvironment& env) override;

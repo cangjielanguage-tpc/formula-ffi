@@ -138,6 +138,9 @@ public:
 
     void fillRoundRect(float x, float y, float w, float h, float rx, float ry) override {
     }
+
+    void drawEllipse(float x, float y, float w, float h, float rx, float ry, float lineWidth, float depth) override {
+    }
 };
 
 Font* Graphics2D_none::_default_font = new Font_none();
@@ -146,8 +149,82 @@ Font* Graphics2D_none::_default_font = new Font_none();
 
 #include "samples/samples.h"
 
+#include <cstdio>
+#include <string>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+static std::wstring readUtf8ToWide(const char* path) {
+    FILE* f = fopen(path, "rb");
+    if (!f) return L"";
+    std::string content;
+    char buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) content.append(buf, n);
+    fclose(f);
+#ifdef _WIN32
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, content.data(), (int)content.size(), nullptr, 0);
+    std::wstring w((size_t)wlen, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, content.data(), (int)content.size(), &w[0], wlen);
+    return w;
+#else
+    // UTF-8 -> UTF-32 (Linux wchar_t)
+    std::wstring w;
+    size_t i = 0;
+    while (i < content.size()) {
+        unsigned char c = (unsigned char)content[i];
+        unsigned int cp = 0;
+        int extra = 0;
+        if (c < 0x80) {
+            cp = c;
+        } else if ((c & 0xE0) == 0xC0) {
+            cp = c & 0x1F;
+            extra = 1;
+        } else if ((c & 0xF0) == 0xE0) {
+            cp = c & 0x0F;
+            extra = 2;
+        } else if ((c & 0xF8) == 0xF0) {
+            cp = c & 0x07;
+            extra = 3;
+        } else {
+            cp = 0xFFFD;
+        }
+        for (int k = 0; k < extra && i + 1 < content.size(); k++) {
+            i++;
+            cp = (cp << 6) | ((unsigned char)content[i] & 0x3F);
+        }
+        w.push_back((wchar_t)cp);
+        i++;
+    }
+    return w;
+#endif
+}
+
 int main(int argc, char* argv[]) {
     LaTeX::init();
+
+    if (argc > 1) {
+        std::wstring code = readUtf8ToWide(argv[1]);
+        printf("input len=%zu, start parse...\n", code.size());
+        fflush(stdout);
+        try {
+            auto r = LaTeX::parse(code, 2000, 14, 14 / 3.f, black);
+            printf("parse ok, drawing...\n");
+            fflush(stdout);
+            Graphics2D_none g2;
+            r->draw(g2, 0, 0);
+            delete r;
+            printf("draw ok\n");
+        } catch (std::exception& e) {
+            printf("exception: %s\n", e.what());
+        }
+        fflush(stdout);
+        LaTeX::release();
+        Graphics2D_none::release();
+        return 0;
+    }
 
     tex::Samples samples;
     for (int i = 0; i < samples.count(); i++) {

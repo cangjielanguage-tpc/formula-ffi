@@ -77,6 +77,7 @@ void TeXParser::init(
     const wstring& parsestring,
     _out_ TeXFormula* formula, bool fp) throw(ex_parse) {
     _pos = _spos = _len = 0;
+    _expandLimit = _roundLimit = _expandRounds = 0;  // [Bug #4/#5 fix] set in firstpass()
     _line = _col = 0;
     _group = 0;
     _atIsLetter = 0;
@@ -336,6 +337,21 @@ wstring TeXParser::getCommand() {
 }
 
 void TeXParser::insert(int s, int e, const wstring& formula) {
+    // [Bug #4/#5 fix] argument-less user macros (\def\x{\x\x}, \newcommand{\y}
+    // without args) expand HERE in parseFormula with a _pos rewind that
+    // firstpass never sees; enforce the same budget before materializing the
+    // replacement. _expandLimit == 0 means firstpass() was skipped (internal
+    // sub-parsers, fp=false) -- leave those unbounded as before.
+    if (_expandLimit > 0) {
+        const size_t newLen = (size_t)_len + formula.length() - (size_t)(e - s);
+        if (newLen > _expandLimit)
+            throw ex_parse("Macro expansion limit exceeded (length "
+                + std::to_string(newLen) + " > " + std::to_string(_expandLimit) + ")");
+        if (++_expandRounds > _roundLimit)
+            throw ex_parse("Macro expansion round limit exceeded ("
+                + std::to_string(_expandRounds) + " expansions > "
+                + std::to_string(_roundLimit) + ")");
+    }
     _parseString.replace(s, e - s, formula);
     _len = _parseString.length();
     _pos = s;
@@ -884,6 +900,13 @@ void TeXParser::preprocessDef(wstring& cmd, vector<wstring>& args, int& pos) thr
         }
     }
 
+    // The parameter text loop above exits either at '{' or at end-of-input;
+    // reaching end-of-input without a replacement text must be rejected here,
+    // otherwise the extraction below computes substr(pos > size).
+    if (curPos >= _parseString.length()) {
+        throw ex_parse("\\def: missing replacement text");
+    }
+
     // Get replacement text
     while (curPos < _parseString.length()) {
         wchar_t c = _parseString[curPos];
@@ -917,6 +940,17 @@ void TeXParser::inflateNewCmd(wstring& cmd, vector<wstring>& args, int& pos) thr
     MacroInfo* const mac = MacroInfo::_commands[cmd];
     getOptsArgs(mac->_nbArgs, mac->_posOpts, args);
     args[0] = cmd;
+    // [Bug #4/#5 fix] round budget for the FIRST expansion stage. inflateNewCmd
+    // rewinds _pos to the command start, so the loop-head backward-jump check
+    // can never observe it, and a self-referential macro (\def\x{\x\x}\x,
+    // +2 chars/round) needs ~500k rounds to reach the length cap -- the CPU
+    // cost of O(n^2) rewriting hangs first. Checked OUTSIDE the try below:
+    // its catch silently skips the macro when _isPartial, which would only
+    // bound the damage instead of rejecting the input.
+    if (++_expandRounds > _roundLimit)
+        throw ex_parse("Macro expansion round limit exceeded ("
+            + std::to_string(_expandRounds) + " expansions > "
+            + std::to_string(_roundLimit) + ")");
     try {
         mac->invoke(*this, args);
         // The last element is the returned value (after inflated macro)
@@ -957,7 +991,26 @@ void TeXParser::firstpass() throw(ex_parse) {
     wchar_t ch;
     int spos;
     vector<wstring> args;
+    // [Bug #4/#5 fix] expansion budget: max(64x input length, 1MB), hard cap 8MB
+    _expandLimit = std::max<size_t>((size_t)_len * 64, (size_t)1 << 20);
+    if (_expandLimit > ((size_t)8 << 20)) _expandLimit = (size_t)8 << 20;
+    // [Bug #4/#5 fix] round budget: a self-referential macro (\def\x{\x\x}\x)
+    // grows ~3 chars/round and needs ~350k rounds to reach the length cap,
+    // so the O(n^2) rewriting cost hangs the CPU before the length guard
+    // fires. Also cap the number of expansion rounds (each macro expansion
+    // rewinds _pos): max(8x input length, 10k)
+    _roundLimit = std::max<size_t>((size_t)_len * 8, (size_t)10000);
+    _expandRounds = 0;
+    int prevPos = _pos;
     while (_pos < _len) {
+        if ((size_t)_len > _expandLimit)
+            throw ex_parse("Macro expansion limit exceeded (length "
+                + std::to_string(_len) + " > " + std::to_string(_expandLimit) + ")");
+        if (_pos < prevPos && ++_expandRounds > _roundLimit)
+            throw ex_parse("Macro expansion round limit exceeded ("
+                + std::to_string(_expandRounds) + " expansions > "
+                + std::to_string(_roundLimit) + ")");
+        prevPos = _pos;
         if (replaceScript()) continue;
 
         ch = _parseString[_pos];

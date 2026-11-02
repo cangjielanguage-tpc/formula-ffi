@@ -80,6 +80,9 @@ void MatrixAtom::parsePositions(wstring opt, _out_ vector<int>& lpos) {
             pos += tp->getPos();
             int nrep = 0;
             valueof(args[1], nrep);
+            if (nrep < 0 || nrep > 10000)  // [Bug #6 fix] bound repetitions
+                throw ex_parse("Too many column repetitions: *{"
+                    + std::to_string(nrep) + "}{...}");
             wstring str = L"";
             for (int j = 0; j < nrep; j++) str += args[2];
             opt.insert(pos, str);

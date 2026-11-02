@@ -39,6 +39,9 @@ class TeXParser {
 private:
     wstring _parseString;
     int _pos, _spos, _len;
+    size_t _expandLimit;   // [Bug #4/#5 fix] macro expansion budget (in chars)
+    size_t _roundLimit;    // [Bug #4/#5 fix] macro expansion round budget
+    size_t _expandRounds;  // [Bug #4/#5 fix] expansions consumed so far
     int _line, _col;
     int _group;
     int _atIsLetter;

@@ -124,6 +124,7 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
     if (!result) return false;
     skipWhitespace(p);
     while (peek(p) != L'\0') {
+        const wchar_t* roundStart = p;
         if (peek(p) == L'\\' && peekNext(p) != L'\0') {
             const wchar_t* cmdCheck = p + 1;
             std::wstring cmdName;
@@ -197,6 +198,12 @@ bool ChemfigParser::parse(const std::wstring& input, Molecule& mol) {
             }
             result = parseChain(p, mol, atomIndex, lastAtomId, lastAngle);
             if (!result) return false;
+        }
+        if (p == roundStart) {
+            // zero progress this round (parseChain/parseRing stopped at an
+            // unconsumed terminator like '}' or ')') -> reject instead of
+            // looping forever
+            return false;
         }
         skipWhitespace(p);
     }
@@ -602,6 +609,7 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
     int lastBranchAtomId = -1;
 
     while (peek(p) != L'\0') {
+        const wchar_t* roundStart = p;  // [Bug #1 fix] mark round start
         skipWhitespace(p);
         wchar_t ch = peek(p);
         if (ch == L'\0' || ch == L')' || ch == L'}') break;
@@ -676,6 +684,7 @@ bool ChemfigParser::parseChain(const wchar_t*& p, Molecule& mol, int& atomIndex,
                 mol.hooks.push_back(Hook(hookName, lastAtomId));
             }
         }
+        if (p == roundStart) return false;  // [Bug #1 fix] zero-consumption round
     }
 
     mol.calculateBounds();
@@ -690,6 +699,7 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
     int lastBranchAtomId = -1;
 
     while (peek(p) != L'\0' && peek(p) != L')') {
+        const wchar_t* roundStart = p;  // [Bug #2 fix] mark round start
         skipWhitespace(p);
         wchar_t ch = peek(p);
         if (ch == L'\0' || ch == L')' || ch == L'}') break;
@@ -767,6 +777,7 @@ bool ChemfigParser::parseBranch(const wchar_t*& p, Molecule& mol, int& atomIndex
                 mol.hooks.push_back(Hook(hookName, savedLastAtomId));
             }
         }
+        if (p == roundStart) return false;  // [Bug #2 fix] zero-consumption round
     }
 
     match(p, L')');
