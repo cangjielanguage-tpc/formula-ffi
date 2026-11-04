@@ -5,6 +5,7 @@
 *.cj.macrocall
 .cache
 lib
+libs
 target
 cjpm.lock
 ci_test
