@@ -18,8 +18,19 @@ const X64_ZIP_TEMP_PATH = path.join(PROJECT_ROOT, X64_ZIP_FILENAME);
 
 const EXTRACT_PATH = path.join(PROJECT_ROOT, 'formula', 'stdx_bin');
 
+
+function extractZip(zipPath, destPath) {
+    execSync(`unzip -o ${zipPath} -d ${destPath}`, {
+        stdio: 'inherit',
+        cwd: PROJECT_ROOT
+    });
+}
+
 // Download and extract stdx bin file
-if (!fs.existsSync(EXTRACT_PATH)) {
+// 下载/解压失败时会残留空的 stdx_bin 目录，仅判断存在会永久跳过下载，
+// 因此目录存在但为空时也重新下载
+const stdxBinReady = fs.existsSync(EXTRACT_PATH) && fs.readdirSync(EXTRACT_PATH).length > 0;
+if (!stdxBinReady) {
   console.log(`Downloading required files...`);
   try {
       // Create directory if it doesn't exist
@@ -47,45 +58,40 @@ if (!fs.existsSync(EXTRACT_PATH)) {
 
       // Extract ARM64 version
       console.log(`Extracting ARM64 version...`);
-      execSync(`tar -xf ${ARM64_ZIP_TEMP_PATH} -C ${EXTRACT_PATH}`, {
-          stdio: 'inherit',
-          cwd: PROJECT_ROOT
-      });
+      extractZip(ARM64_ZIP_TEMP_PATH, EXTRACT_PATH);
 
       // Clean up ARM64 temp file
       fs.unlinkSync(ARM64_ZIP_TEMP_PATH);
 
-      // Download X64 version if on Windows
-      if (process.platform === 'win32') {
-          console.log(`Downloading X64 version...`);
-          execSync(`curl -L -o ${X64_ZIP_TEMP_PATH} ${X64_ZIP_URL}`, {
-              stdio: 'inherit',
-              cwd: PROJECT_ROOT
-          });
+      // Download X64 version
+      // cjpm.toml 的 target.x86_64-linux-ohos.bin-dependencies 同样引用
+      // stdx_bin/linux_ohos_x86_64_cjnative（HAR 默认编译 arm64 + x86_64 两个 ABI），
+      // Linux CI 也需要，不能只在 Windows 下载
+      console.log(`Downloading X64 version...`);
+      execSync(`curl -L -o ${X64_ZIP_TEMP_PATH} ${X64_ZIP_URL}`, {
+          stdio: 'inherit',
+          cwd: PROJECT_ROOT
+      });
 
-          // Check if file exists and has content
-          if (fs.existsSync(X64_ZIP_TEMP_PATH)) {
-              const stats = fs.statSync(X64_ZIP_TEMP_PATH);
-              if (stats.size === 0) {
-                  console.error(`X64 ZIP file is empty, download failed`);
-                  fs.unlinkSync(X64_ZIP_TEMP_PATH);
-                  process.exit(1);
-              }
-          } else {
-              console.error(`X64 ZIP file not found`);
+      // Check if file exists and has content
+      if (fs.existsSync(X64_ZIP_TEMP_PATH)) {
+          const stats = fs.statSync(X64_ZIP_TEMP_PATH);
+          if (stats.size === 0) {
+              console.error(`X64 ZIP file is empty, download failed`);
+              fs.unlinkSync(X64_ZIP_TEMP_PATH);
               process.exit(1);
           }
-
-          // Extract X64 version
-          console.log(`Extracting X64 version...`);
-          execSync(`tar -xf ${X64_ZIP_TEMP_PATH} -C ${EXTRACT_PATH}`, {
-              stdio: 'inherit',
-              cwd: PROJECT_ROOT
-          });
-
-          // Clean up X64 temp file
-          fs.unlinkSync(X64_ZIP_TEMP_PATH);
+      } else {
+          console.error(`X64 ZIP file not found`);
+          process.exit(1);
       }
+
+      // Extract X64 version
+      console.log(`Extracting X64 version...`);
+      extractZip(X64_ZIP_TEMP_PATH, EXTRACT_PATH);
+
+      // Clean up X64 temp file
+      fs.unlinkSync(X64_ZIP_TEMP_PATH);
 
       console.log(`All files downloaded and extracted successfully`);
 
