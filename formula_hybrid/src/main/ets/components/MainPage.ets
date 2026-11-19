@@ -8,7 +8,16 @@ export declare interface CustomLib {
   latexStringToImageWithError(latexMathTextString: string, latexMathTextSize: number, latexMathTextColor: number, latexMathBackGroupColor: number, latexMathColorFormat: number, resPath: string): Promise<TeXParseResult>
 }
 
-let lib = requireCJLib("libformula_hybrid.so") as CustomLib
+// 内存优化：把仓颉 so 的加载从模块求值时机推迟到真正调用公式转换时，
+// 避免只要加载 markdown_arkui 就把 liblatex.so / libformula.mhchem.so 拉进内存。
+let cachedLib: CustomLib | null = null
+
+function lib(): CustomLib {
+  if (cachedLib === null) {
+    cachedLib = requireCJLib("libformula_hybrid.so") as CustomLib
+  }
+  return cachedLib
+}
 
 /**
  * 图片格式枚举
@@ -58,7 +67,7 @@ export function latexStringToImage(latexMathTextString: string, latexMathTextSiz
   } else {
     colorFormat = 5
   }
-  return lib.latexStringToImage(latexMathTextString, latexMathTextSize, latexMathTextColor, latexMathBackGroupColor, colorFormat, resPath)
+  return lib().latexStringToImage(latexMathTextString, latexMathTextSize, latexMathTextColor, latexMathBackGroupColor, colorFormat, resPath)
 }
 
 /**
@@ -80,5 +89,5 @@ export function latexStringToImageWithError(latexMathTextString: string, latexMa
   } else {
     colorFormat = 5
   }
-  return lib.latexStringToImageWithError(latexMathTextString, latexMathTextSize, latexMathTextColor, latexMathBackGroupColor, colorFormat, resPath)
+  return lib().latexStringToImageWithError(latexMathTextString, latexMathTextSize, latexMathTextColor, latexMathBackGroupColor, colorFormat, resPath)
 }

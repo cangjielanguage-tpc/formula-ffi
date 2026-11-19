@@ -4,7 +4,8 @@
     "cangjieOptions": {
       "path": "./cjpm.toml",
       "abiFilters": ["x86_64","arm64-v8a"],
-      "flattenLibs": true
+      "flattenLibs": true,
+      "strictCheckDependencies": false
     },
     "nativeLib": {
       "filter": {
