@@ -62,8 +62,11 @@ public class LaTeX {
     public init(rootDir: String) {
         unsafe {
             var cstr =  LibC.mallocCString(rootDir)
-            LaTeX_init(cstr)
+            let ok = LaTeX_init(cstr)
             LibC.free(cstr)
+            if (!ok) {
+                throw Exception("LaTeX_init failed, rootDir: " + rootDir)
+            }
         }
     }
 

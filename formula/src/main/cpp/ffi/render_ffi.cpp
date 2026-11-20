@@ -110,6 +110,10 @@ static UInt8Data toBitmapRGB_565(TeXRender *r, OH_Drawing_Bitmap *bitmap) {
     bmfHdr.bfOffBits = (DWORD)(sizeof(BitMapFileHeader) + sizeof(BitMapInfoHeader)+ sizeof(bmiClr)); // 实际图像数据偏移量
 
     uint8_t *data = (uint8_t *)malloc(bmfHdr.bfSize);
+    if (data == nullptr) {
+        UInt8Data empty = {NULL, 0};
+        return empty;
+    }
     memset_s(data, bmfHdr.bfSize, 0, bmfHdr.bfOffBits);
     uint8_t *start = data;
     int32_t destsz = bmfHdr.bfSize;
@@ -250,6 +254,8 @@ UInt8Data TeXRender_toBitmap(TeXRender *r, OH_Drawing_Bitmap *bitmap, OH_Drawing
     } else if (colorFormat == COLOR_FORMAT_BGRA_8888) {
         return toBitmapBGRA_8888(r, bitmap);
     }
+    UInt8Data empty = {NULL, 0};
+    return empty;
 }
 
 UInt8Data TeXRender_getMapData(TeXRender *r, OH_Drawing_Bitmap *bitmap, OH_Drawing_ColorFormat colorFormat) {
@@ -265,6 +271,8 @@ UInt8Data TeXRender_getMapData(TeXRender *r, OH_Drawing_Bitmap *bitmap, OH_Drawi
         u8data.len = size;
         return u8data;
     }
+    UInt8Data empty = {NULL, 0};
+    return empty;
 }
 
 #ifdef __cplusplus

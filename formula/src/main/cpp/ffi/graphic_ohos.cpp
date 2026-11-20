@@ -316,16 +316,28 @@ void Graphics2D_ohos::drawText(const wstring& t, float x, float y) {
     string tmp = wide2utf8(t.c_str());
     int len = tmp.length();
     char *str = (char *)malloc(len + 1);
+    if (str == nullptr) {
+        return;
+    }
     tmp.copy(str, len, 0);
     str[len] = '\0';
     tmp = _font->getFile();
     len = tmp.length();
     char *file = (char *)malloc(len + 1);
+    if (file == nullptr) {
+        free(str);
+        return;
+    }
     tmp.copy(file, len, 0);
     file[len] = '\0';
     tmp = _font->getFamily();
     len = tmp.length();
     char *family = (char *)malloc(len + 1);
+    if (family == nullptr) {
+        free(str);
+        free(file);
+        return;
+    }
     tmp.copy(family, len, 0);
     family[len] = '\0';
     const char *fontFamilies[] = {family, "serif", "Noto Sans Math"};

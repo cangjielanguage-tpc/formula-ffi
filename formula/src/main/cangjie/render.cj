@@ -40,12 +40,18 @@ public class Render {
     public func toBitmap(g2: Graphic2D): Array<UInt8> {
         unsafe {
             var bitmapData =  TeXRender_toBitmap(nativePtr, g2.getG2(), g2.getColorFormat())
-            var array = Array<UInt8>(bitmapData.len, repeat: 0)
-            var cph = acquireArrayRawData(array)
-            memcpy_s(cph.pointer, bitmapData.len, bitmapData.data, bitmapData.len)
-            releaseArrayRawData(cph)
-            LibC.free(bitmapData.data)
-            return array
+            if (bitmapData.data.isNull()) {
+                throw Exception("TeXRender_toBitmap failed, bitmap data is null")
+            }
+            try {
+                var array = Array<UInt8>(bitmapData.len, repeat: 0)
+                var cph = acquireArrayRawData(array)
+                memcpy_s(cph.pointer, bitmapData.len, bitmapData.data, bitmapData.len)
+                releaseArrayRawData(cph)
+                return array
+            } finally {
+                LibC.free(bitmapData.data)
+            }
         }
     }
 
@@ -55,11 +61,15 @@ public class Render {
         }
         unsafe {
             var bitmapData =  TeXRender_getMapData(nativePtr, g2.getG2(), g2.getColorFormat())
+            if (bitmapData.data.isNull()) {
+                throw Exception("TeXRender_getMapData failed, bitmap data is null")
+            }
             var array = Array<UInt8>(bitmapData.len, repeat: 0)
             var cph = acquireArrayRawData(array)
             memcpy_s(cph.pointer, bitmapData.len, bitmapData.data, bitmapData.len)
             releaseArrayRawData(cph)
-            LibC.free(bitmapData.data)
+            // bitmapData.data 是位图内部像素指针，归 Graphic2D 所有，
+            // 由 destroyGraphics2D_ffi 统一释放，此处不可 free（否则二次释放）
             return array
         }
     }
