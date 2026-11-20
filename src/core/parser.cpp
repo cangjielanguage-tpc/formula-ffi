@@ -146,11 +146,12 @@ void TeXParser::addRow() throw(ex_parse) {
 
 wstring TeXParser::getDollarGroup(wchar_t openclose) throw(ex_parse) {
     int spos = _pos;
-    wchar_t ch;
+    wchar_t ch = L'\0';
 
     do {
+        if (_pos >= _len) break;
         ch = _parseString[_pos++];
-        if (ch == ESCAPE) _pos++;
+        if (ch == ESCAPE && _pos < _len) _pos++;
     } while (_pos < _len && ch != openclose);
 
     if (ch == openclose) return _parseString.substr(spos, _pos - spos - 1);
@@ -1167,7 +1168,7 @@ void TeXParser::parse() throw(ex_parse) {
             if (!_ignoreWhiteSpace) {  // we are in mbox
                 int style = STYLE_TEXT;
                 bool doubleDollar = false;
-                if (_parseString[_pos] == DOLLAR) {
+                if (_pos < _len && _parseString[_pos] == DOLLAR) {
                     style = STYLE_DISPLAY;
                     doubleDollar = true;
                     _pos++;
@@ -1176,7 +1177,7 @@ void TeXParser::parse() throw(ex_parse) {
                 _formula->add(sptr<Atom>(new MathAtom(
                     TeXFormula(*this, getDollarGroup(DOLLAR), false)._root, style)));
                 if (doubleDollar) {
-                    if (_parseString[_pos] == DOLLAR) _pos++;
+                    if (_pos < _len && _parseString[_pos] == DOLLAR) _pos++;
                 }
             }
         } break;
