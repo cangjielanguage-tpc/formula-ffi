@@ -9,6 +9,14 @@ const color TeXRender::_defaultcolor = black;
 float TeXRender::_defaultSize = -1;
 float TeXRender::_magFactor = 0;
 
+static inline int clampToInt(float v) {
+    // float -> int is UB for NaN / out-of-range values; sanitize before casting.
+    // !(v > 0) also catches NaN (both ordered comparisons are false for NaN).
+    if (!(v > 0.0f)) return 0;
+    if (v > 8192.0f) return 8192;
+    return (int)v;
+}
+
 TeXRender::TeXRender(const sptr<Box> box, float textSize, bool trueValues) {
     _box = box;
     if (_defaultSize != -1) _textSize = _defaultSize;
@@ -17,7 +25,7 @@ TeXRender::TeXRender(const sptr<Box> box, float textSize, bool trueValues) {
     } else {
         _textSize = textSize;
     }
-    if (!trueValues) _insets += (int)(0.18f * textSize);
+    if (!trueValues) _insets += clampToInt(0.18f * textSize);
 }
 
 float TeXRender::getTextSize() const {
@@ -26,19 +34,19 @@ float TeXRender::getTextSize() const {
 
 int TeXRender::getHeight() const {
     if (_box == nullptr) throw ex_invalid_state("Box is null in TeXRender::getHeight");
-    return (int)(_box->_height * _textSize + 0.99f +
-                 _box->_depth * _textSize + 0.99f +
-                 _insets.top + _insets.bottom);
+    return clampToInt(_box->_height * _textSize + 0.99f +
+                      _box->_depth * _textSize + 0.99f +
+                      _insets.top + _insets.bottom);
 }
 
 int TeXRender::getDepth() const {
     if (_box == nullptr) throw ex_invalid_state("Box is null in TeXRender::getDepth");
-    return (int)(_box->_depth * _textSize + 0.99f + _insets.bottom);
+    return clampToInt(_box->_depth * _textSize + 0.99f + _insets.bottom);
 }
 
 int TeXRender::getWidth() const {
     if (_box == nullptr) throw ex_invalid_state("Box is null in TeXRender::getWidth");
-    return (int)(_box->_width * _textSize + 0.99f + _insets.left + _insets.right);
+    return clampToInt(_box->_width * _textSize + 0.99f + _insets.left + _insets.right);
 }
 
 float TeXRender::getBaseline() const {
@@ -61,7 +69,7 @@ Insets TeXRender::getInsets() {
 
 void TeXRender::setInsets(const Insets& insets, bool trueval) {
     _insets = insets;
-    if (!trueval) _insets += (int)(0.18f * _textSize);
+    if (!trueval) _insets += clampToInt(0.18f * _textSize);
 }
 
 void TeXRender::setWidth(int width, int align) {
