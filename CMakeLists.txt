@@ -68,6 +68,15 @@ if(MEM_CHECK)
     add_definitions(-DMEM_CHECK)
 endif()
 
+# security compile and link options
+if(WIN32)
+    add_compile_options(-fstack-protector-strong -O2 -D_FORTIFY_SOURCE=2)
+    add_link_options(-Wl,--nxcompat -Wl,--dynamicbase -Wl,--high-entropy-va)
+elseif(UNIX AND NOT APPLE)
+    add_compile_options(-fPIC -fPIE -fstack-protector-strong -O2 -D_FORTIFY_SOURCE=2)
+    add_link_options(-pie -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack)
+endif()
+
 add_executable(LaTeX ${SRC})
 
 target_link_libraries(LaTeX ${LINK_LIBS})
